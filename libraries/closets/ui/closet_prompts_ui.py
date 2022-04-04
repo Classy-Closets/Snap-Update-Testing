@@ -191,6 +191,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     interior_assembly = None
     exterior_assembly = None
     splitters = []
+    op_is_floor_mount = {}
 
     is_island = None
     is_single_island = None
@@ -282,7 +283,20 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         right_thk = closet.get_prompt("Left Side Thickness").get_value()
         width_1 = closet.get_prompt("Opening 1 Width").distance_value
         tk_height = closet.get_prompt("Toe Kick Height").distance_value
-        opening_loc_x = left_thk
+        use_left_filler = closet.get_prompt("Add Left Filler").get_value()
+        use_right_filler = closet.get_prompt("Add Right Filler").get_value()
+        left_filler_amt = closet.get_prompt("Left Side Wall Filler").get_value()
+        right_filler_amt = closet.get_prompt("Right Side Wall Filler").get_value()
+        right_filler = 0
+        left_filler = 0
+
+        # Include left and right filler amt if in use
+        if use_left_filler:
+            left_filler = left_filler_amt
+        if use_right_filler:
+            right_filler = right_filler_amt
+
+        opening_loc_x = left_filler + left_thk
         opening_dim_x = width_1
         top_loc_x = top_assembly.obj_bp.location.x
         top_dim_x = top_assembly.obj_x.location.x
@@ -306,7 +320,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                     max_op_height = height
 
             if i == opening_qty - 1:
-                opening_dim_x = width + right_thk
+                opening_dim_x = width + right_thk + right_filler
             else:
                 opening_dim_x = width + panel_thk
             opening_loc_x += opening_dim_x
@@ -394,9 +408,10 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     def check_hang_height(self):
         closet = self.closet
         opening_qty = closet.get_prompt("Opening Quantity").get_value()
+
         for i in range(1, opening_qty + 1):
-            is_floor_mounted = closet.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
-            is_floor_mounted = closet.get_prompt("Opening " + str(i) + " Floor Mounted").get_value()
+            floor_mount_ppt_name = "Opening " + str(i) + " Floor Mounted"
+            is_floor_mounted = closet.get_prompt(floor_mount_ppt_name).get_value()
             remove_btm_kd = closet.get_prompt("Remove Bottom Hanging Shelf " + str(i))
 
             if is_floor_mounted:
@@ -407,6 +422,12 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 if height > closet.obj_z.location.z:
                     self.closet.obj_z.location.z = height
                     self.hang_height = height
+            else:
+                if self.op_is_floor_mount[floor_mount_ppt_name]:
+                    remove_btm_kd.set_value(False)
+                self.update_opening_inserts()
+
+            self.op_is_floor_mount[floor_mount_ppt_name] = is_floor_mounted
 
     def get_panel(self, num):
         for child in self.closet.obj_bp.children:
@@ -990,11 +1011,10 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         closet = self.closet
         opening_qty = closet.get_prompt("Opening Quantity").get_value()
         for i in range(1, opening_qty + 1):
-            is_floor_mounted =\
-                closet.get_prompt(
-                    "Opening " + str(i) + " Floor Mounted").get_value()
-            closet_floor_mounted =\
-                closet_floor_mounted and is_floor_mounted
+            floor_mount_ppt_name = "Opening " + str(i) + " Floor Mounted"
+            is_floor_mounted = closet.get_prompt(floor_mount_ppt_name).get_value()
+            self.op_is_floor_mount[floor_mount_ppt_name] = is_floor_mounted
+            closet_floor_mounted = closet_floor_mounted and is_floor_mounted
         return closet_floor_mounted
 
     def get_is_up_mounted(self):
@@ -1249,6 +1269,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         extend_right_end_pard_forward = self.closet.get_prompt("Extend Right End Pard Forward")
         extend_left_end_pard_down = self.closet.get_prompt("Extend Left End Pard Down")
         extend_right_end_pard_down = self.closet.get_prompt("Extend Right End Pard Down")
+        no_drill_left = self.closet.get_prompt("No Drilling Left Partition")
+        no_drill_right = self.closet.get_prompt("No Drilling Right Partition")
         height_left_side = self.closet.get_prompt("Height Left Side")
         height_right_side = self.closet.get_prompt("Height Right Side")
         loc_left_side = self.closet.get_prompt("Loc Left Side")
@@ -1319,6 +1341,10 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         split = box.split()
         col = split.column(align=True)
         col.label(text="Left/Right End Options:")
+        if no_drill_left and no_drill_right:
+            row = col.row()
+            row.prop(no_drill_left, 'checkbox_value', text="No Drilling Left Partition")
+            row.prop(no_drill_right, 'checkbox_value', text="No Drilling Right Partition")
         row = col.row()
         row.prop(extend_left_end_pard_down, 'checkbox_value', text="Extend Left Partition")
         row.prop(extend_right_end_pard_down, 'checkbox_value', text="Extend Right Partition")

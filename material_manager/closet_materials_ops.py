@@ -173,6 +173,8 @@ class SN_MAT_OT_Assign_Materials(Operator):
             moderno_door_pointer = spec_group.materials["Moderno_Door"]
             glass_panel_pointer = spec_group.materials["Glass"]
             countertop_pointer = spec_group.materials["Countertop_Surface"]
+            countertop_hpl_pointer = spec_group.materials["Countertop_HPL_Surface"]
+            countertop_granite_pointer = spec_group.materials["Countertop_Granite_Surface"]
             garage_exterior_surface_pointer = spec_group.materials["Garage_Exterior_Surface"]
             garage_panel_edge_pointer = spec_group.materials["Garage_Panel_Edges"]
             garage_interior_edge_pointer = spec_group.materials["Garage_Interior_Edges"]
@@ -232,10 +234,12 @@ class SN_MAT_OT_Assign_Materials(Operator):
 
             if "Melamine" in mat_props.countertops.get_type().name:
                 countertop_pointer.category_name = "Closet Materials"
+                countertop_pointer.item_name = mat_props.countertops.get_color_name()
             else:
-                countertop_pointer.category_name = "Countertop Materials"
-
-            countertop_pointer.item_name = mat_props.countertops.get_color_name()
+                countertop_hpl_pointer.category_name = "Countertop Materials"
+                countertop_granite_pointer.category_name = "Countertop Materials"
+                countertop_hpl_pointer.item_name = mat_props.countertops.get_color_name()
+                countertop_granite_pointer.item_name = mat_props.countertops.get_color_name()
 
     def update_drawer_materials(self):
         props = self.closet_props
@@ -504,7 +508,10 @@ class SN_MAT_OT_Assign_Materials(Operator):
                 countertop_part.set_material_pointers("Garage_Panel_Edges", "Edgebanding")
         else:
             countertop_part.edgebanding('Edge', l1=True, l2=True, w1=True, w2=True)
-            countertop_part.set_material_pointers("Closet_Part_Edges", "Edgebanding")
+            if assembly.obj_bp.sn_closets.is_hpl_top_bp:
+                countertop_part.set_material_pointers("Countertop_HPL_Surface", "Edgebanding")
+            else:
+                countertop_part.set_material_pointers("Closet_Part_Edges", "Edgebanding")
 
         exposed_left = assembly.get_prompt("Exposed Left")
         exposed_right = assembly.get_prompt("Exposed Right")
@@ -1025,7 +1032,7 @@ class SN_MAT_OT_Unpack_Material_Images(Operator):
     def invoke(self, context, event):
         wm = context.window_manager
         props = context.window_manager.snap
-        self.materials_dir = sn_paths.CLOSET_MATERIAL_DIR
+        self.materials_dir = sn_paths.COUNTERTOP_MATERIAL_DIR
         textures_dir = os.path.join(self.materials_dir, "textures")
 
         if not os.path.exists(textures_dir):
@@ -1134,7 +1141,7 @@ class SN_MAT_OT_Create_Material_Library(Operator):
     bl_options = {'UNDO'}
 
     def execute(self, context):
-        materials_dir = sn_paths.CLOSET_MATERIAL_DIR
+        materials_dir = sn_paths.COUNTERTOP_MATERIAL_DIR
         tex_directory = os.path.join(materials_dir, "textures")
         template_dir = os.path.join(materials_dir, "template_material")
         new_materials_dir = os.path.join(template_dir, "Materials")

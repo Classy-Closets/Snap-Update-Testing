@@ -1,10 +1,17 @@
+from numpy import diff
 import bpy
 import os
 import random
 import string
 import sys
+import re
 
 from bpy.props import StringProperty
+from snap import sn_paths
+from snap.sn_xml import Snap_XML
+from snap.views.pdf_builder.pdf_builder import paper_size
+from snap.views.pdf_builder.xml_etl import SnapXML_ETL
+
 try:
     import PIL
 except ModuleNotFoundError:
@@ -14,8 +21,19 @@ from PIL import Image as PImage
 from PIL import ImageChops
 
 from snap.views.pdf_builder.pdf_director import PDF_Director
+from snap.views.pdf_builder.query_form_data import Query_PDF_Form_Data
 from snap.project_manager import pm_utils
 
+"""
+Spread a nested list into a single list
+
+**Returns** List
+"""
+def spread(arg):
+    ret = []
+    for i in arg:
+        ret.extend(i) if isinstance(i, list) else ret.append(i)
+    return ret
 
 class OPERATOR_create_pdf(bpy.types.Operator):
     bl_idname = "2dviews.report_2d_drawings"
@@ -28,6 +46,8 @@ class OPERATOR_create_pdf(bpy.types.Operator):
     files = None
     project_name = "project"
     room_name = "room"
+
+    PDF_TEMP_XML = "pdf_temp.xml"
 
     def invoke(self, context, event):
         bfile = bpy.path.abspath("//")
@@ -289,6 +309,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         bbox = diff.getbbox()
         if bbox:
             return image.crop(bbox)
+        return None
 
     """
     Parameters:
@@ -329,6 +350,37 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             return img_file
         else:
             return None
+    
+    """
+    Parameters:
+        images_list - a list of image paths (string)
+        output - output image file (string)
+        border - an optional tuple with the desired border in pixels, in the following order: (left, top, right, bottom)
+    """
+
+    def island_images_horizontal(self, images_list, output, border=(25, 0, 50, 0)):
+        white_bg = (255, 255, 255)
+        in_between_offset = 50
+        original_ims = []
+        for i in images_list:
+            im = PImage.open(i)
+            original_ims.append(im)
+        if len(original_ims) > 0:
+            widths, heights = zip(*(i.size for i in original_ims))
+            total_width = sum(widths) + border[0] + border[2] + in_between_offset
+            x_offset = border[0]
+            max_height = max(heights) + border[1] + border[3]
+            new_im = PImage.new('RGB', (total_width, max_height), white_bg)
+            for im in original_ims:
+                y_offset = int((max(heights) - im.size[1]) / 2) + border[1]
+                new_im.paste(im, (x_offset, y_offset))
+                x_offset += im.size[0] + in_between_offset
+            # Always save as PNG, JPG makes blender crash silently
+            img_file = os.path.join(bpy.app.tempdir + output + ".png")
+            new_im.save(img_file)
+            return img_file
+        else:
+            return None
 
     def join_images_vertical(self, images_files_list, output, vertical_padding=0):
         white_bg = (255, 255, 255)
@@ -354,6 +406,68 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         width, height = image.size
         return (int(width), int(height))
 
+    def make_image_layers(self, option, image_list, limit, lower_qty, upper_qty):
+        image_list = sorted(image_list, key=lambda i: i.island_index)
+        sn_images_list = image_list[:limit]
+        upper_widths, lower_widths = 0, 0
+        left_padding, right_padding = 50, 50
+        top_padding, bottom_padding = 25, 25
+        cropped_upper, cropped_lower = [], []
+        upper_border = (left_padding, top_padding, 
+                        right_padding, bottom_padding)
+        lower_border = (left_padding, top_padding, 
+                        right_padding, bottom_padding)
+        upper_part = [(bpy.app.tempdir + image.name + ".jpg")
+                        for image in sn_images_list[:upper_qty]]
+        lower_part = [(bpy.app.tempdir + image.name + ".jpg")
+                        for image in sn_images_list[lower_qty:]]
+        # Crop the rendered images, to remove the white border
+        for idx, image_str in enumerate(upper_part):
+            str_idx = str(idx)
+            img_file = os.path.join(
+                bpy.app.tempdir, f'{option}{"up"}{str_idx}.jpg')
+            image = PImage.open(image_str)
+            cropped_img = self.trim(image)
+            if cropped_img:
+                cropped_img.save(img_file)
+            cropped_upper.append(img_file)
+            width, _ = self.get_image_size(img_file)
+            upper_widths += int(width)
+        for idx, image_str in enumerate(lower_part):
+            str_idx = str(idx)
+            img_file = os.path.join(
+                bpy.app.tempdir, f'{option}{"down"}{str_idx}.jpg')
+            image = PImage.open(image_str)
+            cropped_img = self.trim(image)
+            if cropped_img:
+                cropped_img.save(img_file)
+            cropped_lower.append(img_file)
+            width, _ = self.get_image_size(img_file)
+            lower_widths += int(width)
+        # get their widths, to know the bigger one and the smaller one
+        # that forms the horizontal segments
+        if upper_widths > lower_widths:
+            difference = int((upper_widths - lower_widths) / 2)
+            lower_border = (
+                int(difference + left_padding), 
+                top_padding, 
+                int(difference + right_padding), 
+                bottom_padding)
+        elif lower_widths > upper_widths:
+            difference = int((lower_widths - upper_widths) / 2)
+            upper_border  = (
+                int(difference + left_padding), 
+                top_padding, 
+                int(difference + right_padding), 
+                bottom_padding)
+        lower_image = self.island_images_horizontal(
+            cropped_lower, option + "lower", lower_border)
+        upper_image = self.island_images_horizontal(
+            cropped_upper, option + "upper", upper_border)
+        img = self.join_images_vertical([upper_image, lower_image], 
+                                        self.random_string(6))
+        return img
+
     # Internal function
     # receives: a list of sn_images and a layout option
     # return: a page asemm to be appended to the PDF file
@@ -363,6 +477,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
     # three - Three images per page, side by side
     # 1up2down  - One image on upper half, two on the bottom half
     # 1up3down - One image on upper half, three on the bottom half
+    # 2up2down - Two images on upper half, two on the bottom half
     def __prepare_image_page__(self, sn_images_list, page_paper_size, option):
         if option == "full":
             return self.join_images_horizontal([bpy.app.tempdir + sn_images_list[0].name + ".jpg"],
@@ -377,6 +492,8 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             image_files = [(bpy.app.tempdir + image.name + ".jpg")
                            for image in sn_images_list]
             return self.join_images_horizontal(image_files, self.random_string(6))
+        if option == "1up1down":
+            return self.make_image_layers(option, sn_images_list, 2, 1, 1)
         if option == "1up2down":
             sn_images_list = sn_images_list[:3]
             lower_part = [(bpy.app.tempdir + image.name + ".jpg")
@@ -413,8 +530,8 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             img = self.join_images_vertical([upper_image, lower_image], 
                                             self.random_string(6))
             return img
-
-        return False
+        if option == "2up2down":
+            return self.make_image_layers(option, sn_images_list, 4, 2, 2)
 
     """Resizes an image given it's filename.
 
@@ -640,6 +757,53 @@ class OPERATOR_create_pdf(bpy.types.Operator):
                     feeds_chunks[i], props.paper_size, "three"))
         return pages
 
+    def get_accordion_walls(self, accordions):
+        acc_walls = []
+        for accordion in accordions:
+            current_accordion = []
+            acc_scene = bpy.data.scenes[accordion.image_name]
+            for obj in acc_scene.objects:
+                if 'acc' in obj.name.lower() and 'wall' in obj.name.lower():
+                    current_accordion.append(re.findall(r"(?<=Acc Wall )[^ ]", obj.name))
+            current_accordion = spread(current_accordion)
+            acc_walls.append(current_accordion)
+        return acc_walls
+
+    def get_plan_view_walls(self, plan_views):
+        pv_list = []
+        for pv in plan_views:
+            pv_scene = bpy.data.scenes[pv.image_name]
+            for obj in pv_scene.objects:
+                wall_name = obj.snap.name_object
+                if 'wall' in wall_name.lower() and obj.type == 'EMPTY':
+                    pv_list.append(re.findall(r"(?<=Wall )[^ ]", wall_name))
+        return spread(pv_list)
+
+    def get_elevations_walls_sliced(self, slice_size):
+        elv_list = []
+        for scene in bpy.data.scenes:
+            if 'wall' in scene.name.lower():
+                elv_list.append(re.findall(r"(?<=Wall )[^ ]", scene.name))
+        elv_list = spread(elv_list)
+        elv_list = [elv_list[i:i + slice_size] \
+            for i in range(0, len(elv_list), slice_size)]
+        return elv_list
+
+    def _add_island_page(self, pages, page_counter, pages_walls, islands, props):
+        island_qty = len(islands)
+        option = ""
+        if island_qty == 1:
+            option = "full"
+        if island_qty == 2:
+            option = "1up1down"
+        if island_qty == 3:
+            option = "1up2down"
+        if island_qty == 4:
+            option = "2up2down"
+        pages.append(self.__prepare_image_page__(islands[:island_qty], 
+                         props.paper_size, option))
+        pages_walls[page_counter] = ["Island"]
+
     def _get_pages_list(self, image_views, props, pdf_images):
         """Modify the images included in the file depending the number of elevations.
 
@@ -651,18 +815,60 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         Returns:
             pages (list): A list with the paths of the saved images.
         """
+        props = bpy.context.window_manager.views_2d
+        accordions_mode = props.views_option == 'ACCORDIONS'
+        elevations_mode = props.views_option == 'ELEVATIONS'
+        room_type = bpy.context.scene.sn_roombuilder.room_type
+        if room_type == 'SINGLE':
+            accordions_mode = False
+            elevations_mode = True
         pages = []
+        elvs = None
+        page_layout = ''
+        page_counter = 0
+        pages_walls = {}
         plan_view = [view for view in image_views if view.is_plan_view]
         elevations = [view for view in image_views if view.is_elv_view]
         islands = [view for view in image_views if view.is_island_view]
         accordions =\
             [view for view in image_views if view.is_acc_view]
-        if len(islands) > 0 and len(elevations) > 0:
-            elevations += islands
-        elif len(islands) > 0 and len(accordions) > 0:
-            accordions += islands
-        page_layout = props.page_layout_setting
-        if len(accordions) > 0:
+        just_islands = len(accordions) == 0 and\
+                       len(elevations) == 0 and\
+                       len(islands) > 0
+        if accordions_mode:
+            page_layout = props.accordions_layout_setting
+        elif elevations_mode and room_type != 'SINGLE':
+            page_layout = props.page_layout_setting
+        elif just_islands and accordions_mode:
+            page_layout = props.accordions_layout_setting
+        elif just_islands and elevations_mode:
+            page_layout = props.page_layout_setting
+        if room_type == 'SINGLE':
+            page_layout = props.single_page_layout_setting
+        #  NOTE 1) For each accordion there will be one page for it
+        #      2) Plan views also as they have their page once it's there the
+        #      legends will cover every walls objects
+        #      3) As elevations can vary their page formation, we get the 
+        #         entire list and slice it accordingly
+        if len(plan_view) > 0 and page_layout != '1_ACCORD':
+            pages_walls[page_counter] = self.get_plan_view_walls(plan_view)
+            page_counter += 1
+        if len(accordions) > 0 and len(elevations) == 0:
+            acc_pages_result = self.get_accordion_walls(accordions)
+            for a_page in acc_pages_result:
+                pages_walls[page_counter] = a_page
+                page_counter += 1
+        if elevations_mode and page_layout == 'SINGLE':
+            elvs = self.get_elevations_walls_sliced(1)
+        if elevations_mode and page_layout == '2ELVS':
+            elvs = self.get_elevations_walls_sliced(2)
+        if elevations_mode and page_layout == '3ELVS':
+            elvs = self.get_elevations_walls_sliced(3)
+        if elevations_mode and elvs:
+            for elv in elvs:
+                pages_walls[page_counter] = elv
+                page_counter += 1
+        if accordions_mode:
             page_layout = props.accordions_layout_setting
         if page_layout == 'SINGLE':
             pages = self._get_SINGLE_pages(plan_view, elevations, props)
@@ -676,8 +882,18 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             pages = self._get_pages_1ACCORD(accordions, props)
         elif page_layout == 'PLAN+1ACCORDS':
             pages = self._get_pages_plan_1ACCORD(plan_view, accordions, props)
-        
-        return pages
+        if len(islands) > 0:
+            self._add_island_page(pages, page_counter, pages_walls, islands, props)
+            # NOTE 1_ACCORD is the only one that doesn't have the Plan View
+            # added to the PDF. To include Islands at the Plan View page just
+            # add the Island "Wall" so the query will catch their data there
+            if page_layout != '1_ACCORD' and pages_walls.get(0):
+                pages_walls[0] += ['Island']
+        # Remove pages with no walls from pages_walls
+        removal = [k for k, v in pages_walls.items() if len(v) == 0]
+        for key in removal:
+            del pages_walls[key]
+        return (pages, pages_walls)
 
     @staticmethod
     def _create_str_pdf_context():
@@ -745,6 +961,27 @@ class OPERATOR_create_pdf(bpy.types.Operator):
 
         return ctx
 
+    def get_project_xml(self):
+        props = bpy.context.window_manager.sn_project
+        proj = props.get_project()
+        cleaned_name = proj.get_clean_name(proj.name)
+        project_dir = bpy.context.preferences.addons['snap'].preferences.project_dir
+        selected_project = os.path.join(project_dir, cleaned_name)
+        xml_file = os.path.join(selected_project, self.PDF_TEMP_XML)
+        global PROJECT_NAME
+        PROJECT_NAME = cleaned_name
+
+        if not os.path.exists(project_dir):
+            print("Projects Directory does not exist")
+        if not os.path.exists(xml_file):
+            print("The 'snap_job.xml' file is not found. Please select desired rooms and perform an export.")   
+        else:
+            return xml_file
+
+    def get_franchise_csv(self):
+        franchise_location = bpy.context.preferences.addons['snap'].preferences.franchise_location
+        return os.path.join(sn_paths.CSV_DIR_PATH, "CCItems_" + franchise_location + ".csv")
+
     def _fix_file_path(self):
         fixed_file_path = os.path.normpath(self.directory)
         print("FIXED FILEPATH: ", fixed_file_path)
@@ -778,8 +1015,9 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         tempdir = bpy.app.tempdir
         pdf_images = OPERATOR_create_pdf._save_images(images,
                                                       image_dic, tempdir)
-        # get pages list
-        pages = self._get_pages_list(images, props, pdf_images)
+        # get pages list and pages numbers dictionary that has each page walls
+        pages, pages_number_dict = self._get_pages_list(
+            images, props, pdf_images)
         # get .pdf file path
         path = self.filepath
         # get logo
@@ -795,9 +1033,16 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         director = PDF_Director(path, print_paper_size, pages, logo)
         # get props
         props = context.scene.snap
+        # Perform PDF data loading from XML and CC_Items
+        pdf_xml_file = self.get_project_xml()
+        cc_csv_file = self.get_franchise_csv()
+        etl_object = SnapXML_ETL(pdf_xml_file, cc_csv_file)
+        # Get PDF forms data
+        query = Query_PDF_Form_Data(context, etl_object, pages_number_dict)
+        query_result = query.process()
         # Create pdf file
         # only implemented templates "new" and "old"
-        director.make("NEW", props, material_dict, **ctx)
+        director.make("NEW", query_result)
         # FIX FILE PATH To remove all double backslashes
         self._fix_file_path()
         # #FIX FILE PATH To remove all double backslashes

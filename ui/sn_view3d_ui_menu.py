@@ -133,7 +133,8 @@ class VIEW3D_MT_object_context_menu(Menu):
         insert_bp = sn_utils.get_bp(context.object, 'INSERT')
         entry_door_bp = sn_utils.get_entry_door_bp(context.object)
         window_bp = sn_utils.get_window_bp(context.object)
-        assemblies = (assembly_bp, closet_bp, insert_bp, entry_door_bp, window_bp)
+        appliance_bp = sn_utils.get_appliance_bp(context.object)
+        assemblies = (assembly_bp, closet_bp, insert_bp, entry_door_bp, window_bp, appliance_bp)
         # Adding walls to this
         pos_wall = sn_utils.get_wall_bp(context.object)
         layout.operator_context = 'INVOKE_DEFAULT'
@@ -157,8 +158,13 @@ class VIEW3D_MT_object_context_menu(Menu):
 
                 layout.separator()
 
+            if appliance_bp and appliance_bp.snap.type_group != 'INSERT':
+                layout.operator(
+                    'sn_closets.delete_appliance',
+                    text="Delete - {}".format(appliance_bp.snap.name_object),
+                    icon='X')
+
             if entry_door_bp or window_bp:
-                # TODO: Delete door/window operator here
                 layout.operator(
                     'sn_closets.delete_closet',
                     text="Delete - {}".format(entry_door_bp.snap.name_object),

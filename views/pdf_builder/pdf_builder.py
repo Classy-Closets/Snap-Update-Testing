@@ -51,11 +51,11 @@ class Pdf_Builder(ABC):
         proportion = round(canvas_width / canvas_height, 3)
         width, height = self.pagesize
         # PV+ELVs, PV+ACC, 1 ELV pp
-        if proportion <= 1.4:
+        if proportion <= 1.3:
             start_x, start_y = 0, 130
             target_w, target_h = width - 40, height - 150
         # 2 ELVs pp
-        elif 1.4 < proportion <= 2.5:
+        elif 1.3 < proportion <= 2.5:
             start_x, start_y = 0, 130
             target_w, target_h = width - 0, height - 200
         # 3 ELVs pp

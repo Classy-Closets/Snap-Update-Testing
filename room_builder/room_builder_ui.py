@@ -41,21 +41,25 @@ class ROOM_BUILDER_UL_walls(UIList):
                     numLen = int(numLen)
 
                 layout.label(text="Length: " + str(numLen))
-                wall_mesh = list(filter(lambda a: 'Wall' in a.name and a.type == 'MESH', wall_bp.children))[0]
-                if wall_mesh.hide_viewport:
-                    props = layout.operator('sn_roombuilder.hide_show_wall',
-                                            text="",
-                                            icon='RESTRICT_VIEW_ON',
-                                            emboss=False)
-                    props.wall_bp_name = wall_bp.name
-                    props.hide = False
-                else:
-                    props = layout.operator('sn_roombuilder.hide_show_wall',
-                                            text="",
-                                            icon='RESTRICT_VIEW_OFF',
-                                            emboss=False)
-                    props.wall_bp_name = wall_bp.name
-                    props.hide = True
+
+                wall_name = wall.obj_bp.snap.name_object
+                if wall_name in bpy.data.collections:
+                    wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+
+                    if wall_coll.hide_viewport:
+                        props = layout.operator('sn_roombuilder.hide_show_wall',
+                                                text="",
+                                                icon='RESTRICT_VIEW_ON',
+                                                emboss=False)
+                        props.wall_bp_name = wall_bp.name
+                        props.hide = False
+                    else:
+                        props = layout.operator('sn_roombuilder.hide_show_wall',
+                                                text="",
+                                                icon='RESTRICT_VIEW_OFF',
+                                                emboss=False)
+                        props.wall_bp_name = wall_bp.name
+                        props.hide = True
 
 
 class ROOM_BUILDER_UL_obstacles(UIList):
@@ -139,7 +143,7 @@ class ROOM_BUILDER_PT_Room_Builder(Panel):
                 if not bpy.data.objects.get('Floor'):
                     row.operator('sn_roombuilder.draw_walls', text="Draw Walls", icon='GREASEPENCIL')
                 else:
-                    row.operator('sn_roombuilder.new_custom_room', text="Draw New Room", icon='GREASEPENCIL')
+                    row.operator('sn_roombuilder.new_room', text="New Room", icon='PLUS')
                 
                 row.operator('sn_roombuilder.collect_walls', icon='FILE_REFRESH')
 

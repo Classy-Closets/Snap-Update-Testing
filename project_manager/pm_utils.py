@@ -19,6 +19,15 @@ def get_project_dir():
     return project_dir
 
 
+def get_archive_dir():
+    archive_dir = bpy.context.preferences.addons[__name__.split(".")[0]].preferences.archive_dir
+
+    if not os.path.exists(archive_dir):
+        os.makedirs(archive_dir)
+
+    return archive_dir
+
+
 def load_project_info():
     print("Loading project info...")
 
@@ -140,6 +149,8 @@ def load_projects():
 
         else:
             wm.project_index = 0
+
+        wm.projects_loaded = True
 
 class CCP():
 

@@ -4,7 +4,6 @@ from snap.views.pdf_builder.pdf_old_template import Old_Template_Builder
 from snap.views.pdf_builder.pdf_new_template import New_Template_Builder
 from snap.views.pdf_builder.fill_pdf import PDF_Form_Content, fill_form
 
-
 class PDF_Director:
     """Call the steps for building the .pdf files with different styles.
 
@@ -47,21 +46,20 @@ class PDF_Director:
         self.builders = {"OLD": Old_Template_Builder,
                          "NEW": New_Template_Builder}
 
-    def make(self, template: str, props: dict,
-             material_dict: dict, **ctx) -> None:
+    def make(self, template: str, query_result) -> None:
         """Make the .pdf file with the style indicated in 'template'."""
         builder = self.builders[template](self.path, self.print_paper_size)
         form_path = self.form_paths[template]
-        self.form_info = open_json_file(form_path)
-        form = PDF_Form_Content(self.form_info)
-        self.form_info = fill_form(form, props, material_dict, **ctx)
-        for image in self.images:
+        form_info = open_json_file(form_path)
+        form = PDF_Form_Content(form_info)
+        for i, image in enumerate(self.images):
             if not image:
                 continue
             builder.draw_main_image(image)
             builder.draw_logo(self.logo)
-            builder.draw_info(self.form_info)
-            builder.draw_margin()
+            if query_result.get(i):
+                form_info = fill_form(form, query_result[i])
+                builder.draw_info(form_info)
             builder.draw_block_info()
             builder.show_page()
         builder.c.save()

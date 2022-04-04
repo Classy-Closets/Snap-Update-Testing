@@ -44,9 +44,6 @@ class Hamper(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         common_prompts.add_thickness_prompts(self)
         self.overlay_ppt_obj = common_prompts.add_front_overlay_prompts(self)
         common_prompts.add_pull_prompts(self)
@@ -141,7 +138,7 @@ class Hamper(sn_types.Assembly):
         basket_1.dim_x('IF(Width<=INCH(23.99),INCH(18),INCH(24))',[Width])
         basket_1.dim_y('IF(Depth<=INCH(15.99),INCH(14),INCH(16))',[Depth])
         basket_1.dim_z(value=sn_unit.inch(WIRE_BASKET_HEIGHT))
-        basket_1.get_prompt('Hide').set_formula('IF(Hamper_Type==0,False,True) or Hide',[Hamper_Type,self.hide_var])
+        basket_1.get_prompt('Hide').set_formula('IF(Hamper_Type==0,False,True)',[Hamper_Type])
 
         basket_2 = common_parts.add_single_canvas_hamper(self)
         basket_2.loc_x('(Width-IF(Width<INCH(24),INCH(18),IF(Width<INCH(30),INCH(24),INCH(30))))/2', [Width])
@@ -151,8 +148,8 @@ class Hamper(sn_types.Assembly):
         basket_2.dim_y(value=sn_unit.inch(12.0625))
         basket_2.dim_z(value=sn_unit.millimeter(621.284))
         basket_2.get_prompt('Hide').set_formula(
-            'IF(AND(Height>=INCH(25),Width>=INCH(17.999),Hamper_Type==1),False,True) or Hide', 
-            [self.hide_var, Hamper_Type, Width, Height])
+            'IF(AND(Height>=INCH(25),Width>=INCH(17.999),Hamper_Type==1),False,True)', 
+            [Hamper_Type, Width, Height])
 
         # basket_3 = common_parts.add_double_canvas_hamper(self)
         # basket_3.loc_x('(Width-INCH(24.0))/2',[Width])
@@ -171,7 +168,7 @@ class Hamper(sn_types.Assembly):
         cleat.dim_x('Width',[Width])
         cleat.dim_y('IF(Cleat_Location==0,-Cleat_Height,Cleat_Height)', [Cleat_Height, Cleat_Location])
         cleat.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        cleat.get_prompt("Hide").set_formula("IF(Cleat_Location==2,True,False) or Hide", [Cleat_Location,self.hide_var])
+        cleat.get_prompt("Hide").set_formula("IF(Cleat_Location==2,True,False)", [Cleat_Location])
         cleat.get_prompt('Use Cleat Cover').set_formula('IF(Cleat_Location==0,True,False)', [Cleat_Location])  
 
         top_shelf = common_parts.add_shelf(self)
@@ -180,7 +177,7 @@ class Hamper(sn_types.Assembly):
         top_shelf.dim_x('Width',[Width])
         top_shelf.dim_y('-Depth+Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
         top_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True) or Hide',[Remove_Top_Shelf,self.hide_var])
+        top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True)',[Remove_Top_Shelf])
         top_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
         top_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
@@ -190,7 +187,7 @@ class Hamper(sn_types.Assembly):
         bottom_shelf.dim_x('Width',[Width])
         bottom_shelf.dim_y('-Depth+Shelf_Backing_Setback',[Depth,Shelf_Backing_Setback])
         bottom_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        bottom_shelf.get_prompt('Hide').set_formula('IF(Remove_Bottom_Shelf,True,False) or Hide',[Remove_Bottom_Shelf,self.hide_var])
+        bottom_shelf.get_prompt('Hide').set_formula('IF(Remove_Bottom_Shelf,True,False)',[Remove_Bottom_Shelf])
         bottom_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
         bottom_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         

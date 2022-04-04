@@ -5,15 +5,14 @@ from bpy.props import StringProperty
 from bpy.types import Operator
 import os
 
+
 class PlaceApplianceAsset():
     filepath: StringProperty(name="Filepath", default="Error")
     obj_bp_name: bpy.props.StringProperty(name="Assembly Base Point", default="")
 
     asset = None
-    calculators = []
     drawing_plane = None
 
-    starting_point = ()
     placement = ''
 
     assembly = None
@@ -36,12 +35,9 @@ class PlaceApplianceAsset():
 
     def reset_properties(self):
         self.asset = None
-        self.calculators = []
         self.drawing_plane = None
-        self.starting_point = ()
         self.placement = ''
         self.assembly = None
-        self.obj = None
         self.exclude_objects = []
 
     def set_child_properties(self, obj):
@@ -86,10 +82,6 @@ class PlaceApplianceAsset():
         self.asset.set_name(filename)
         self.set_child_properties(self.asset.obj_bp)
 
-    def run_asset_calculators(self):
-        for calculator in self.asset.obj_prompts.snap.calculators:
-            calculator.calculate()
-
     def create_drawing_plane(self, context):
         bpy.ops.mesh.primitive_plane_add()
         plane = context.active_object
@@ -107,19 +99,32 @@ class PlaceApplianceAsset():
         self.hide_cages(context)
         return {'CANCELLED'}
 
+    def add_to_wall_collection(self, context):
+        collections = bpy.data.collections
+        scene_coll = context.scene.collection
+        wall_bp = sn_utils.get_wall_bp(self.asset.obj_bp)
+
+        if self.asset and wall_bp:
+            wall_name = wall_bp.snap.name_object
+            if wall_name in collections:
+                wall_coll = collections[wall_name]
+                sn_utils.add_assembly_to_collection(self.asset.obj_bp, wall_coll, recursive=True)
+                sn_utils.remove_assembly_from_collection(self.asset.obj_bp, scene_coll, recursive=True)
+
     def finish(self, context):
         self.set_screen_defaults(context)
         if self.drawing_plane:
             sn_utils.delete_obj_list([self.drawing_plane])
         if self.asset.obj_bp:
             self.set_placed_properties(self.asset.obj_bp)
+            self.add_to_wall_collection(context)
             context.view_layer.objects.active = self.asset.obj_bp
         self.hide_cages(context)
         bpy.ops.object.select_all(action='DESELECT')
         context.area.tag_redraw()
         bpy.ops.closet_materials.assign_materials()
         return {'FINISHED'}
-    
+
     def modal(self, context, event):
         context.area.tag_redraw()
 
@@ -135,7 +140,6 @@ class PlaceApplianceAsset():
     def execute(self, context):
         self.create_drawing_plane(context)
         self.draw_asset()
-        self.run_asset_calculators()
         context.window_manager.modal_handler_add(self)
         context.area.tag_redraw()
         return {'RUNNING_MODAL'}
@@ -151,17 +155,15 @@ class SN_OT_Place_Countertop_Appliance(bpy.types.Operator, PlaceApplianceAsset):
     assembly = None
 
     def search_for_countertops(self, obj):
-        # we are going to search for counters under this
         counter_list = []
         for child in obj.children:
-            if 'IS_BP_COUNTERTOP' in child or 'IS_BP_HPL_TOP' in child:
+            parts = ('IS_BP_COUNTERTOP' in child, 'IS_BP_HPL_TOP' in child, 'IS_BP_TOP_KD_SHELF' in child)
+            if any(parts):
                 counter_list.append(child)
             else:
                 if len(child.children) > 0:
                     counter_list.extend(self.search_for_countertops(child))
         return counter_list
-        
-
 
     def assign_boolean(self, obj):
         if obj:
@@ -181,20 +183,23 @@ class SN_OT_Place_Countertop_Appliance(bpy.types.Operator, PlaceApplianceAsset):
 
         if sel_product_bp and sel_assembly_bp:
             countertop_bps = self.search_for_countertops(sel_product_bp)
-            product = sn_types.Assembly(countertop_bps[0])
-            if product:
-                product_depth = math.fabs(product.obj_y.location.y)
+            sel_assembly = sn_types.Assembly(sel_assembly_bp)
+            if 'IS_BP_COUNTERTOP' in sel_assembly_bp:
                 assembly_depth = math.fabs(self.asset.obj_y.location.y)
-                self.asset.obj_bp.parent = product.obj_bp
-                self.asset.obj_bp.location.z = product.obj_z.location.z# + sn_unit.inch(1.5)
-                self.asset.obj_bp.location.y = -math.fabs(product_depth - assembly_depth) / 2
-                self.asset.obj_bp.location.x = math.fabs(product.obj_x.location.x / 2 - self.asset.obj_x.location.x / 2)
+                sel_assembly_width = sel_assembly.obj_x.location.x
+                dim_z = sel_assembly.obj_z.snap.get_var('location.z', 'dim_z')
+
+                self.asset.obj_bp.parent = sel_assembly.obj_bp
+                self.asset.obj_bp.location.x = math.fabs(sel_assembly_width / 2 - self.asset.obj_x.location.x / 2)
+                self.asset.obj_bp.location.y = (-sel_assembly_width + assembly_depth) / 2
+                self.asset.loc_z("dim_z", [dim_z])
 
             if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
                 for countertop_bp in countertop_bps:
                     for child in countertop_bp.children:
                         if child.type == 'MESH':
                             self.assign_boolean(selected_obj)
+                            self.assign_boolean(child)
                 sn_utils.set_wireframe(self.asset.obj_bp, False)
                 bpy.context.window.cursor_set('DEFAULT')
                 bpy.ops.object.select_all(action='DESELECT')
@@ -206,8 +211,8 @@ class SN_OT_Place_Countertop_Appliance(bpy.types.Operator, PlaceApplianceAsset):
         return {'RUNNING_MODAL'}
 
 
-class SN_OT_Place_Appliance_Object(bpy.types.Operator, PlaceApplianceAsset):
-    bl_idname = "sn_appliances.place_appliance_object"
+class SN_OT_place_appliance(bpy.types.Operator, PlaceApplianceAsset):
+    bl_idname = "sn_appliances.place_appliance"
     bl_label = "Place Appliance Object"
     bl_description = "This allows you to place an appliance object into the scene."
     bl_options = {'UNDO'}
@@ -235,7 +240,6 @@ class SN_OT_Place_Appliance_Object(bpy.types.Operator, PlaceApplianceAsset):
 
         return {'RUNNING_MODAL'}
 
-    
 
 class SN_OT_drop_appliance(Operator, PlaceApplianceAsset):
     bl_idname = "sn_appliances.drop"
@@ -259,11 +263,37 @@ class SN_OT_drop_appliance(Operator, PlaceApplianceAsset):
         return {'FINISHED'}
 
 
+class SN_OT_delete_appliance(Operator):
+    bl_idname = "sn_closets.delete_appliance"
+    bl_label = "Delete Appliance"
+
+    obj_bp = None
+
+    def draw(self, context):
+        layout = self.layout
+        box = layout.box()
+        col = box.column()
+        col.label(text="'{}'".format(self.obj_bp.snap.name_object))
+        col.label(text="Are you sure you want to delete this?")
+
+    def invoke(self, context, event):
+        self.obj_bp = sn_utils.get_closet_bp(context.object)
+        if not self.obj_bp:
+            self.obj_bp = sn_utils.get_appliance_bp(context.object)
+        wm = context.window_manager
+        return wm.invoke_props_dialog(self, width=400)
+
+    def execute(self, context):
+        sn_utils.delete_object_and_children(self.obj_bp)
+
+        return {'FINISHED'}
+
 
 classes = (
     SN_OT_Place_Countertop_Appliance,
-    SN_OT_Place_Appliance_Object,
-    SN_OT_drop_appliance
+    SN_OT_place_appliance,
+    SN_OT_drop_appliance,
+    SN_OT_delete_appliance
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

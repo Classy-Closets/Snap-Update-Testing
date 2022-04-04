@@ -449,6 +449,7 @@ DRAWER_SIZES_DICT = {
 }
 
 HAMPER_SIZES_DICT = {
+    '557.276': '18 H',
     '589.28': '19 H',
     '621.284': '20 H',
     '653.288': '21 H',
@@ -544,7 +545,7 @@ JEWELRY_INSERTS_18IN_LIST = [
 JEWELRY_INSERTS_21IN_LIST = [
     'Jewelry Insert Black',
     'Jewelry Insert Clear',
-    'Jewelry Insert Maroon'
+    'Jewelry Insert Maroon',
     'Jewelry Insert Sterling Grey',
     'Velvet Liner Black',
     'Velvet Liner Maroon',
@@ -554,7 +555,7 @@ JEWELRY_INSERTS_21IN_LIST = [
 JEWELRY_INSERTS_24IN_LIST = [
     'Jewelry Insert Black',
     'Jewelry Insert Clear',
-    'Jewelry Insert Maroon'
+    'Jewelry Insert Maroon',
     'Jewelry Insert Sterling Grey',
     'Velvet Liner Black',
     'Velvet Liner Maroon',

@@ -42,6 +42,8 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt("Extend Right End Pard Down", 'CHECKBOX', False)
     assembly.add_prompt("Height Left Side", 'DISTANCE', 0)
     assembly.add_prompt("Height Right Side", 'DISTANCE', 0)
+    assembly.add_prompt("No Drilling Left Partition", 'CHECKBOX', False)
+    assembly.add_prompt("No Drilling Right Partition", 'CHECKBOX', False)
     assembly.add_prompt("Loc Left Side", 'DISTANCE', defaults.hanging_height)
     assembly.add_prompt("Loc Right Side", 'DISTANCE', defaults.hanging_height)
     assembly.add_prompt("Height To Add Mid Cleat", 'DISTANCE', defaults.height_to_add_mid_cleat)

@@ -20,7 +20,7 @@ def convert_to_new_door(context, path, door_path, door_name):
         return
     delete_objs(context)
     delete_orphan_data()
-    with bpy.data.libraries.load(path, False, False) as (data_from, data_to):
+    with bpy.data.libraries.load(path, link=False, relative=False) as (data_from, data_to):
         for collection in data_from.collections:
             data_to.collections = [collection]
             break

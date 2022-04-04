@@ -17,6 +17,12 @@ import blf
 from snap import sn_types
 from snap import sn_paths
 from snap import sn_unit
+from snap import bl_info
+
+
+def get_version_str():
+    v = bl_info["version"]
+    return "{}.{}.{}".format(v[0], v[1], v[2])
 
 
 def get_object_icon(obj):
@@ -80,7 +86,7 @@ def get_material(category, material_name):
 
         material_path = os.path.join(sn_paths.MATERIAL_DIR, category, material_name + ".blend")
 
-        with bpy.data.libraries.load(material_path, False, False) as (data_from, data_to):
+        with bpy.data.libraries.load(material_path, link=False, relative=False) as (data_from, data_to):
             for mat in data_from.materials:
                 if mat == material_name:
                     data_to.materials = [mat]
@@ -215,7 +221,7 @@ def get_cabinet_bp(obj):
 def get_closet_bp(obj):
     if not obj:
         return None
-    if "IS_BP_CLOSET" in obj or 'IS_BP_WINDOW' in obj or 'IS_BP_ENTRY_DOOR' in obj:
+    if "IS_BP_CLOSET" in obj or 'IS_BP_WINDOW' in obj or 'IS_BP_ENTRY_DOOR' in obj or 'IS_BP_WALL_BED' in obj:
         return obj
     elif obj.parent:
         return get_closet_bp(obj.parent)
@@ -233,7 +239,7 @@ def get_carcass_bp(obj):
 def get_appliance_bp(obj):
     if not obj:
         return None
-    if "IS_APPLIANCE_BP" in obj:
+    if "IS_BP_APPLIANCE" in obj:
         return obj
     elif obj.parent:
         return get_appliance_bp(obj.parent)
@@ -301,12 +307,20 @@ def get_exterior_bp(obj):
     elif obj.parent:
         return get_exterior_bp(obj.parent)
 
+def get_island_bp(obj):
+    if not obj:
+        return None
+    if "IS_BP_ISLAND" in obj:
+        return obj
+    elif obj.parent:
+        return get_island_bp(obj.parent)
+
 
 def get_object(path):
     print(path)
     if os.path.exists(path):
 
-        with bpy.data.libraries.load(path, False, False) as (data_from, data_to):
+        with bpy.data.libraries.load(path, link=False, relative=False) as (data_from, data_to):
             data_to.objects = data_from.objects
 
         for obj in data_to.objects:
@@ -314,10 +328,19 @@ def get_object(path):
 
 
 def get_drawer_stack_bps():
-    for obj in bpy.context.scene.collection.objects:
-        props = obj.sn_closets
-        if props.is_drawer_stack_bp:
-            yield obj
+    for scene in bpy.data.scenes:
+        if scene.snap.scene_type == 'NONE':
+            for obj in scene.objects:
+                if not obj.snap.dont_export:
+                    if obj.get("IS_BP_DRAWER_STACK"):
+                        yield obj
+                            
+    # for obj in bpy.context.scene.collection.objects:
+    #     print(obj)
+    #     props = obj.sn_closets
+    #     if props.is_drawer_stack_bp:
+    #         print("Found Drawer Stack")
+    #         yield obj
 
 
 def assign_materials_from_pointers(obj):
@@ -1259,7 +1282,7 @@ def get_insert_class(context, library_name, category_name, insert_name):
 
 def get_group(path):
 
-    with bpy.data.libraries.load(path, False, False) as (data_from, data_to):
+    with bpy.data.libraries.load(path, link=False, relative=False) as (data_from, data_to):
         for collection in data_from.collections:
             data_to.collections = [collection]
             break
@@ -1553,6 +1576,63 @@ def copy_assembly_prompts(assembly, target_assembly):
             combobox_prompt.set_value(combobox_index)
         else:
             target_assembly.add_prompt(key, prompt_type, prompts[key])
+            target_prompt = target_assembly.get_prompt(key)
+            if key == "Hide":
+                if prompt.id_data.animation_data:
+                    for driver in prompt.id_data.animation_data.drivers:
+                        newdriver = None
+                        try:
+                            newdriver = target_prompt.id_data.driver_add(
+                                driver.data_path, driver.array_index)
+                        except Exception:
+                            try:
+                                newdriver = target_prompt.id_data.driver_add(
+                                    driver.data_path)
+                            except Exception:
+                                print("Unable to Copy Prompt Driver", driver.data_path)
+                        if newdriver:
+                            newdriver.driver.expression = driver.driver.expression
+                            newdriver.driver.type = driver.driver.type
+                            for var in driver.driver.variables:
+                                if var.name not in newdriver.driver.variables:
+                                    newvar = newdriver.driver.variables.new()
+                                    newvar.name = var.name
+                                    newvar.type = var.type
+                                    for index, target in enumerate(var.targets):
+                                        newtarget = newvar.targets[index]
+                                        if target.id is prompt:
+                                            newtarget.id = target_prompt  # CHECK SELF REFERENCE FOR PROMPTS
+                                        else:
+                                            newtarget.id = target.id
+                                        newtarget.transform_space = target.transform_space
+                                        newtarget.transform_type = target.transform_type
+                                        newtarget.data_path = target.data_path
+
+
+def add_assembly_to_collection(obj_bp, coll, recursive=False):
+    """ Adds assembly objects to the provided collection
+    """
+    if obj_bp.name not in coll.objects:
+        coll.objects.link(obj_bp)
+
+    for child in obj_bp.children:
+        if child.name not in coll.objects:
+            coll.objects.link(child)
+        if child.children and recursive:
+            add_assembly_to_collection(child, coll, recursive=True)
+
+
+def remove_assembly_from_collection(obj_bp, coll, recursive=False):
+    """ Removes assembly objects from the provided collection
+    """
+    if obj_bp.name in coll.objects:
+        coll.objects.unlink(obj_bp)
+
+    for child in obj_bp.children:
+        if child.name in coll.objects:
+            coll.objects.unlink(child)
+        if child.children and recursive:
+            remove_assembly_from_collection(child, coll, recursive=True)
 
 
 # -------INTERFACE FUNCTIONS
@@ -2205,8 +2285,25 @@ def update_accordions_prompt():
     acc_props.intermediate_space = longest_wall_inches
     acc_props.intermediate_qty = walls_qty
 
+def fetch_mainscene_walls():
+    wm_props = bpy.context.window_manager.snap
+    current_scenes = [sc.name for sc in bpy.data.scenes]
+    has_main_scene = '_Main' in current_scenes
+    has_scene_scene = 'Scene' in current_scenes
+    main_sc_objs = []
+    if has_main_scene:
+        main_sc_objs = bpy.data.scenes["_Main"].objects
+    elif has_scene_scene:
+        main_sc_objs = bpy.data.scenes["Scene"].objects
+    if len(main_sc_objs) > 0:
+        walls = [o.snap.name_object for o in main_sc_objs if o.get('IS_BP_WALL')]
+        wm_props.main_scene_wall_qty = len(walls)
+    elif len(main_sc_objs) == 0:
+        wm_props.main_scene_wall_qty = 0
+
 
 def set_prompt_if_exists(assembly, prompt_name, value):
     prompt = assembly.get_prompt(prompt_name)
     if prompt:
         prompt.set_value(value)
+

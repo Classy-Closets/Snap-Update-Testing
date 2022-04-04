@@ -120,7 +120,6 @@ class Topshelf_Support_Corbels(sn_types.Assembly):
         self.obj_z.location.z = self.height
 
         hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
 
         self.add_prompt("Distance Above Floor", 'DISTANCE', sn_unit.inch(30))
         self.add_prompt("Extend To Left Panel", 'CHECKBOX', True)
@@ -139,8 +138,6 @@ class Topshelf_Support_Corbels(sn_types.Assembly):
         self.add_prompt("Mid Corbel Amount", 'QUANTITY', 0)
         self.add_prompt("Cleat Height", 'DISTANCE', sn_unit.inch(3.64))
         self.add_prompt("Cleat Width", 'DISTANCE', 0)
-        # hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        # self.hide_var = hide_prompt.get_var()
 
         self.add_oversize_prompts()
         common_prompts.add_thickness_prompts(self)

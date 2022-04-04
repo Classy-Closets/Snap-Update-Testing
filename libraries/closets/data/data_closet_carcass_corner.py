@@ -6,6 +6,7 @@ import bpy
 from bpy.props import StringProperty, FloatProperty, EnumProperty
 
 from snap import sn_types, sn_utils, sn_unit
+from . import data_closet_splitters
 from .. import closet_props
 from ..common import common_prompts
 from ..common import common_parts
@@ -34,10 +35,101 @@ class L_Shelves(sn_types.Assembly):
     show_in_library = True
     placement_type = 'CORNER'
 
+    var = {}  # Driver Variables
+    shelves = []
+
+    calculator = None
+    calculator_name = "Opening Heights Calculator"
+    calculator_obj_name = "Shelf Stack Calc Distance Obj"
+
+    def __init__(self, obj_bp=None):
+        super().__init__(obj_bp=obj_bp)
+        self.shelves = []
+        self.get_shelves()
+        self.calculator = self.get_calculator(self.calculator_name)
+
+    def get_shelves(self):
+        for child in self.obj_bp.children:
+            if child.get("IS_STACK_SHELF"):
+                shelf = sn_types.Assembly(child)
+                self.shelves.append(shelf)
+
+    def add_calculator(self, amt):
+        calc_distance_obj = self.add_empty(self.calculator_obj_name)
+        calc_distance_obj.empty_display_size = .001
+        self.calculator = self.obj_prompts.snap.add_calculator(self.calculator_name, calc_distance_obj)
+
+    def add_calculator_prompts(self, amt):
+        Panel_Height = self.get_prompt('Panel Height').get_var()
+        Thickness = self.get_prompt('Shelf Thickness').get_var("Thickness")
+        self.calculator.prompts.clear()
+
+        for i in range(1, amt + 1):
+            calc_prompt = self.calculator.add_calculator_prompt("Opening " + str(i) + " Height")
+            calc_prompt.equal = True
+
+        self.calculator.set_total_distance(
+            "Panel_Height-Thickness*2-Thickness*{}".format(str(amt - 1)), [Panel_Height, Thickness])            
+
+    def add_shelves(self, amt=3):
+        self.shelves = []
+        Width = self.obj_x.snap.get_var('location.x', 'Width')
+        Height = self.obj_z.snap.get_var('location.z', 'Height')
+        Depth = self.obj_y.snap.get_var('location.y', 'Depth')
+        Panel_Height = self.get_prompt('Panel Height').get_var()
+        Add_Backing = self.get_prompt("Add Backing").get_var()
+        Backing_Thickness = self.get_prompt("Backing Thickness").get_var()
+        PT = self.get_prompt("Panel Thickness").get_var("PT")
+        Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var()
+        Left_Depth = self.get_prompt("Left Depth").get_var()
+        Right_Depth = self.get_prompt("Right Depth").get_var()
+        RLS = self.get_prompt('Remove Left Side').get_var("RLS")
+        RRS = self.get_prompt('Remove Right Side').get_var("RRS")
+        Is_Hanging = self.get_prompt('Is Hanging').get_var('Is_Hanging')
+        Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var('Toe_Kick_Height')
+        previous_shelf = None
+
+        if not self.calculator:
+            self.add_calculator(amt)
+
+        self.add_calculator_prompts(amt)
+
+        for i in range(1, amt):
+            shelf = common_parts.add_l_shelf(self)
+            shelf.obj_bp["IS_STACK_SHELF"] = True
+            shelf.obj_bp.name = "Stack Shelf"
+            self.shelves.append(shelf)
+            height_prompt = eval("self.calculator.get_calculator_prompt('Opening {} Height')".format(str(i)))
+            opening_height = eval("height_prompt.get_var(self.calculator.name, 'opening_{}_height')".format(str(i)))
+
+            shelf.loc_x('IF(Add_Backing,Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
+            shelf.loc_y('IF(Add_Backing,-Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
+
+            if previous_shelf:
+                Previous_Z_Loc = previous_shelf.obj_bp.snap.get_var("location.z", "Previous_Z_Loc")
+                shelf.loc_z('Previous_Z_Loc-opening_{}_height-PT'.format(str(i)), [Previous_Z_Loc, opening_height, PT])
+            else:
+                shelf.loc_z(
+                    'Panel_Height-PT*2-opening_{}_height+IF(Is_Hanging,0,Toe_Kick_Height)'.format(str(i)),
+                    [Panel_Height, opening_height, PT, Is_Hanging, Toe_Kick_Height])
+
+            shelf.dim_x('Width-IF(RRS,0,PT)-IF(Add_Backing,Backing_Thickness,0)', [Width, RRS, PT, Add_Backing, Backing_Thickness])
+            shelf.dim_y('Depth+IF(RLS,0,PT)+IF(Add_Backing,Backing_Thickness,0)', [Depth, RLS, PT, Add_Backing, Backing_Thickness])
+            shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+
+            l_depth = shelf.get_prompt('Left Depth')
+            l_depth.set_formula('Left_Depth-IF(Add_Backing,Backing_Thickness,0)', [Left_Depth, Add_Backing, Backing_Thickness])
+
+            r_depth = shelf.get_prompt('Right Depth')
+            r_depth.set_formula('Right_Depth-IF(Add_Backing,Backing_Thickness,0)', [Right_Depth, Add_Backing, Backing_Thickness])
+
+            previous_shelf = shelf
+
+        for shelf in self.shelves:
+            sn_utils.update_obj_driver_expressions(shelf.obj_bp)
+
     def pre_draw(self):
         self.create_assembly()
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_x.location.x = self.width
         self.obj_y.location.y = -self.depth
         self.obj_z.location.z = self.height
@@ -87,9 +179,6 @@ class L_Shelves(sn_types.Assembly):
         self.add_prompt("Right Filler Setback Amount", 'DISTANCE', 0.0)
         self.add_prompt("Edge Bottom of Left Filler", 'CHECKBOX', False)
         self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
-
-        for i in range(1, 11):
-            self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(653.034))
 
         common_prompts.add_toe_kick_prompts(self)
         common_prompts.add_thickness_prompts(self)
@@ -191,7 +280,7 @@ class L_Shelves(sn_types.Assembly):
         right_top_cleat.dim_x('Width-Spine_Width-IF(RRS,0,PT)', [RRS, Width, PT, Spine_Width])
         right_top_cleat.dim_y('Cleat_Height', [Cleat_Height])
         right_top_cleat.dim_z('-PT', [PT])
-        right_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        right_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         left_top_cleat = common_parts.add_cleat(self)
         left_top_cleat.set_name("Top Cleat")
@@ -202,7 +291,7 @@ class L_Shelves(sn_types.Assembly):
         left_top_cleat.dim_x('-Depth-Spine_Width-IF(RLS,0,PT)', [RLS, Depth, PT, Spine_Width])
         left_top_cleat.dim_y('Cleat_Height', [Cleat_Height])
         left_top_cleat.dim_z('-PT', [PT])
-        left_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        left_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         bottom = common_parts.add_l_shelf(self)
         bottom.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)', [Is_Hanging, Height, Panel_Height, Toe_Kick_Height])
@@ -221,7 +310,7 @@ class L_Shelves(sn_types.Assembly):
         right_bot_cleat.dim_x('Width-Spine_Width-IF(RRS,0,PT)', [RRS, Width, PT, Spine_Width])
         right_bot_cleat.dim_y('-Cleat_Height', [Cleat_Height])
         right_bot_cleat.dim_z('-PT', [PT])
-        right_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        right_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         left_bot_cleat = common_parts.add_cleat(self)
         left_bot_cleat.set_name("Bottom Cleat")
@@ -232,7 +321,7 @@ class L_Shelves(sn_types.Assembly):
         left_bot_cleat.dim_x('-Depth-Spine_Width-IF(RLS,0,PT)', [RLS, Depth, PT, Spine_Width])
         left_bot_cleat.dim_y('-Cleat_Height', [Cleat_Height])
         left_bot_cleat.dim_z('-PT', [PT])
-        left_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        left_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         left_panel = common_parts.add_panel(self)
         left_panel.loc_y('Depth', [Depth, Add_Backing])
@@ -285,7 +374,7 @@ class L_Shelves(sn_types.Assembly):
         create_corner_fillers(self, Panel_Height, Left_Side_Wall_Filler,
                               Panel_Thickness, Left_Depth, Depth,
                               Left_Filler_Setback_Amount, Is_Hanging, Width,
-                              Edge_Bottom_of_Left_Filler, self.hide_var,
+                              Edge_Bottom_of_Left_Filler,
                               Add_Capping_Left_Filler, Right_Side_Wall_Filler,
                               Right_Filler_Setback_Amount, Toe_Kick_Height,
                               Edge_Bottom_of_Right_Filler, Right_Depth,
@@ -446,31 +535,7 @@ class L_Shelves(sn_types.Assembly):
         l_door_lazy_susan_right_pull.rot_z('radians(90)-IF(Open>Half,((Open-Half)*2)*radians(45),0)', [Open, Pull_Location, Half])
         l_door_lazy_susan_right_pull.get_prompt('Hide').set_formula('IF(Pull_Location==0,True,IF(Door,IF(DT==1,False,True),True))', [Door, Pull_Location, DT])
 
-        # Shelves
-        previous_l_shelf = None
-        for i in range(1, 11):
-            Shelf_Height = self.get_prompt("Shelf " + str(i) + " Height").get_var('Shelf_Height')
-
-            l_shelf = common_parts.add_l_shelf(self)
-            if previous_l_shelf:
-                prev_shelf_z_loc = previous_l_shelf.obj_bp.snap.get_var('location.z', 'prev_shelf_z_loc')
-                l_shelf.loc_z('prev_shelf_z_loc+Shelf_Height', [prev_shelf_z_loc, Shelf_Height])
-            else:
-                l_shelf.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+Shelf_Height',
-                              [Shelf_Height, Is_Hanging, Toe_Kick_Height, Shelf_Thickness, Height, Panel_Height])
-
-            l_shelf.loc_x('IF(Add_Backing,Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
-            l_shelf.loc_y('IF(Add_Backing,-Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
-            l_shelf.rot_x(value=0)
-            l_shelf.rot_y(value=0)
-            l_shelf.rot_z(value=0)
-            l_shelf.dim_x('Width-PT-IF(Add_Backing,Backing_Thickness,0)', [Width, PT, Add_Backing, Backing_Thickness])
-            l_shelf.dim_y('Depth+PT+IF(Add_Backing,Backing_Thickness,0)', [Depth, PT, Add_Backing, Backing_Thickness])
-            l_shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
-            l_shelf.get_prompt('Left Depth').set_formula('Left_Depth-IF(Add_Backing,Backing_Thickness,0)', [Left_Depth, Add_Backing, Backing_Thickness])
-            l_shelf.get_prompt('Right Depth').set_formula('Right_Depth-IF(Add_Backing,Backing_Thickness,0)', [Right_Depth, Add_Backing, Backing_Thickness])
-            l_shelf.get_prompt('Hide').set_formula('IF(Shelf_Quantity>' + str(i) + ',False,True)', [Shelf_Quantity])
-            previous_l_shelf = l_shelf
+        self.add_shelves()
 
     def draw(self):
         self.obj_bp["IS_BP_CLOSET"] = True
@@ -573,7 +638,7 @@ def set_tk_hide(toe_kick):
 def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
                           Panel_Thickness, Left_Depth, Depth,
                           Left_Filler_Setback_Amount, Is_Hanging, Width,
-                          Edge_Bottom_of_Left_Filler, hide_var,
+                          Edge_Bottom_of_Left_Filler,
                           Add_Capping_Left_Filler, Right_Side_Wall_Filler,
                           Right_Filler_Setback_Amount, Toe_Kick_Height,
                           Edge_Bottom_of_Right_Filler, Right_Depth,
@@ -601,8 +666,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
     left_filler.rot_z(value=math.radians(180))
     hide = left_filler.get_prompt("Hide")
     hide.set_formula(
-        'IF(Left_Side_Wall_Filler==0,True,False) or Hide',
-        [Left_Side_Wall_Filler, hide_var])
+        'IF(Left_Side_Wall_Filler==0,True,False)',
+        [Left_Side_Wall_Filler])
     left_filler.get_prompt("Exposed Left").set_formula(
         'IF(Edge_Bottom_of_Left_Filler,True,False)',
         [Edge_Bottom_of_Left_Filler])
@@ -631,8 +696,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
     left_capping_filler.rot_y(value=math.radians(-90))
     left_capping_filler.rot_z(value=math.radians(180))
     left_capping_filler.get_prompt('Hide').set_formula(
-        'IF(Add_Capping_Left_Filler,False,True) or Hide',
-        [Left_Side_Wall_Filler, Add_Capping_Left_Filler, hide_var])
+        'IF(Add_Capping_Left_Filler,False,True)',
+        [Left_Side_Wall_Filler, Add_Capping_Left_Filler])
     left_capping_filler.get_prompt("Exposed Left").set_value(True)
     left_capping_filler.get_prompt("Exposed Right").set_value(True)
     left_capping_filler.get_prompt("Exposed Back").set_value(True)
@@ -659,8 +724,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
     right_filler.rot_z(value=math.radians(-90))
     hide = right_filler.get_prompt("Hide")
     hide.set_formula(
-        'IF(Right_Side_Wall_Filler==0,True,False) or Hide',
-        [Right_Side_Wall_Filler, hide_var])
+        'IF(Right_Side_Wall_Filler==0,True,False)',
+        [Right_Side_Wall_Filler])
     right_filler.get_prompt("Exposed Left").set_formula(
         'IF(Edge_Bottom_of_Right_Filler,True,False)',
         [Edge_Bottom_of_Right_Filler])
@@ -689,8 +754,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
     right_capping_filler.rot_y(value=math.radians(-90))
     right_capping_filler.rot_z(value=math.radians(-90))
     right_capping_filler.get_prompt('Hide').set_formula(
-        'IF(Add_Capping_Right_Filler,False,True) or Hide',
-        [Right_Side_Wall_Filler, Add_Capping_Right_Filler, hide_var])
+        'IF(Add_Capping_Right_Filler,False,True)',
+        [Right_Side_Wall_Filler, Add_Capping_Right_Filler])
     right_capping_filler.get_prompt("Exposed Left").set_value(True)
     right_capping_filler.get_prompt("Exposed Right").set_value(True)
     right_capping_filler.get_prompt("Exposed Back").set_value(True)
@@ -708,16 +773,44 @@ class Corner_Shelves(sn_types.Assembly):
     show_in_library = True
     placement_type = 'CORNER'
 
-    def pre_draw(self):
-        self.create_assembly()
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-        self.obj_x.location.x = self.width
-        self.obj_y.location.y = -self.depth
-        self.obj_z.location.z = self.height
+    var = {}  # Driver Variables
+    shelves = []
 
-        props = bpy.context.scene.sn_closets
+    calculator = None
+    calculator_name = "Opening Heights Calculator"
+    calculator_obj_name = "Shelf Stack Calc Distance Obj"
 
+    def __init__(self, obj_bp=None):
+        super().__init__(obj_bp=obj_bp)
+        self.shelves = []
+        self.get_shelves()
+        self.calculator = self.get_calculator(self.calculator_name)
+
+    def get_shelves(self):
+        for child in self.obj_bp.children:
+            if child.get("IS_STACK_SHELF"):
+                shelf = sn_types.Assembly(child)
+                self.shelves.append(shelf)
+
+    def add_calculator(self, amt):
+        calc_distance_obj = self.add_empty(self.calculator_obj_name)
+        calc_distance_obj.empty_display_size = .001
+        self.calculator = self.obj_prompts.snap.add_calculator(self.calculator_name, calc_distance_obj)
+
+    def add_calculator_prompts(self, amt):
+        Panel_Height = self.get_prompt('Panel Height').get_var()
+        Thickness = self.get_prompt('Shelf Thickness').get_var("Thickness")
+        self.calculator.prompts.clear()
+
+        for i in range(1, amt + 1):
+            calc_prompt = self.calculator.add_calculator_prompt("Opening " + str(i) + " Height")
+            calc_prompt.equal = True
+
+        self.calculator.set_total_distance(
+            "Panel_Height-Thickness*2-Thickness*{}".format(str(amt - 1)), [Panel_Height, Thickness])
+
+    def add_prompts(self):
+        closet_defaults = bpy.context.scene.sn_closets.closet_defaults
         self.add_prompt("Panel Height", 'DISTANCE', sn_unit.millimeter(2003))
         self.add_prompt("Back Inset", 'DISTANCE', sn_unit.inch(.25))
         self.add_prompt("Spine Width", 'DISTANCE', sn_unit.inch(1))
@@ -726,17 +819,22 @@ class Corner_Shelves(sn_types.Assembly):
         self.add_prompt("Left Depth", 'DISTANCE', sn_unit.inch(12))
         self.add_prompt("Right Depth", 'DISTANCE', sn_unit.inch(12))
         self.add_prompt("Shelf Quantity", 'QUANTITY', 3)
-        self.add_prompt("Add Top KD", 'CHECKBOX', True)  # export=True
-        self.add_prompt("Hide Toe Kick", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Add Backing", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Is Hanging", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Remove Left Side", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Remove Right Side", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Use Left Swing", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Force Double Doors", 'CHECKBOX', False)  # export=True
-        self.add_prompt("Door", 'CHECKBOX', False)  # export=True
+        self.add_prompt("Add Top KD", 'CHECKBOX', True)
+        self.add_prompt("Hide Toe Kick", 'CHECKBOX', False)
+        self.add_prompt("Add Backing", 'CHECKBOX', False)
+        self.add_prompt("Is Hanging", 'CHECKBOX', False)
+        self.add_prompt("Remove Left Side", 'CHECKBOX', False)
+        self.add_prompt("Remove Right Side", 'CHECKBOX', False)
+        self.add_prompt("Use Left Swing", 'CHECKBOX', False)
+        self.add_prompt("Force Double Doors", 'CHECKBOX', False)
+        self.add_prompt("Door", 'CHECKBOX', False)
         self.add_prompt("Door Pull Height", 'DISTANCE', sn_unit.inch(36))
         self.add_prompt("Backing Thickness", 'DISTANCE', sn_unit.inch(0.75))
+        self.add_prompt("Shelf Backing Setback", 'DISTANCE', 0)
+        self.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', closet_defaults.thick_adjustable_shelves)
+        self.add_prompt('Individual Shelf Setbacks', 'CHECKBOX', False)
+        self.add_prompt("Adj Shelf Setback", 'DISTANCE', sn_unit.inch(0.25))
+
 
         self.add_prompt("Open Door", 'PERCENTAGE', 0)
         self.add_prompt("Door Rotation", 'QUANTITY', 120)
@@ -759,13 +857,86 @@ class Corner_Shelves(sn_types.Assembly):
         self.add_prompt("Edge Bottom of Left Filler", 'CHECKBOX', False)
         self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
 
-        for i in range(1, 11):
-            self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(653.034))
+        # for i in range(1, 11):
+        #     self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(653.034))
 
         common_prompts.add_toe_kick_prompts(self)
         common_prompts.add_thickness_prompts(self)
         common_prompts.add_door_prompts(self)
         common_prompts.add_door_pull_prompts(self)
+
+    def add_shelves(self, amt=3):
+        self.shelves = []
+        Width = self.obj_x.snap.get_var('location.x', 'Width')
+        Height = self.obj_z.snap.get_var('location.z', 'Height')
+        Depth = self.obj_y.snap.get_var('location.y', 'Depth')
+        Panel_Height = self.get_prompt('Panel Height').get_var()
+        Add_Backing = self.get_prompt("Add Backing").get_var()
+        Backing_Thickness = self.get_prompt("Backing Thickness").get_var()
+        PT = self.get_prompt("Panel Thickness").get_var("PT")
+        Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var()
+        Left_Depth = self.get_prompt("Left Depth").get_var()
+        Right_Depth = self.get_prompt("Right Depth").get_var()
+        RLS = self.get_prompt('Remove Left Side').get_var("RLS")
+        RRS = self.get_prompt('Remove Right Side').get_var("RRS")
+        Is_Hanging = self.get_prompt('Is Hanging').get_var('Is_Hanging')
+        Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var('Toe_Kick_Height')
+        previous_shelf = None
+
+        if not self.calculator:
+            self.add_calculator(amt)
+
+        self.add_calculator_prompts(amt)
+
+        for i in range(1, amt):
+            shelf = common_parts.add_angle_shelf(self)
+            shelf.obj_bp["IS_STACK_SHELF"] = True
+            shelf.obj_bp.name = "Stack Shelf"
+            self.shelves.append(shelf)
+            height_prompt = eval("self.calculator.get_calculator_prompt('Opening {} Height')".format(str(i)))
+            opening_height = eval("height_prompt.get_var(self.calculator.name, 'opening_{}_height')".format(str(i)))
+
+            shelf.loc_x('IF(Add_Backing,Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
+            shelf.loc_y('IF(Add_Backing,-Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
+
+            if previous_shelf:
+                Previous_Z_Loc = previous_shelf.obj_bp.snap.get_var("location.z", "Previous_Z_Loc")
+                shelf.loc_z('Previous_Z_Loc-opening_{}_height-PT'.format(str(i)), [Previous_Z_Loc, opening_height, PT])
+            else:
+                shelf.loc_z(
+                    'Panel_Height-PT*2-opening_{}_height+IF(Is_Hanging,0,Toe_Kick_Height)'.format(str(i)),
+                    [Panel_Height, opening_height, PT, Is_Hanging, Toe_Kick_Height])
+
+            shelf.dim_x('Width-IF(RRS,0,PT)-IF(Add_Backing,Backing_Thickness,0)', [Width, RRS, PT, Add_Backing, Backing_Thickness])
+            shelf.dim_y('Depth+IF(RLS,0,PT)+IF(Add_Backing,Backing_Thickness,0)', [Depth, RLS, PT, Add_Backing, Backing_Thickness])
+            shelf.dim_z('Shelf_Thickness', [Shelf_Thickness])
+
+            l_depth = shelf.get_prompt('Left Depth')
+            l_depth.set_formula('Left_Depth-IF(Add_Backing,Backing_Thickness,0)', [Left_Depth, Add_Backing, Backing_Thickness])
+
+            r_depth = shelf.get_prompt('Right Depth')
+            r_depth.set_formula('Right_Depth-IF(Add_Backing,Backing_Thickness,0)', [Right_Depth, Add_Backing, Backing_Thickness])
+
+            previous_shelf = shelf
+
+        for shelf in self.shelves:
+            sn_utils.update_obj_driver_expressions(shelf.obj_bp)
+
+    def update(self):
+        self.obj_bp["IS_BP_CLOSET"] = True
+        self.obj_bp["IS_BP_CORNER_SHELVES"] = True
+        self.obj_bp["ID_PROMPT"] = self.property_id
+        self.obj_y['IS_MIRROR'] = True
+        self.obj_bp.snap.type_group = self.type_assembly
+        super().update()
+        set_tk_id_prompt(self.obj_bp)
+
+    def draw(self):
+        self.create_assembly()
+        self.add_prompts()
+        self.obj_x.location.x = self.width
+        self.obj_y.location.y = -self.depth
+        self.obj_z.location.z = self.height
 
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Height = self.obj_z.snap.get_var('location.z', 'Height')
@@ -812,6 +983,19 @@ class Corner_Shelves(sn_types.Assembly):
         Edge_Bottom_of_Right_Filler = self.get_prompt("Edge Bottom of Right Filler").get_var()
         Add_Capping_Right_Filler = self.get_prompt("Add Capping Right Filler").get_var()
 
+        self.var[Is_Hanging.name] = Is_Hanging
+        self.var[Toe_Kick_Height.name] = Toe_Kick_Height
+        self.var[Shelf_Thickness.name] = Shelf_Thickness
+        self.var[Panel_Height.name] = Panel_Height
+        self.var[Add_Backing.name] = Add_Backing
+        self.var[Backing_Thickness.name] = Backing_Thickness
+        self.var[Width.name] = Width
+        self.var[Height.name] = Height
+        self.var[Depth.name] = Depth
+        self.var[Left_Depth.name] = Left_Depth
+        self.var[Right_Depth.name] = Right_Depth
+        self.var[Shelf_Quantity.name] = Shelf_Quantity
+        self.var[PT.name] = PT
 
         top_angled = common_parts.add_angle_shelf(self)
         top_angled.loc_z('(Height+IF(Is_Hanging,0,Toe_Kick_Height))', [Height, Toe_Kick_Height, Is_Hanging])
@@ -845,7 +1029,7 @@ class Corner_Shelves(sn_types.Assembly):
         right_top_cleat.dim_x('Width-Spine_Width-IF(RRS,0,PT)', [RRS, Width, PT, Spine_Width])
         right_top_cleat.dim_y('Cleat_Height', [Cleat_Height])
         right_top_cleat.dim_z('-PT', [PT])
-        right_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        right_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         left_top_cleat = common_parts.add_cleat(self)
         left_top_cleat.set_name("Top Cleat")
@@ -856,7 +1040,7 @@ class Corner_Shelves(sn_types.Assembly):
         left_top_cleat.dim_x('-Depth-Spine_Width-IF(RLS,0,PT)', [RLS, Depth, PT, Spine_Width])
         left_top_cleat.dim_y('Cleat_Height', [Cleat_Height])
         left_top_cleat.dim_z('-PT', [PT])
-        left_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        left_top_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         bottom_angled = common_parts.add_angle_shelf(self)
         bottom_angled.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)', [Is_Hanging, Height, Panel_Height, Toe_Kick_Height])
@@ -875,7 +1059,7 @@ class Corner_Shelves(sn_types.Assembly):
         right_bot_cleat.dim_x('Width-Spine_Width-IF(RRS,0,PT)', [RRS, Width, PT, Spine_Width])
         right_bot_cleat.dim_y('-Cleat_Height', [Cleat_Height])
         right_bot_cleat.dim_z('-PT', [PT])
-        right_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        right_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         left_bot_cleat = common_parts.add_cleat(self)
         left_bot_cleat.set_name("Bottom Cleat")
@@ -886,7 +1070,7 @@ class Corner_Shelves(sn_types.Assembly):
         left_bot_cleat.dim_x('-Depth-Spine_Width-IF(RLS,0,PT)', [RLS, Depth, PT, Spine_Width])
         left_bot_cleat.dim_y('-Cleat_Height', [Cleat_Height])
         left_bot_cleat.dim_z('-PT', [PT])
-        left_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False) or Hide', [self.hide_var, Add_Backing])
+        left_bot_cleat.get_prompt('Hide').set_formula('IF(Add_Backing,True,False)', [Add_Backing])
 
         left_panel = common_parts.add_panel(self)
         left_panel.loc_y('Depth', [Depth, Add_Backing])
@@ -983,7 +1167,7 @@ class Corner_Shelves(sn_types.Assembly):
         create_corner_fillers(self, Panel_Height, Left_Side_Wall_Filler,
                               Panel_Thickness, Left_Depth, Depth,
                               Left_Filler_Setback_Amount, Is_Hanging, Width,
-                              Edge_Bottom_of_Left_Filler, self.hide_var,
+                              Edge_Bottom_of_Left_Filler,
                               Add_Capping_Left_Filler, Right_Side_Wall_Filler,
                               Right_Filler_Setback_Amount, Toe_Kick_Height,
                               Edge_Bottom_of_Right_Filler, Right_Depth,
@@ -1057,43 +1241,9 @@ class Corner_Shelves(sn_types.Assembly):
             'IF((Door and Force_Double_Doors and Use_Left_Swing),False,IF((Door and Force_Double_Doors),False,IF((Door and Use_Left_Swing),True,IF(Door,False,True))))',
             [Door, Use_Left_Swing, Force_Double_Doors])
 
-        # Shelves
-        # Angled Shelves
-        previous_angled_shelf = None
-        for i in range(1, 11):
-            Shelf_Height = self.get_prompt("Shelf " + str(i) + " Height").get_var('Shelf_Height')
+        self.add_shelves()
 
-            shelf_angled = common_parts.add_angle_shelf(self)
-
-            if previous_angled_shelf:
-                prev_shelf_z_loc = previous_angled_shelf.obj_bp.snap.get_var('location.z', 'prev_shelf_z_loc')
-                shelf_angled.loc_z('prev_shelf_z_loc+Shelf_Height', [prev_shelf_z_loc, Shelf_Height])
-            else:
-                shelf_angled.loc_z('IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+Shelf_Height+Shelf_Thickness',
-                                   [Shelf_Height, Is_Hanging, Toe_Kick_Height, Shelf_Thickness, Panel_Height, Height])
-
-            shelf_angled.loc_x('IF(Add_Backing,Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
-            shelf_angled.loc_y('IF(Add_Backing,-Backing_Thickness,0)', [Add_Backing, Backing_Thickness])
-            shelf_angled.rot_x(value=0)
-            shelf_angled.rot_y(value=0)
-            shelf_angled.rot_z(value=0)
-            shelf_angled.dim_x('Width-PT-IF(Add_Backing,Backing_Thickness,0)', [Width, PT, Add_Backing, Backing_Thickness])
-            shelf_angled.dim_y('Depth+PT+IF(Add_Backing,Backing_Thickness,0)', [Depth, PT, Add_Backing, Backing_Thickness])
-            shelf_angled.dim_z('Shelf_Thickness', [Shelf_Thickness])
-            shelf_angled.get_prompt('Left Depth').set_formula('Left_Depth-IF(Add_Backing,Backing_Thickness,0)', [Left_Depth, Add_Backing, Backing_Thickness])
-            shelf_angled.get_prompt('Right Depth').set_formula('Right_Depth-IF(Add_Backing,Backing_Thickness,0)', [Right_Depth, Add_Backing, Backing_Thickness])
-            shelf_angled.get_prompt('Hide').set_formula('IF(Shelf_Quantity>' + str(i) + ',False,True)', [Shelf_Quantity])
-
-            previous_angled_shelf = shelf_angled
-
-    def draw(self):
-        self.obj_bp["IS_BP_CLOSET"] = True
-        self.obj_bp["IS_BP_CORNER_SHELVES"] = True
-        self.obj_bp["ID_PROMPT"] = self.property_id
-        self.obj_y['IS_MIRROR'] = True
-        self.obj_bp.snap.type_group = self.type_assembly
         self.update()
-        set_tk_id_prompt(self.obj_bp)
 
 
 class Corner_Triangle_Shelves(sn_types.Assembly):
@@ -1243,36 +1393,6 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                                    ("2", "Upper", "Upper")],
                             default="1")
 
-    Shelf_1_Height: EnumProperty(name="Shelf 1 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_2_Height: EnumProperty(name="Shelf 2 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_3_Height: EnumProperty(name="Shelf 3 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_4_Height: EnumProperty(name="Shelf 4 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_5_Height: EnumProperty(name="Shelf 5 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_6_Height: EnumProperty(name="Shelf 6 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_7_Height: EnumProperty(name="Shelf 7 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_8_Height: EnumProperty(name="Shelf 8 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_9_Height: EnumProperty(name="Shelf 9 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_10_Height: EnumProperty(name="Shelf 10 Height",
-                                  items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
     shelf_quantity: EnumProperty(name="Shelf Quantity",
                                  items=[('1', "1", '1'),
                                         ('2', "2", '2'),
@@ -1283,7 +1403,12 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                                         ('7', "7", '7'),
                                         ('8', "8", '8'),
                                         ('9', "9", '9'),
-                                        ('10', "10", '10')],
+                                        ('10', "10", '10'),
+                                        ('11', "11", '11'),
+                                        ('12', "12", '12'),
+                                        ('13', "13", '13'),
+                                        ('14', "14", '14'),
+                                        ('15', "15", '15')],
                                  default='3')
 
     product = None
@@ -1291,11 +1416,44 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
 
     prev_left_wall_filler = 0
 
+    def update_shelves(self):
+        shelf_amt_changed = len(self.product.shelves) != int(self.shelf_quantity) - 1
+
+        if shelf_amt_changed:
+            for i, assembly in enumerate(self.product.shelves):
+                sn_utils.delete_object_and_children(assembly.obj_bp)
+
+            self.product.shelves.clear()
+            self.product.add_shelves(amt=int(self.shelf_quantity))
+
+        self.product.update()
+        shelf = self.product.shelves[0]
+        for child in shelf.obj_bp.children:
+            if child.type == 'MESH':
+                bpy.context.view_layer.objects.active = child    
+
+    def closest_hole_amt(self, opening_heights, height):
+        return opening_heights[min(range(len(opening_heights)), key=lambda i: abs(opening_heights[i] - height))]
+
+    def update_opening_heights(self):
+        for i in range(1, int(self.shelf_quantity) + 1):
+            opening_height = self.product.get_prompt("Opening " + str(i) + " Height")
+            if opening_height:
+                if not opening_height.equal:
+                    op_heights = [float(height[0]) for height in data_closet_splitters.get_opening_heights()]
+                    height = opening_height.get_value()
+                    closest_hole_amt = self.closest_hole_amt(op_heights, sn_unit.meter_to_millimeter(height))
+                    opening_height.set_value(sn_unit.millimeter(closest_hole_amt))
+
     def check(self, context):
         """ This is called everytime a change is made in the UI """
         self.set_prompts_from_properties()
+        self.update_shelves()
+        self.update_opening_heights()
+        self.run_calculators(self.product.obj_bp)
         self.check_fillers()
         self.set_obj_location()
+        self.run_calculators(self.product.obj_bp)
         closet_props.update_render_materials(self, context)
         return True
 
@@ -1305,9 +1463,22 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
 
     def invoke(self, context, event):
         """ This is called before the interface is displayed """
-        self.product = self.get_product()
+        obj_bp = self.get_product().obj_bp
+
+        if not obj_bp.get("SNAP_VERSION"):
+            print("Found old lib data!")
+            return bpy.ops.sn_closets.l_shelves_214('INVOKE_DEFAULT')
+
+        self.product = L_Shelves(obj_bp)
         self.set_properties_from_prompts()
         self.set_filler_values()
+
+        self.calculators = []
+        heights_calc = self.product.get_calculator('Opening Heights Calculator')
+        if heights_calc:
+            self.calculators.append(heights_calc)
+        self.run_calculators(self.product.obj_bp)
+
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
 
@@ -1395,21 +1566,6 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                 self.product.obj_z.location.z = float(self.Product_Height) / 1000
 
             shelf_quantity.set_value(int(self.shelf_quantity))
-            for i in range(1, int(self.shelf_quantity)):
-                shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
-
-                hole_count = round(((panel_height.get_value()) * 1000) / 32)
-                holes_per_shelf = round(hole_count / int(self.shelf_quantity))
-                remainder = hole_count - (holes_per_shelf * (int(self.shelf_quantity)))
-
-                if(i <= remainder):
-                    holes_per_shelf = holes_per_shelf + 1
-                if(holes_per_shelf >= 3):
-                    shelf.set_value(float(common_lists.SHELF_IN_DOOR_HEIGHTS[holes_per_shelf - 3][0]) / 1000)
-                    exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[holes_per_shelf-3][0]")
-                else:
-                    shelf.set_value(float(common_lists.SHELF_IN_DOOR_HEIGHTS[0][0]) / 1000)
-                    exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[0][0]")
 
     def set_properties_from_prompts(self):
         ''' This should be called in the invoke function to set the class properties
@@ -1432,14 +1588,6 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                     break
 
             self.shelf_quantity = str(shelf_quantity.get_value())
-            for i in range(1, 11):
-                shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
-                if shelf:
-                    value = round(shelf.get_value() * 1000, 3)
-                    for index, height in enumerate(common_lists.SHELF_IN_DOOR_HEIGHTS):
-                        if not value >= float(height[0]):
-                            exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[index - 1][0]")
-                            break
 
     def draw_product_size(self, layout):
         box = layout.box()
@@ -1491,29 +1639,40 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
         add_left_filler = self.product.get_prompt("Add Left Filler")
         add_right_filler = self.product.get_prompt("Add Right Filler")
         left_wall_filler = self.product.get_prompt("Left Side Wall Filler")
-        right_wall_filler =\
-            self.product.get_prompt("Right Side Wall Filler")
-        left_filler_setback_amount =\
-            self.product.get_prompt("Left Filler Setback Amount")
-        right_filler_setback_amount =\
-            self.product.get_prompt("Right Filler Setback Amount")
-        add_capping_left_filler =\
-            self.product.get_prompt("Add Capping Left Filler")
-        add_capping_right_filler =\
-            self.product.get_prompt("Add Capping Right Filler")
-        edge_bottom_of_left_filler =\
-            self.product.get_prompt("Edge Bottom of Left Filler")
-        edge_bottom_of_right_filler =\
-            self.product.get_prompt("Edge Bottom of Right Filler")
+        right_wall_filler = self.product.get_prompt("Right Side Wall Filler")
+        left_filler_setback_amount = self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount = self.product.get_prompt("Right Filler Setback Amount")
+        add_capping_left_filler = self.product.get_prompt("Add Capping Left Filler")
+        add_capping_right_filler = self.product.get_prompt("Add Capping Right Filler")
+        edge_bottom_of_left_filler = self.product.get_prompt("Edge Bottom of Left Filler")
+        edge_bottom_of_right_filler = self.product.get_prompt("Edge Bottom of Right Filler")
+        Left_Depth = self.product.get_prompt("Left Depth")
+        Right_Depth = self.product.get_prompt("Right Depth")
+        Remove_Left_Side = self.product.get_prompt("Remove Left Side")
+        Remove_Right_Side = self.product.get_prompt("Remove Right Side")        
 
-        filler_box = layout.box()
-        split = filler_box.split()
+        box = layout.box()
+        split = box.split()
         col = split.column(align=True)
-        col.label(text="Filler Options:")
-        row = col.row()
+        col.label(text="Side Options:")
+        row = box.row()
+
+        if Left_Depth:
+            row.prop(Left_Depth, "distance_value", text=Left_Depth.name)
+        if Right_Depth:
+            row.prop(Right_Depth, "distance_value", text=Right_Depth.name)
+
+        row = box.row()
+
+        if Remove_Left_Side:
+            row.prop(Remove_Left_Side, "checkbox_value", text=Remove_Left_Side.name)
+        if Remove_Right_Side:
+            row.prop(Remove_Right_Side, "checkbox_value", text=Remove_Right_Side.name)            
+
+        row = box.row()
         row.prop(add_left_filler, 'checkbox_value', text="Add Left Filler")
         row.prop(add_right_filler, 'checkbox_value', text="Add Right Filler")
-        row = col.row()
+        col = box.column()
         distance_row = col.row()
         setback_amount_row = col.row()
         capping_filler_row = col.row()
@@ -1557,56 +1716,68 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
             capping_filler_row.label(text="")
             edge_row.label(text="")
 
-    def draw(self, context):
-        """ This is where you draw the interface """
-        Left_Depth = self.product.get_prompt("Left Depth")
-        Right_Depth = self.product.get_prompt("Right Depth")
+    def get_number_of_equal_heights(self):
+        calculator = self.product.get_calculator('Opening Heights Calculator')
+        shelf_qty = self.product.get_prompt("Shelf Quantity").get_value()
+        number_of_equal_heights = 0
+
+        for i in range(1, shelf_qty + 1):
+            height = eval("calculator.get_calculator_prompt('Opening {} Height')".format(str(i)))
+
+            if height:
+                number_of_equal_heights += 1 if height.equal else 0
+            else:
+                break
+
+        return number_of_equal_heights
+
+    def draw_opening_heights(self, layout):
         Shelf_Quantity = self.product.get_prompt("Shelf Quantity")
-        Add_Backing = self.product.get_prompt("Add Backing")
-        # Backing_Thickness = self.product.get_prompt("Backing Thickness")
-        Add_Top = self.product.get_prompt("Add Top KD")
-        Remove_Left_Side = self.product.get_prompt("Remove Left Side")
-        Remove_Right_Side = self.product.get_prompt("Remove Right Side")
-        Door = self.product.get_prompt("Door")
-        Door_Type = self.product.get_prompt("Door Type")
-        Open_Door = self.product.get_prompt("Open Door")
-        Base_Pull_Location = self.product.get_prompt("Base Pull Location")
-        Tall_Pull_Location = self.product.get_prompt("Tall Pull Location")
-        Upper_Pull_Location = self.product.get_prompt("Upper Pull Location")
-        Add_Top_Shelf = self.product.get_prompt("Add Top Shelf")
-        Exposed_Left = self.product.get_prompt("Exposed Left")
-        Exposed_Right = self.product.get_prompt("Exposed Right")
-        Top_Shelf_Overhang = self.product.get_prompt("Top Shelf Overhang")
-        Extend_Left = self.product.get_prompt("Extend Left")
-        Extend_Right = self.product.get_prompt("Extend Right")
+        calculator = self.product.get_calculator('Opening Heights Calculator')
+        opening_heights = data_closet_splitters.get_opening_heights()
 
-        layout = self.layout
-        self.draw_product_size(layout)
-        self.draw_filler_options(layout)
-
-        if Left_Depth:
-            box = layout.box()
-            row = box.row()
-            row.prop(Left_Depth, "distance_value", text=Left_Depth.name)
-
-        if Right_Depth:
-            row.prop(Right_Depth, "distance_value", text=Right_Depth.name)
+        col = layout.column(align=True)
+        box = col.box()
+        box.label(text="Shelves:")
 
         if Shelf_Quantity:
             col = box.column(align=True)
             row = col.row()
             row.label(text="Qty:")
             row.prop(self, "shelf_quantity", expand=True)
-            col.separator()
+            col.separator()        
 
-        if Add_Backing:
-            row = box.row()
-            row.prop(Add_Backing, "checkbox_value", text=Add_Backing.name)
+        for i in range(1, int(self.shelf_quantity) + 1):
+            height = eval("calculator.get_calculator_prompt('Opening {} Height')".format(str(i)))
 
-        # if Backing_Thickness:
-        #    if Add_Backing.get_value():
-        #        row = box.row()
-        #        row.prop(Backing_Thickness, "distance_value", text=Backing_Thickness.name)
+            if height:
+                row = box.row()
+                row.label(text="Opening " + str(i) + ":")
+
+                if not height.equal:
+                    row.prop(height, 'equal', text="")
+                else:
+                    if self.get_number_of_equal_heights() != 1:
+                        row.prop(height, 'equal', text="")
+                    else:
+                        row.label(text="", icon='BLANK1')
+                if height.equal:
+                    row.label(text=str(round(sn_unit.meter_to_active_unit(height.distance_value), 2)) + '"')
+                else:
+                    label = ""
+                    for opening_height in opening_heights:
+                        if float(opening_height[0]) == round(sn_unit.meter_to_millimeter(height.distance_value), 1):
+                            label = opening_height[1]
+                    row.menu("SNAP_MT_Opening_{}_Heights".format(str(i)), text=label)
+
+    def draw_top_options(self, layout):
+        box = layout.box()
+        box.label(text="Top Options:")
+        Add_Top = self.product.get_prompt("Add Top KD")
+        Add_Top_Shelf = self.product.get_prompt("Add Top Shelf")
+        Exposed_Left = self.product.get_prompt("Exposed Left")
+        Exposed_Right = self.product.get_prompt("Exposed Right")
+        Top_Shelf_Overhang = self.product.get_prompt("Top Shelf Overhang")
 
         if Add_Top:
             row = box.row()
@@ -1622,27 +1793,22 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
                 row.prop(Exposed_Right, "checkbox_value", text='Right')
                 row = box.row()
                 row.prop(Top_Shelf_Overhang, 'distance_value', text=Top_Shelf_Overhang.name)
-                row = box.row()
-                row.prop(Extend_Left, 'distance_value', text=Extend_Left.name)
-                row.prop(Extend_Right, 'distance_value', text=Extend_Right.name)
 
-        if Remove_Left_Side:
-            row = box.row()
-            row.prop(Remove_Left_Side, "checkbox_value", text=Remove_Left_Side.name)
-
-        if Remove_Right_Side:
-            row = box.row()
-            row.prop(Remove_Right_Side, "checkbox_value", text=Remove_Right_Side.name)
+    def draw_door_options(self, layout):
+        box = layout.box()
+        box.label(text="Door Options:")
+        Door = self.product.get_prompt("Door")
+        Use_Left_Swing = self.product.get_prompt("Use Left Swing")
+        Force_Double_Doors = self.product.get_prompt("Force Double Doors")
+        Open_Door = self.product.get_prompt("Open Door")
+        Base_Pull_Location = self.product.get_prompt("Base Pull Location")
+        Tall_Pull_Location = self.product.get_prompt("Tall Pull Location")
+        Upper_Pull_Location = self.product.get_prompt("Upper Pull Location")
 
         row = box.row()
         row.prop(Door, "checkbox_value", text=Door.name)
 
         if Door.get_value():
-            if Door_Type:
-                row = box.row()
-                row.prop(self, 'Door_Type', text="Door Type")
-                row = box.row()
-                row.prop(self, 'Pull_Location', text="Pull Location", expand=True)
             row = box.row()
             row.prop(self, 'Pull_Type', text="Pull Type", expand=True)
             row = box.row()
@@ -1654,8 +1820,21 @@ class PROMPTS_L_Shelves(sn_types.Prompts_Interface):
             else:
                 row.prop(Upper_Pull_Location, "distance_value", text="")
             if Open_Door:
-                row = box.row()
-                row.prop(Open_Door, "factor_value", text=Open_Door.name)
+                row.label(text=Open_Door.name)
+                row.prop(Open_Door, "factor_value", text="")
+
+            row = box.row()
+            row.prop(Use_Left_Swing, "checkbox_value", text=Use_Left_Swing.name)
+            row.prop(Force_Double_Doors, "checkbox_value", text=Force_Double_Doors.name)            
+
+    def draw(self, context):
+        """ This is where you draw the interface """        
+        layout = self.layout
+        self.draw_product_size(layout)
+        self.draw_filler_options(layout)
+        self.draw_top_options(layout)
+        self.draw_door_options(layout)
+        self.draw_opening_heights(layout)
 
 
 class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
@@ -1682,36 +1861,6 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                                    ("2", "Upper", "Upper")],
                             default="1")
 
-    Shelf_1_Height: EnumProperty(name="Shelf 1 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_2_Height: EnumProperty(name="Shelf 2 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_3_Height: EnumProperty(name="Shelf 3 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_4_Height: EnumProperty(name="Shelf 4 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_5_Height: EnumProperty(name="Shelf 5 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_6_Height: EnumProperty(name="Shelf 6 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_7_Height: EnumProperty(name="Shelf 7 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_8_Height: EnumProperty(name="Shelf 8 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_9_Height: EnumProperty(name="Shelf 9 Height",
-                                 items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
-    Shelf_10_Height: EnumProperty(name="Shelf 10 Height",
-                                  items=common_lists.SHELF_IN_DOOR_HEIGHTS)
-
     shelf_quantity: EnumProperty(name="Shelf Quantity",
                                  items=[('1', "1", '1'),
                                         ('2', "2", '2'),
@@ -1722,10 +1871,15 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                                         ('7', "7", '7'),
                                         ('8', "8", '8'),
                                         ('9', "9", '9'),
-                                        ('10', "10", '10')],
+                                        ('10', "10", '10'),
+                                        ('11', "11", '11'),
+                                        ('12', "12", '12'),
+                                        ('13', "13", '13'),
+                                        ('14', "14", '14'),
+                                        ('15', "15", '15')],
                                  default='3')
 
-    product = None
+    product = None   
 
     def check_tk_height(self):
         toe_kick_height =\
@@ -1736,12 +1890,45 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                                     message="Minimum Toe Kick Height is 3\"",
                                     icon="ERROR")
 
+    def update_shelves(self):
+        shelf_amt_changed = len(self.product.shelves) != int(self.shelf_quantity) - 1
+
+        if shelf_amt_changed:
+            for i, assembly in enumerate(self.product.shelves):
+                sn_utils.delete_object_and_children(assembly.obj_bp)
+
+            self.product.shelves.clear()
+            self.product.add_shelves(amt=int(self.shelf_quantity))
+
+        self.product.update()
+        shelf = self.product.shelves[0]
+        for child in shelf.obj_bp.children:
+            if child.type == 'MESH':
+                bpy.context.view_layer.objects.active = child    
+
+    def closest_hole_amt(self, opening_heights, height):
+        return opening_heights[min(range(len(opening_heights)), key=lambda i: abs(opening_heights[i] - height))]
+
+    def update_opening_heights(self):
+        for i in range(1, int(self.shelf_quantity) + 1):
+            opening_height = self.product.get_prompt("Opening " + str(i) + " Height")
+            if opening_height:
+                if not opening_height.equal:
+                    op_heights = [float(height[0]) for height in data_closet_splitters.get_opening_heights()]
+                    height = opening_height.get_value()
+                    closest_hole_amt = self.closest_hole_amt(op_heights, sn_unit.meter_to_millimeter(height))
+                    opening_height.set_value(sn_unit.millimeter(closest_hole_amt))
+
     def check(self, context):
         """ This is called everytime a change is made in the UI """
-        self.check_tk_height()
         self.set_prompts_from_properties()
+        self.update_shelves()
+        self.update_opening_heights()
+        self.run_calculators(self.product.obj_bp)
+        self.check_tk_height()
         self.check_fillers()
         self.set_obj_location()
+        self.run_calculators(self.product.obj_bp)
         closet_props.update_render_materials(self, context)
         return True
 
@@ -1752,9 +1939,22 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
 
     def invoke(self, context, event):
         """ This is called before the interface is displayed """
-        self.product = self.get_product()
+        obj_bp = self.get_product().obj_bp
+
+        if not obj_bp.get("SNAP_VERSION"):
+            print("Found old lib data!")
+            return bpy.ops.sn_closets.corner_shelves_214('INVOKE_DEFAULT')
+
+        self.product = Corner_Shelves(obj_bp)
         self.set_properties_from_prompts()
         self.set_filler_values()
+
+        self.calculators = []
+        heights_calc = self.product.get_calculator('Opening Heights Calculator')
+        if heights_calc:
+            self.calculators.append(heights_calc)
+        self.run_calculators(self.product.obj_bp)
+
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
 
@@ -1790,21 +1990,6 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                 self.product.obj_z.location.z = float(self.Product_Height) / 1000
 
             shelf_quantity.set_value(int(self.shelf_quantity))
-            for i in range(1, int(self.shelf_quantity)):
-                shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
-
-                hole_count = round(((panel_height.get_value()) * 1000) / 32)
-                holes_per_shelf = round(hole_count / int(self.shelf_quantity))
-                remainder = hole_count - (holes_per_shelf * (int(self.shelf_quantity)))
-
-                if(i <= remainder):
-                    holes_per_shelf = holes_per_shelf + 1
-                if(holes_per_shelf >= 3):
-                    shelf.set_value(float(common_lists.SHELF_IN_DOOR_HEIGHTS[holes_per_shelf - 3][0]) / 1000)
-                    exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[holes_per_shelf-3][0]")
-                else:
-                    shelf.set_value(float(common_lists.SHELF_IN_DOOR_HEIGHTS[0][0]) / 1000)
-                    exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[0][0]")
 
     def set_properties_from_prompts(self):
         ''' This should be called in the invoke function to set the class properties
@@ -1823,14 +2008,21 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                     break
 
             self.shelf_quantity = str(shelf_quantity.get_value())
-            for i in range(1, 11):
-                shelf = self.product.get_prompt("Shelf " + str(i) + " Height")
-                if shelf:
-                    value = round(shelf.get_value() * 1000, 3)
-                    for index, height in enumerate(common_lists.SHELF_IN_DOOR_HEIGHTS):
-                        if not value >= float(height[0]):
-                            exec("self.Shelf_" + str(i) + "_Height = common_lists.SHELF_IN_DOOR_HEIGHTS[index - 1][0]")
-                            break
+
+    def get_number_of_equal_heights(self):
+        calculator = self.product.get_calculator('Opening Heights Calculator')
+        shelf_qty = self.product.get_prompt("Shelf Quantity").get_value()
+        number_of_equal_heights = 0
+
+        for i in range(1, shelf_qty + 1):
+            height = eval("calculator.get_calculator_prompt('Opening {} Height')".format(str(i)))
+
+            if height:
+                number_of_equal_heights += 1 if height.equal else 0
+            else:
+                break
+
+        return number_of_equal_heights
 
     def draw_product_size(self, layout):
         box = layout.box()
@@ -1860,23 +2052,32 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
         col = row.column(align=True)
         col.prop(self.product.obj_bp, 'location', text="")
 
-        Toe_Kick_Height = self.product.get_prompt("Toe Kick Height")
-
-        if Toe_Kick_Height:
-            row = box.row()
-            row.prop(Toe_Kick_Height, "distance_value", text=Toe_Kick_Height.name)
+        box = layout.box()
+        row = box.row()
 
         is_hanging = self.product.get_prompt("Is Hanging")
 
         if is_hanging:
-            row = box.row()
             row.prop(is_hanging, "checkbox_value", text=is_hanging.name)
             if is_hanging.get_value():
                 row.prop(self.product.obj_z, 'location', index=2, text="Hanging Height")
 
-        row = box.row()
+        row = box.row()        
+
+        Toe_Kick_Height = self.product.get_prompt("Toe Kick Height")
+
+        if Toe_Kick_Height:
+            row.label(text=Toe_Kick_Height.name)
+            row.prop(Toe_Kick_Height, "distance_value", text="")
+
         row.label(text='Rotation Z:')
         row.prop(self.product.obj_bp, 'rotation_euler', index=2, text="")
+
+        Add_Backing = self.product.get_prompt("Add Backing")
+
+        if Add_Backing:
+            row = box.row()
+            row.prop(Add_Backing, "checkbox_value", text=Add_Backing.name)        
 
     def set_obj_location(self):
         right_wall_filler =\
@@ -1925,29 +2126,40 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
         add_left_filler = self.product.get_prompt("Add Left Filler")
         add_right_filler = self.product.get_prompt("Add Right Filler")
         left_wall_filler = self.product.get_prompt("Left Side Wall Filler")
-        right_wall_filler =\
-            self.product.get_prompt("Right Side Wall Filler")
-        left_filler_setback_amount =\
-            self.product.get_prompt("Left Filler Setback Amount")
-        right_filler_setback_amount =\
-            self.product.get_prompt("Right Filler Setback Amount")
-        add_capping_left_filler =\
-            self.product.get_prompt("Add Capping Left Filler")
-        add_capping_right_filler =\
-            self.product.get_prompt("Add Capping Right Filler")
-        edge_bottom_of_left_filler =\
-            self.product.get_prompt("Edge Bottom of Left Filler")
-        edge_bottom_of_right_filler =\
-            self.product.get_prompt("Edge Bottom of Right Filler")
+        right_wall_filler = self.product.get_prompt("Right Side Wall Filler")
+        left_filler_setback_amount = self.product.get_prompt("Left Filler Setback Amount")
+        right_filler_setback_amount = self.product.get_prompt("Right Filler Setback Amount")
+        add_capping_left_filler = self.product.get_prompt("Add Capping Left Filler")
+        add_capping_right_filler = self.product.get_prompt("Add Capping Right Filler")
+        edge_bottom_of_left_filler = self.product.get_prompt("Edge Bottom of Left Filler")
+        edge_bottom_of_right_filler = self.product.get_prompt("Edge Bottom of Right Filler")
+        Left_Depth = self.product.get_prompt("Left Depth")
+        Right_Depth = self.product.get_prompt("Right Depth")
+        Remove_Left_Side = self.product.get_prompt("Remove Left Side")
+        Remove_Right_Side = self.product.get_prompt("Remove Right Side")        
 
-        filler_box = layout.box()
-        split = filler_box.split()
+        box = layout.box()
+        split = box.split()
         col = split.column(align=True)
-        col.label(text="Filler Options:")
-        row = col.row()
+        col.label(text="Side Options:")
+        row = box.row()
+
+        if Left_Depth:
+            row.prop(Left_Depth, "distance_value", text=Left_Depth.name)
+        if Right_Depth:
+            row.prop(Right_Depth, "distance_value", text=Right_Depth.name)
+
+        row = box.row()
+
+        if Remove_Left_Side:
+            row.prop(Remove_Left_Side, "checkbox_value", text=Remove_Left_Side.name)
+        if Remove_Right_Side:
+            row.prop(Remove_Right_Side, "checkbox_value", text=Remove_Right_Side.name)            
+
+        row = box.row()
         row.prop(add_left_filler, 'checkbox_value', text="Add Left Filler")
         row.prop(add_right_filler, 'checkbox_value', text="Add Right Filler")
-        row = col.row()
+        col = box.column()
         distance_row = col.row()
         setback_amount_row = col.row()
         capping_filler_row = col.row()
@@ -1991,55 +2203,53 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
             capping_filler_row.label(text="")
             edge_row.label(text="")
 
-    def draw(self, context):
-        """ This is where you draw the interface """
-        Left_Depth = self.product.get_prompt("Left Depth")
-        Right_Depth = self.product.get_prompt("Right Depth")
+    def draw_opening_heights(self, layout):
         Shelf_Quantity = self.product.get_prompt("Shelf Quantity")
-        Add_Backing = self.product.get_prompt("Add Backing")
-        # Backing_Thickness = self.product.get_prompt("Backing Thickness")
-        Add_Top = self.product.get_prompt("Add Top KD")
-        Remove_Left_Side = self.product.get_prompt("Remove Left Side")
-        Remove_Right_Side = self.product.get_prompt("Remove Right Side")
-        Door = self.product.get_prompt("Door")
-        Use_Left_Swing = self.product.get_prompt("Use Left Swing")
-        Force_Double_Doors = self.product.get_prompt("Force Double Doors")
-        Open_Door = self.product.get_prompt("Open Door")
-        Base_Pull_Location = self.product.get_prompt("Base Pull Location")
-        Tall_Pull_Location = self.product.get_prompt("Tall Pull Location")
-        Upper_Pull_Location = self.product.get_prompt("Upper Pull Location")
-        Add_Top_Shelf = self.product.get_prompt("Add Top Shelf")
-        Exposed_Left = self.product.get_prompt("Exposed Left")
-        Exposed_Right = self.product.get_prompt("Exposed Right")
-        Top_Shelf_Overhang = self.product.get_prompt("Top Shelf Overhang")
+        calculator = self.product.get_calculator('Opening Heights Calculator')
+        opening_heights = data_closet_splitters.get_opening_heights()
 
-        layout = self.layout
-        self.draw_product_size(layout)
-        self.draw_filler_options(layout)
-
-        if Left_Depth:
-            box = layout.box()
-            row = box.row()
-            row.prop(Left_Depth, "distance_value", text=Left_Depth.name)
-
-        if Right_Depth:
-            row.prop(Right_Depth, "distance_value", text=Right_Depth.name)
+        col = layout.column(align=True)
+        box = col.box()
+        box.label(text="Shelves:")
 
         if Shelf_Quantity:
             col = box.column(align=True)
             row = col.row()
             row.label(text="Qty:")
             row.prop(self, "shelf_quantity", expand=True)
-            col.separator()
+            col.separator()        
 
-        if Add_Backing:
-            row = box.row()
-            row.prop(Add_Backing, "checkbox_value", text=Add_Backing.name)
+        for i in range(1, int(self.shelf_quantity) + 1):
+            height = eval("calculator.get_calculator_prompt('Opening {} Height')".format(str(i)))
 
-        # if Backing_Thickness:
-        #    if Add_Backing.get_value():
-        #        row = box.row()
-        #        row.prop(Backing_Thickness, "distance_value", text=Backing_Thickness.name)
+            if height:
+                row = box.row()
+                row.label(text="Opening " + str(i) + ":")
+
+                if not height.equal:
+                    row.prop(height, 'equal', text="")
+                else:
+                    if self.get_number_of_equal_heights() != 1:
+                        row.prop(height, 'equal', text="")
+                    else:
+                        row.label(text="", icon='BLANK1')
+                if height.equal:
+                    row.label(text=str(round(sn_unit.meter_to_active_unit(height.distance_value), 2)) + '"')
+                else:
+                    label = ""
+                    for opening_height in opening_heights:
+                        if float(opening_height[0]) == round(sn_unit.meter_to_millimeter(height.distance_value), 1):
+                            label = opening_height[1]
+                    row.menu("SNAP_MT_Opening_{}_Heights".format(str(i)), text=label)
+
+    def draw_top_options(self, layout):
+        box = layout.box()
+        box.label(text="Top Options:")
+        Add_Top = self.product.get_prompt("Add Top KD")
+        Add_Top_Shelf = self.product.get_prompt("Add Top Shelf")
+        Exposed_Left = self.product.get_prompt("Exposed Left")
+        Exposed_Right = self.product.get_prompt("Exposed Right")
+        Top_Shelf_Overhang = self.product.get_prompt("Top Shelf Overhang")
 
         if Add_Top:
             row = box.row()
@@ -2056,13 +2266,16 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
                 row = box.row()
                 row.prop(Top_Shelf_Overhang, 'distance_value', text=Top_Shelf_Overhang.name)
 
-        if Remove_Left_Side:
-            row = box.row()
-            row.prop(Remove_Left_Side, "checkbox_value", text=Remove_Left_Side.name)
-
-        if Remove_Right_Side:
-            row = box.row()
-            row.prop(Remove_Right_Side, "checkbox_value", text=Remove_Right_Side.name)
+    def draw_door_options(self, layout):
+        box = layout.box()
+        box.label(text="Door Options:")
+        Door = self.product.get_prompt("Door")
+        Use_Left_Swing = self.product.get_prompt("Use Left Swing")
+        Force_Double_Doors = self.product.get_prompt("Force Double Doors")
+        Open_Door = self.product.get_prompt("Open Door")
+        Base_Pull_Location = self.product.get_prompt("Base Pull Location")
+        Tall_Pull_Location = self.product.get_prompt("Tall Pull Location")
+        Upper_Pull_Location = self.product.get_prompt("Upper Pull Location")
 
         row = box.row()
         row.prop(Door, "checkbox_value", text=Door.name)
@@ -2079,13 +2292,21 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
             else:
                 row.prop(Upper_Pull_Location, "distance_value", text="")
             if Open_Door:
-                row = box.row()
-                row.prop(Open_Door, "factor_value", text=Open_Door.name)
+                row.label(text=Open_Door.name)
+                row.prop(Open_Door, "factor_value", text="")
 
             row = box.row()
             row.prop(Use_Left_Swing, "checkbox_value", text=Use_Left_Swing.name)
-            row = box.row()
-            row.prop(Force_Double_Doors, "checkbox_value", text=Force_Double_Doors.name)
+            row.prop(Force_Double_Doors, "checkbox_value", text=Force_Double_Doors.name)            
+
+    def draw(self, context):
+        """ This is where you draw the interface """        
+        layout = self.layout
+        self.draw_product_size(layout)
+        self.draw_filler_options(layout)
+        self.draw_top_options(layout)
+        self.draw_door_options(layout)
+        self.draw_opening_heights(layout)
 
 
 class PROMPTS_Outside_Corner_Shelves(sn_types.Prompts_Interface):

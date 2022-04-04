@@ -508,7 +508,8 @@ def render_opengl(self, context):
         old_img.user_clear()
         bpy.data.images.remove(old_img)
 
-    img_result = bpy.data.images.new(context.scene.name, width, height)
+    fixed_name = context.scene.name.replace("CSwall-", "") 
+    img_result = bpy.data.images.new(fixed_name, width, height)
 
     buffer = bgl.Buffer(bgl.GL_FLOAT, width * height * 4)
     offscreen = gpu.types.GPUOffScreen(width, height)
@@ -592,12 +593,12 @@ def get_2d_renderings(context):
     for scene in bpy.data.scenes:
         if scene.snap.elevation_scene:
             context.screen.scene = scene
-
+            fixed_filename = scene.name.replace("CSwall", "")
             # Set Render 2D Properties
             rd = context.scene.render
             rl = rd.layers.active
             freestyle_settings = rl.freestyle_settings
-            rd.filepath = os.path.join(write_dir, scene.name)
+            rd.filepath = os.path.join(write_dir, fixed_filename)
             rd.image_settings.file_format = 'JPEG'
             rd.engine = 'BLENDER_RENDER'
             rd.use_freestyle = True

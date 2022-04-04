@@ -90,6 +90,8 @@ class ROOM_BUILDER_OT_Collect_Walls(Operator):
         global last_wall_idx
         props = context.scene.sn_roombuilder
         snap_props = context.scene.snap
+        collections = bpy.data.collections
+        scene_coll = context.scene.collection        
 
         for old_wall in props.walls:
             props.walls.remove(0)
@@ -116,9 +118,19 @@ class ROOM_BUILDER_OT_Collect_Walls(Operator):
             if obj.get('IS_BP_WALL'):
                 wall = sn_types.Wall(obj_bp=obj)
                 wall.obj_bp['ID_PROMPT'] = 'room_builder.wall_prompts'
+
                 for child in wall.obj_bp.children:
                     child["ID_PROMPT"] = wall.obj_bp["ID_PROMPT"]
                 self.assign_wall_material(context, wall.get_wall_mesh())
+
+                wall_coll = collections.new(wall.obj_bp.snap.name_object)
+                scene_coll.children.link(wall_coll)
+                sn_utils.add_assembly_to_collection(wall.obj_bp, wall_coll, recursive=True)
+                sn_utils.remove_assembly_from_collection(wall.obj_bp, scene_coll, recursive=True)
+                if "Collection" in bpy.data.collections:
+                    default_coll = bpy.data.collections["Collection"]
+                    sn_utils.remove_assembly_from_collection(wall.obj_bp, default_coll, recursive=True)
+
                 wall = props.walls.add()
                 wall.name = obj.snap.name_object
                 wall.bp_name = obj.name
@@ -135,6 +147,7 @@ class ROOM_BUILDER_OT_Collect_Walls(Operator):
             bpy.ops.project_manager.add_room(room_name=self.room_name, room_category=props.room_category)
 
         sn_utils.update_accordions_prompt()
+        sn_utils.fetch_mainscene_walls()
         last_wall_idx = 1
 
         return {'FINISHED'}
@@ -238,9 +251,8 @@ class ROOM_BUILDER_OT_draw_walls(Operator):
         directory, file = os.path.split(self.filepath)
         filename, ext = os.path.splitext(file)
         wall = None
-        wall = sn_types.Wall(scene_props.default_wall_depth,
-                             scene_props.default_wall_height)
-        wall.draw_wall()
+        wall = sn_types.Wall()
+        wall.draw_wall(scene_props.default_wall_depth, scene_props.default_wall_height)
 
         wall.obj_bp['ID_PROMPT'] = 'room_builder.wall_prompts'
         for child in wall.obj_bp.children:
@@ -1257,14 +1269,11 @@ class ROOM_BUILDER_OT_Build_Room(Operator):
             self.update_single_wall()
 
     def create_wall(self, context):
-        wall = sn_types.Wall(self.wall_thickness, self.wall_height)
-        wall.draw_wall()
+        wall = sn_types.Wall()
+        wall.draw_wall(self.wall_thickness, self.wall_height)
         wall.obj_bp['ID_PROMPT'] = 'room_builder.wall_prompts'
         for child in wall.obj_bp.children:
             child["ID_PROMPT"] = wall.obj_bp["ID_PROMPT"]
-        # wall.create_wall()
-        # wall.build_wall_mesh()
-        # wall.obj_bp.location = (0,0,0)
 
         return wall
 
@@ -1280,41 +1289,29 @@ class ROOM_BUILDER_OT_Build_Room(Operator):
         back_wall = self.back_wall.get_wall_mesh()
         self.wall_mesh_objs.append(back_wall)
         back_wall.data.vertices[1].co[0] -= self.wall_thickness
-
         back_wall.data.vertices[2].co[0] += self.wall_thickness
-
         back_wall.data.vertices[5].co[0] -= self.wall_thickness
-
         back_wall.data.vertices[6].co[0] += self.wall_thickness
 
         left_side_wall = self.left_side_wall.get_wall_mesh()
         self.wall_mesh_objs.append(left_side_wall)
         left_side_wall.data.vertices[1].co[0] -= self.wall_thickness
-
         left_side_wall.data.vertices[2].co[0] += self.wall_thickness
-
         left_side_wall.data.vertices[5].co[0] -= self.wall_thickness
-
         left_side_wall.data.vertices[6].co[0] += self.wall_thickness
 
         right_side_wall = self.right_side_wall.get_wall_mesh()
         self.wall_mesh_objs.append(right_side_wall)
         right_side_wall.data.vertices[1].co[0] -= self.wall_thickness
-
         right_side_wall.data.vertices[2].co[0] += self.wall_thickness
-
         right_side_wall.data.vertices[5].co[0] -= self.wall_thickness
-
         right_side_wall.data.vertices[6].co[0] += self.wall_thickness
 
         entry_wall = self.entry_wall.get_wall_mesh()
         self.wall_mesh_objs.append(entry_wall)
         entry_wall.data.vertices[1].co[0] -= self.wall_thickness
-
         entry_wall.data.vertices[2].co[0] += self.wall_thickness
-
         entry_wall.data.vertices[5].co[0] -= self.wall_thickness
-
         entry_wall.data.vertices[6].co[0] += self.wall_thickness
         bp = sn_utils.get_group(os.path.join(os.path.dirname(__file__),
                                              "Entry Doors",
@@ -1515,6 +1512,8 @@ class ROOM_BUILDER_OT_Build_Room(Operator):
 
         self.update_wall_properties(context)
         sn_utils.update_accordions_prompt()
+        sn_utils.fetch_mainscene_walls()
+        
         self.set_camera_position(context)
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=400)
@@ -1668,30 +1667,17 @@ class ROOM_BUILDER_OT_Hide_Show_Wall(Operator):
     bl_label = "Hide Wall"
 
     wall_bp_name: StringProperty("Wall BP Name", default="")
-
     hide: BoolProperty("Hide", default=False)
 
     def execute(self, context):
-
+        collections = bpy.data.collections
         obj = context.view_layer.objects[self.wall_bp_name]
-
         wall_bp = sn_utils.get_wall_bp(obj)
+        wall_name = wall_bp.snap.name_object
 
-        children = sn_utils.get_child_objects(wall_bp)
-
-        for child in children:
-            if child.get('IS_CAGE'):
-                continue
-            if child.type == 'EMPTY':
-                if child.get('obj_prompts'):
-                    prompt = child.snap.get_prompt('Hide')
-                    if prompt:
-                        prompt.set_value(self.hide)
-                continue
-            
-            child.hide_viewport = self.hide
-
-        wall_bp.hide_viewport = self.hide
+        if wall_name in collections:
+            wall_coll = collections[wall_name]
+            wall_coll.hide_viewport = self.hide
 
         return {'FINISHED'}
 
@@ -1707,12 +1693,18 @@ class ROOM_BUILDER_OT_Delete_Room(Operator):
         return wm.invoke_props_dialog(self, width=400)
 
     def execute(self, context):
-        if self.delete_room_file:
+        collections = bpy.data.collections
+
+        if self.delete_room_file and bpy.data.is_saved:
             bpy.ops.project_manager.delete_room("EXEC_DEFAULT")
             bpy.ops.wm.read_homefile()
         else:
             sn_utils.delete_obj_list(bpy.data.objects)
             props = context.scene.sn_roombuilder
+
+            for old_wall in props.walls:
+                if old_wall.name in collections:
+                    collections.remove(collections[old_wall.name])
 
             for old_wall in props.walls:
                 props.walls.remove(0)
@@ -1730,50 +1722,16 @@ class ROOM_BUILDER_OT_Delete_Room(Operator):
         box.label(text="Are you sure you want to delete this room?")
 
 
-class ROOM_BUILDER_OT_draw_new_room(Operator):
-    bl_idname = "sn_roombuilder.new_custom_room"
-    bl_label = 'Draw New Custom Room'
-
-    def invoke(self, context, event):
-        wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=400)
-
-    def execute(self, context):
-        bpy.ops.sn_roombuilder.delete_room()
-        bpy.ops.sn_roombuilder.draw_walls()
-        return {'FINISHED'}
-
-    def draw(self, context):
-        layout = self.layout
-        box = layout.box()
-        col = box.column()
-
-        col.label(text="Creating a new room will clear the current room from the scene.")
-
-        col.label(text="Are you sure you want to delete the existing room?")
-
-
 class ROOM_BUILDER_OT_New_Room(Operator):
     bl_idname = "sn_roombuilder.new_room"
     bl_label = "New Room"
 
-    def invoke(self, context, event):
-        wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=400)
-
     def execute(self, context):
-        bpy.ops.sn_roombuilder.delete_room()
-        bpy.ops.sn_roombuilder.build_room('INVOKE_DEFAULT')
+        if bpy.data.is_dirty:
+            bpy.ops.wm.save_mainfile()
+        bpy.ops.wm.read_homefile(app_template="")
+
         return {'FINISHED'}
-
-    def draw(self, context):
-        layout = self.layout
-        box = layout.box()
-        col = box.column()
-
-        col.label(text="Creating a new room will clear the current room from the scene.")
-
-        col.label(text="Are you sure you want to delete the existing room?")
 
 
 class ROOM_BUILDER_OT_Show_Plane(Operator):
@@ -2015,7 +1973,6 @@ classes = (
     ROOM_BUILDER_OT_update_wall_material,
     PROMPTS_Molding,
     PROMPTS_OT_Wall,
-    ROOM_BUILDER_OT_draw_new_room
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

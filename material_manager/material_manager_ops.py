@@ -140,7 +140,7 @@ class SNAP_OT_GenerateMetal(BlendScriptExecuter, Operator):
         def inch_to_meter(inch):
             return round(inch / 39.3700787, 6)
         
-        with bpy.data.libraries.load(source_file, False, True) as (data_from, data_to):
+        with bpy.data.libraries.load(source_file, link=False, relative=True) as (data_from, data_to):
             for mat in data_from.materials:
                 if mat == material_name:
                     data_to.materials = [mat]

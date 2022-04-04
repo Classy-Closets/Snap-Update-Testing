@@ -68,11 +68,11 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
             if is_hanger:
                 hide = assembly.get_prompt("Hide")
                 hide.set_formula(
-                    'IF(Turn_Off_Hangers,True,IF(Add_Top_Rod,False,True)) or Hide',
-                    [Add_Top_Rod, Turn_Off_Hangers,self.hide_var])
+                    'IF(Turn_Off_Hangers,True,IF(Add_Top_Rod,False,True))',
+                    [Add_Top_Rod, Turn_Off_Hangers])
             else:
                 hide = assembly.get_prompt("Hide")
-                hide.set_formula('IF(Add_Top_Rod,False,True) or Hide', [Add_Top_Rod,self.hide_var])
+                hide.set_formula('IF(Add_Top_Rod,False,True)', [Add_Top_Rod])
         if location == 'MID':
             Add_Middle_Rod = self.get_prompt("Add Middle Rod").get_var('Add_Middle_Rod')
             assembly.loc_z('Height-Top_Rod_Location-Z_Loc+0.032004',
@@ -82,11 +82,11 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
             if is_hanger:
                 hide = assembly.get_prompt("Hide")
                 hide.set_formula(
-                    'IF(Turn_Off_Hangers,True,IF(Add_Middle_Rod,False,True)) or Hide',
-                    [Add_Middle_Rod, Turn_Off_Hangers,self.hide_var])
+                    'IF(Turn_Off_Hangers,True,IF(Add_Middle_Rod,False,True))',
+                    [Add_Middle_Rod, Turn_Off_Hangers])
             else:
                 hide = assembly.get_prompt("Hide")
-                hide.set_formula('IF(Add_Middle_Rod,False,True) or Hide', [Add_Middle_Rod,self.hide_var])
+                hide.set_formula('IF(Add_Middle_Rod,False,True)', [Add_Middle_Rod])
         if location == 'BOT':
             Add_Bottom_Rod = self.get_prompt("Add Bottom Rod").get_var('Add_Bottom_Rod')
             Bottom_Rod_Location = self.get_prompt("Bottom Rod Location").get_var('Bottom_Rod_Location')
@@ -97,11 +97,11 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
             if is_hanger:
                 hide = assembly.get_prompt("Hide")
                 hide.set_formula(
-                    'IF(Turn_Off_Hangers,True,IF(Add_Bottom_Rod,False,True)) or Hide',
-                    [Add_Bottom_Rod, Turn_Off_Hangers,self.hide_var])
+                    'IF(Turn_Off_Hangers,True,IF(Add_Bottom_Rod,False,True))',
+                    [Add_Bottom_Rod, Turn_Off_Hangers])
             else:
                 hide = assembly.get_prompt("Hide")
-                hide.set_formula('IF(Add_Bottom_Rod,False,True) or Hide', [Add_Bottom_Rod,self.hide_var])
+                hide.set_formula('IF(Add_Bottom_Rod,False,True)', [Add_Bottom_Rod])
 
         return assembly
 
@@ -202,8 +202,8 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = adj_shelf.get_prompt('Hide')
-        hide.set_formula('IF(AND(Top_Shelf_Quantity>0,Add_Shelves_In_Top_Section),False,True) or Hide', 
-                         [self.hide_var, Top_Shelf_Quantity, Add_Shelves_In_Top_Section])
+        hide.set_formula('IF(AND(Top_Shelf_Quantity>0,Add_Shelves_In_Top_Section),False,True)', 
+                         [Top_Shelf_Quantity, Add_Shelves_In_Top_Section])
         z_qty = adj_shelf.get_prompt('Z Quantity')
         z_qty.set_formula('Top_Shelf_Quantity', [Top_Shelf_Quantity])
         z_offset = adj_shelf.get_prompt('Z Offset')
@@ -235,8 +235,8 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = adj_shelf.get_prompt('Hide')
-        hide.set_formula('IF(Is_Hang_Single,True,IF(AND(Middle_Shelf_Quantity>0,Add_Shelves_In_Middle_Section),False,True)) or Hide', 
-                         [self.hide_var, Middle_Shelf_Quantity, Add_Shelves_In_Middle_Section, Is_Hang_Single])
+        hide.set_formula('IF(Is_Hang_Single,True,IF(AND(Middle_Shelf_Quantity>0,Add_Shelves_In_Middle_Section),False,True))', 
+                         [Middle_Shelf_Quantity, Add_Shelves_In_Middle_Section, Is_Hang_Single])
         z_qty = adj_shelf.get_prompt('Z Quantity')
         z_qty.set_formula('Middle_Shelf_Quantity', [Middle_Shelf_Quantity])
         z_offset = adj_shelf.get_prompt('Z Offset')
@@ -268,8 +268,8 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         short_adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = short_adj_shelf.get_prompt('Hide')
-        hide.set_formula('IF(Is_Hang_Single, IF(AND(Middle_Shelf_Quantity>0,Add_Shelves_In_Middle_Section),False,True),True) or Hide', 
-                        [self.hide_var, Middle_Shelf_Quantity, Add_Shelves_In_Middle_Section, Is_Hang_Single])
+        hide.set_formula('IF(Is_Hang_Single, IF(AND(Middle_Shelf_Quantity>0,Add_Shelves_In_Middle_Section),False,True),True)', 
+                        [Middle_Shelf_Quantity, Add_Shelves_In_Middle_Section, Is_Hang_Single])
         z_qty = short_adj_shelf.get_prompt('Z Quantity')
         z_qty.set_formula('Middle_Shelf_Quantity', [Middle_Shelf_Quantity])
         z_offset = short_adj_shelf.get_prompt('Z Offset')
@@ -299,8 +299,8 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
         adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
 
         hide = adj_shelf.get_prompt('Hide')
-        hide.set_formula('IF(AND(Bottom_Shelf_Quantity>0,Add_Shelves_In_Bottom_Section),False,True) or Hide', 
-                         [self.hide_var, Bottom_Shelf_Quantity, Add_Shelves_In_Bottom_Section])
+        hide.set_formula('IF(AND(Bottom_Shelf_Quantity>0,Add_Shelves_In_Bottom_Section),False,True)', 
+                         [Bottom_Shelf_Quantity, Add_Shelves_In_Bottom_Section])
         z_qty = adj_shelf.get_prompt('Z Quantity')
         z_qty.set_formula('Bottom_Shelf_Quantity',[Bottom_Shelf_Quantity])
         z_offset = adj_shelf.get_prompt('Z Offset')
@@ -345,7 +345,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                     [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, ATSS, SBS])
         shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness) *-1', [Shelf_Thickness, TAS, IBEKD])
         hide = shelf.get_prompt('Hide')
-        hide.set_formula('IF(Add_Top_Shelf,False,True) or Hide', [Add_Top_Shelf,self.hide_var])
+        hide.set_formula('IF(Add_Top_Shelf,False,True)', [Add_Top_Shelf])
 
         shelf = common_parts.add_shelf(self)
         Is_Locked_Shelf = shelf.get_prompt('Is Locked Shelf').get_var('Is_Locked_Shelf')
@@ -365,7 +365,7 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
                     [Depth, Locked_Shelf_Setback, Is_Locked_Shelf, Adj_Shelf_Setback, ABSS, IHD, DDS, EDP, ABDSS, SBS])
         shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
         hide = shelf.get_prompt('Hide')
-        hide.set_formula('IF(Add_Bottom_Shelf,False,True) or Hide', [Add_Bottom_Shelf,self.hide_var])
+        hide.set_formula('IF(Add_Bottom_Shelf,False,True)', [Add_Bottom_Shelf])
 
     def update(self):
         self.set_prompts()
@@ -380,9 +380,6 @@ class Hanging_Rods_with_Shelves(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         props = bpy.context.scene.sn_closets.closet_defaults
 
         self.add_prompt("Add Top Rod", 'CHECKBOX', False)
@@ -498,7 +495,7 @@ class Shelves_Only(sn_types.Assembly):
         adj_shelf.dim_y('-Depth+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)',
                         [Depth, Is_Locked_Shelf, Locked_Shelf_Setback, Adj_Shelf_Setback])
         adj_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness)', [Shelf_Thickness, TAS, IBEKD])
-        adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False) or Hide', [Shelf_Qty,self.hide_var])
+        adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False)', [Shelf_Qty])
         adj_shelf.get_prompt('Z Quantity').set_formula('Shelf_Qty', [Shelf_Qty])
         adj_shelf.get_prompt('Z Offset').set_formula(
             '((Height-(Shelf_Thickness*Shelf_Qty))/(Shelf_Qty+1))+Shelf_Thickness',
@@ -514,9 +511,6 @@ class Shelves_Only(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         common_prompts.add_thickness_prompts(self)
         self.add_adj_prompts()
         self.add_shelves()
@@ -563,7 +557,7 @@ class Glass_Shelves(sn_types.Assembly):
         adj_shelf.dim_x('Width', [Width])
         adj_shelf.dim_y('-Depth+0.00635', [Depth])
         adj_shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness])
-        adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False) or Hide', [Shelf_Qty,self.hide_var])
+        adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False)', [Shelf_Qty])
         adj_shelf.get_prompt('Z Quantity').set_formula('Shelf_Qty', [Shelf_Qty])
         adj_shelf.get_prompt('Z Offset').set_formula(
             '((Height-(Shelf_Thickness*Shelf_Qty))/(Shelf_Qty+1))+Shelf_Thickness',
@@ -579,9 +573,6 @@ class Glass_Shelves(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.add_glass_thickness_prompts()
         self.add_adj_prompts()
         self.glass_shelves()

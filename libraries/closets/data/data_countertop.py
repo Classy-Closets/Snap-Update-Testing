@@ -31,9 +31,6 @@ class Countertop_Insert(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp.snap.export_as_subassembly = True
 
         props = self.obj_bp.sn_closets
@@ -104,7 +101,7 @@ class Countertop_Insert(sn_types.Assembly):
                   [Product_Width,Extend_Left,Extend_Right,Deck_Thickness,Extend_Right_Amount,Extend_Left_Amount,Add_Left_Corner,Add_Right_Corner])
         melamine_deck.dim_y("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
         melamine_deck.dim_z("Melamine_Thickness",[Melamine_Thickness])
-        melamine_deck.get_prompt("Hide").set_formula("IF(Countertop_Type==0,False,True) or Hide",[Countertop_Type,self.hide_var])
+        melamine_deck.get_prompt("Hide").set_formula("IF(Countertop_Type==0,False,True)",[Countertop_Type])
         melamine_deck.get_prompt('Exposed Left').set_formula('Exposed_Left',[Exposed_Left])
         melamine_deck.get_prompt('Exposed Right').set_formula('Exposed_Right',[Exposed_Right])
         melamine_deck.get_prompt('Exposed Back').set_formula('Exposed_Back',[Exposed_Back])
@@ -117,7 +114,7 @@ class Countertop_Insert(sn_types.Assembly):
                   [Product_Width,Extend_Left,Extend_Right,Deck_Thickness,Extend_Right_Amount,Extend_Left_Amount,Add_Left_Corner,Add_Right_Corner])
         granite_ctop.dim_y("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
         granite_ctop.dim_z('Deck_Thickness',[Deck_Thickness])
-        granite_ctop.get_prompt("Hide").set_formula("IF(Countertop_Type==2,False,True) or Hide",[Countertop_Type,self.hide_var])
+        granite_ctop.get_prompt("Hide").set_formula("IF(Countertop_Type==2,False,True)",[Countertop_Type])
         granite_ctop.get_prompt('Edge Type').set_formula('Edge_Type',[Edge_Type])
 
         hpltop = common_parts.add_hpl_top(self)    
@@ -128,7 +125,7 @@ class Countertop_Insert(sn_types.Assembly):
                   [Product_Width,Extend_Left,Extend_Right,Deck_Thickness,Extend_Right_Amount,Extend_Left_Amount,Add_Left_Corner,Add_Right_Corner])
         hpltop.dim_y("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
         hpltop.dim_z('Deck_Thickness',[Deck_Thickness])
-        hpltop.get_prompt("Hide").set_formula("IF(Countertop_Type==1,False,True) or Hide",[Countertop_Type,self.hide_var])
+        hpltop.get_prompt("Hide").set_formula("IF(Countertop_Type==1,False,True)",[Countertop_Type])
 
         b_splash = common_parts.add_back_splash(self)
         b_splash.set_name("Countertop Backsplash")
@@ -145,7 +142,7 @@ class Countertop_Insert(sn_types.Assembly):
 
         b_splash.dim_y("B_Splash_Height",[B_Splash_Height])
         b_splash.dim_z("B_Splash_Thickness",[B_Splash_Thickness])
-        b_splash.get_prompt("Hide").set_formula("IF(Add_Backsplash,False,True) or Hide",[Add_Backsplash,self.hide_var])       
+        b_splash.get_prompt("Hide").set_formula("IF(Add_Backsplash,False,True)",[Add_Backsplash])       
 
         l_corner_ctop = common_parts.add_cc_corner_countertop(self)      
         l_corner_ctop.set_name("Countertop")
@@ -154,7 +151,7 @@ class Countertop_Insert(sn_types.Assembly):
         l_corner_ctop.dim_x("Left_Corner_Width",[Left_Corner_Width])
         l_corner_ctop.dim_y("-Left_Corner_Depth",[Left_Corner_Depth])
         l_corner_ctop.dim_z('IF(Countertop_Type == 0,Melamine_Thickness,Deck_Thickness)',[Deck_Thickness,Melamine_Thickness,Countertop_Type])
-        l_corner_ctop.get_prompt("Hide").set_formula("IF(Add_Left_Corner,False,True) or Hide",[Add_Left_Corner,self.hide_var])       
+        l_corner_ctop.get_prompt("Hide").set_formula("IF(Add_Left_Corner,False,True)",[Add_Left_Corner])       
         l_corner_ctop.get_prompt('Edge Type').set_formula('IF(Countertop_Type==2,Edge_Type,1)',[Edge_Type,Countertop_Type])
         l_corner_ctop.get_prompt('Right Depth').set_formula('Product_Depth+Deck_Overhang',[Product_Depth,Deck_Overhang])
         l_corner_ctop.get_prompt('Left Depth').set_formula('Left_Depth',[Left_Depth])
@@ -170,7 +167,7 @@ class Countertop_Insert(sn_types.Assembly):
         left_b_splash.dim_x("-Left_Corner_Depth+B_Splash_Thickness",[Left_Corner_Depth,B_Splash_Thickness])
         left_b_splash.dim_y("B_Splash_Height",[B_Splash_Height])
         left_b_splash.dim_z("B_Splash_Thickness",[B_Splash_Thickness]) 
-        left_b_splash.get_prompt("Hide").set_formula("IF(AND(Add_Left_Corner,Add_Backsplash),False,True) or Hide",[Add_Left_Corner,Add_Backsplash,self.hide_var])       
+        left_b_splash.get_prompt("Hide").set_formula("IF(AND(Add_Left_Corner,Add_Backsplash),False,True)",[Add_Left_Corner,Add_Backsplash])       
 
         r_corner_ctop = common_parts.add_cc_corner_countertop(self)
         r_corner_ctop.set_name("Countertop")
@@ -180,7 +177,7 @@ class Countertop_Insert(sn_types.Assembly):
         r_corner_ctop.dim_x("Right_Corner_Depth",[Right_Corner_Depth])
         r_corner_ctop.dim_y("-Right_Corner_Width",[Right_Corner_Width])
         r_corner_ctop.dim_z('IF(Countertop_Type == 0,Melamine_Thickness,Deck_Thickness)',[Deck_Thickness,Melamine_Thickness,Countertop_Type])
-        r_corner_ctop.get_prompt("Hide").set_formula("IF(Add_Right_Corner,False,True) or Hide",[Add_Right_Corner,self.hide_var])
+        r_corner_ctop.get_prompt("Hide").set_formula("IF(Add_Right_Corner,False,True)",[Add_Right_Corner])
         r_corner_ctop.get_prompt('Edge Type').set_formula('IF(Countertop_Type==2,Edge_Type,1)',[Edge_Type,Countertop_Type])
         r_corner_ctop.get_prompt('Left Depth').set_formula('Product_Depth+Deck_Overhang',[Product_Depth,Deck_Overhang])
         r_corner_ctop.get_prompt('Right Depth').set_formula('Right_Depth',[Right_Depth])
@@ -196,7 +193,7 @@ class Countertop_Insert(sn_types.Assembly):
         right_b_splash.dim_x("Right_Corner_Depth-B_Splash_Thickness",[Right_Corner_Depth,B_Splash_Thickness])
         right_b_splash.dim_y("B_Splash_Height",[B_Splash_Height])
         right_b_splash.dim_z("B_Splash_Thickness",[B_Splash_Thickness]) 
-        right_b_splash.get_prompt("Hide").set_formula("IF(AND(Add_Right_Corner,Add_Backsplash),False,True) or Hide",[Add_Right_Corner,Add_Backsplash,self.hide_var])         
+        right_b_splash.get_prompt("Hide").set_formula("IF(AND(Add_Right_Corner,Add_Backsplash),False,True)",[Add_Right_Corner,Add_Backsplash])         
 
         self.update()
         

@@ -38,7 +38,7 @@ class Assembly:
 
     def __init__(self, obj_bp=None, filepath=""):
         if obj_bp:
-            self.coll = bpy.context.collection
+            self.coll = bpy.context.scene.collection
             self.obj_bp = obj_bp
             for child in obj_bp.children:
                 if "obj_x" in child:
@@ -51,9 +51,9 @@ class Assembly:
                     self.obj_prompts = child
 
         if filepath:
-            self.coll = bpy.data.scenes[0].collection
+            self.coll = bpy.context.scene.collection
 
-            with bpy.data.libraries.load(filepath, False, False) as (data_from, data_to):
+            with bpy.data.libraries.load(filepath, link=False, relative=False) as (data_from, data_to):
                 data_to.objects = data_from.objects
 
             for obj in data_to.objects:
@@ -97,7 +97,7 @@ class Assembly:
         """
         bpy.ops.object.select_all(action='DESELECT')
 
-        self.coll = bpy.data.scenes[0].collection
+        self.coll = bpy.context.scene.collection
         self.obj_bp = bpy.data.objects.new(assembly_name, None)
 
         self.obj_bp.location = (0, 0, 0)
@@ -270,7 +270,7 @@ class Assembly:
         return ppt_obj
 
     def add_object_from_file(self, filepath):
-        with bpy.data.libraries.load(filepath, False, False) as (data_from, data_to):
+        with bpy.data.libraries.load(filepath, link=False, relative=False) as (data_from, data_to):
             data_to.objects = data_from.objects
 
         for obj in data_to.objects:
@@ -286,19 +286,8 @@ class Assembly:
         assembly.obj_bp.parent = self.obj_bp
         return assembly
 
-    def hide_driver_patch(self):
-        for obj in self.obj_bp.children:
-            # we are adding this to allow manual hiding of object while
-            # preserving the drivers
-            if obj.type == 'MESH' and hasattr(obj, 'animation_data'):
-                obj['hide_viewport'] = obj.hide_viewport
-                driver = obj.animation_data.drivers.find('hide_viewport')
-                if not driver:
-                    return
-                driver.expression = '({}) and '
-
     def add_assembly_from_file(self, filepath):
-        with bpy.data.libraries.load(filepath, False, False) as (data_from, data_to):
+        with bpy.data.libraries.load(filepath, link=False, relative=False) as (data_from, data_to):
             data_to.objects = data_from.objects
 
         obj_bp = None
@@ -513,11 +502,7 @@ class Assembly:
             obj_cage.hide_render = True
             obj_cage.lock_location = (True, True, True)
             obj_cage.lock_rotation = (True, True, True)
-            obj_cage.cycles_visibility.camera = False
-            obj_cage.cycles_visibility.diffuse = False
-            obj_cage.cycles_visibility.glossy = False
-            obj_cage.cycles_visibility.transmission = False
-            obj_cage.cycles_visibility.shadow = False
+
             return obj_cage
 
     def calc_width(self):
@@ -758,7 +743,12 @@ class Assembly:
         for child in obj.children:
             self.set_child_properties(child)
 
+    def set_version(self):
+        version = sn_utils.get_version_str()
+        self.obj_bp['SNAP_VERSION'] = version    
+
     def update(self):
+        self.set_version()
         if hasattr(self, "drop_id"):
             self.obj_bp["ID_DROP"] = self.drop_id
         if hasattr(self, "id_prompt"):
@@ -805,7 +795,7 @@ class Part(Assembly):
         if material_name in bpy.data.materials:
             material = bpy.data.materials[material_name]
         else:
-            with bpy.data.libraries.load(material_path, False, False) as (data_from, data_to):
+            with bpy.data.libraries.load(material_path, link=False, relative=False) as (data_from, data_to):
                 for mat in data_from.materials:
                     if mat == material_name:
                         data_to.materials = [mat]
@@ -999,16 +989,11 @@ class Edgepart_Pointer():
 
 class Wall(Assembly):
 
-    def __init__(self, wall_thickness=None, wall_height=None, obj_bp=None):
-        if obj_bp:
-            super().__init__(obj_bp=obj_bp)
-
+    def draw_wall(self, wall_thickness=None, wall_height=None):
+        self.create_assembly("Wall")
         if wall_height and wall_thickness:
             self.wall_thickness = wall_thickness
             self.wall_height = wall_height
-
-    def draw_wall(self):
-        self.create_assembly("Wall")
 
         self.obj_bp["IS_BP_WALL"] = True
 
@@ -1133,7 +1118,7 @@ class Dimension():
 
     def create_anchor(self):
         self.anchor = bpy.data.objects.new("Anchor", None)
-        bpy.context.view_layer.active_layer_collection.collection.objects.link(self.anchor)
+        bpy.context.scene.collection.objects.link(self.anchor)
         bpy.context.view_layer.objects.active = self.anchor
         self.anchor.location = (0, 0, 0)
         self.anchor['IS_VISDIM_A'] = True
@@ -1143,7 +1128,7 @@ class Dimension():
 
     def create_end_point(self):
         self.end_point = bpy.data.objects.new("End Point", None)
-        bpy.context.view_layer.active_layer_collection.collection.objects.link(self.end_point)
+        bpy.context.scene.collection.objects.link(self.end_point)
         bpy.context.view_layer.objects.active = self.end_point
         self.end_point.location = (0, 0, 0)
         self.end_point['IS_VISDIM_B'] = True

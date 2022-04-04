@@ -35,8 +35,6 @@ class Garage_Leg(sn_types.Assembly):
         self.obj_x.location.x = self.width
         self.obj_z.location.z = self.height
         self.obj_y.location.y = -self.depth
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
 
         self.add_prompt("Right Height", 'DISTANCE', 0)
         self.add_prompt("Panel Quantity", "QUANTITY", 0)
@@ -44,6 +42,7 @@ class Garage_Leg(sn_types.Assembly):
         self.add_prompt("Material Type", "COMBOBOX", 0, ["Plastic", "Metal"])
         self.add_prompt("Metal Color", "COMBOBOX", 0,
                         ["Brushed Steel", "Black Matte", "Polished Chrome"])
+        self.add_prompt("Left Side Filler", 'DISTANCE', 0)
 
     def draw(self):
         bpy.context.view_layer.update()
@@ -57,6 +56,7 @@ class Garage_Leg(sn_types.Assembly):
         Material_Type = self.get_prompt("Material Type").get_var("Material_Type")
         Depth_1 = self.get_prompt("Opening 1 Depth").get_var("Depth_1")
         Last_Depth = self.get_prompt("Opening " + str(opening_quantity.get_value()) + ' Depth').get_var("Last_Depth")
+        Left_Side_Filler = self.get_prompt("Left Side Filler").get_var()
 
         left_front_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = left_front_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
@@ -70,7 +70,7 @@ class Garage_Leg(sn_types.Assembly):
         left_front_plastic_leg.loc_x(value=sn_unit.inch(1))
         left_front_plastic_leg.loc_y("-Depth_1+INCH(1.5)", [Depth_1])
         left_front_plastic_leg.loc_z(value=0)
-        left_front_plastic_leg.get_prompt('Hide').set_formula('IF(Material_Type == 1, True, False) or Hide', [self.hide_var, Material_Type])
+        left_front_plastic_leg.get_prompt('Hide').set_formula('IF(Material_Type == 1, True, False)', [Material_Type])
 
         left_back_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = left_back_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
@@ -83,7 +83,7 @@ class Garage_Leg(sn_types.Assembly):
         left_back_plastic_leg.loc_x(value=sn_unit.inch(1))
         left_back_plastic_leg.loc_y(value=sn_unit.inch(-1.5))
         left_back_plastic_leg.loc_z(value=0)
-        left_back_plastic_leg.get_prompt('Hide').set_formula('IF(OR(Depth_1<INCH(24.01), Material_Type == 1), True, False) or Hide', [self.hide_var, Material_Type, Depth_1])
+        left_back_plastic_leg.get_prompt('Hide').set_formula('IF(OR(Depth_1<INCH(24.01), Material_Type == 1), True, False)', [Material_Type, Depth_1])
 
         right_front_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = right_front_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
@@ -97,7 +97,7 @@ class Garage_Leg(sn_types.Assembly):
         right_front_plastic_leg.loc_y("-Last_Depth+INCH(1.5)", [Last_Depth])
         right_front_plastic_leg.loc_z(value=0)
         right_front_plastic_leg.rot_z(value=math.radians(180))
-        right_front_plastic_leg.get_prompt('Hide').set_formula('IF(Material_Type == 1, True, False) or Hide', [self.hide_var, Material_Type])
+        right_front_plastic_leg.get_prompt('Hide').set_formula('IF(Material_Type == 1, True, False)', [Material_Type])
 
         right_back_plastic_leg = common_parts.add_plastic_leg(self)
         constraint = right_back_plastic_leg.obj_z.constraints.new(type='LIMIT_LOCATION')
@@ -111,7 +111,7 @@ class Garage_Leg(sn_types.Assembly):
         right_back_plastic_leg.loc_y(value=sn_unit.inch(-1.5))
         right_back_plastic_leg.loc_z(value=0)
         right_back_plastic_leg.rot_z(value=math.radians(180))
-        right_back_plastic_leg.get_prompt('Hide').set_formula('IF(OR(Material_Type == 1, Last_Depth<INCH(24.01)), True, False) or Hide', [self.hide_var, Material_Type, Last_Depth])
+        right_back_plastic_leg.get_prompt('Hide').set_formula('IF(OR(Material_Type == 1, Last_Depth<INCH(24.01)), True, False)', [Material_Type, Last_Depth])
 
         left_front_metal_leg = common_parts.add_metal_leg(self)
         left_front_metal_leg.dim_x(value=0)
@@ -120,7 +120,7 @@ class Garage_Leg(sn_types.Assembly):
         left_front_metal_leg.loc_x(value=0)
         left_front_metal_leg.loc_y("-Depth_1", [Depth_1])
         left_front_metal_leg.loc_z(value=0)
-        left_front_metal_leg.get_prompt('Hide').set_formula('IF(Material_Type == 0, True, False) or Hide', [self.hide_var, Material_Type])
+        left_front_metal_leg.get_prompt('Hide').set_formula('IF(Material_Type == 0, True, False)', [Material_Type])
 
         right_front_metal_leg = common_parts.add_metal_leg(self)
         right_front_metal_leg.dim_x(value=0)
@@ -129,7 +129,7 @@ class Garage_Leg(sn_types.Assembly):
         right_front_metal_leg.loc_x("Width-INCH(3)", [Width])
         right_front_metal_leg.loc_y("-Last_Depth", [Last_Depth])
         right_front_metal_leg.loc_z(value=0)
-        right_front_metal_leg.get_prompt('Hide').set_formula('IF(Material_Type == 0, True, False) or Hide', [self.hide_var, Material_Type])
+        right_front_metal_leg.get_prompt('Hide').set_formula('IF(Material_Type == 0, True, False)', [Material_Type])
 
         left_back_metal_leg = common_parts.add_metal_leg(self)
         left_back_metal_leg.dim_x(value=0)
@@ -138,7 +138,7 @@ class Garage_Leg(sn_types.Assembly):
         left_back_metal_leg.loc_x(value=0)
         left_back_metal_leg.loc_y(value=sn_unit.inch(-3))
         left_back_metal_leg.loc_z(value=0)
-        left_back_metal_leg.get_prompt('Hide').set_formula('IF(OR(Material_Type == 0, Depth_1<INCH(24.01)), True, False)or Hide', [self.hide_var, Material_Type, Depth_1])
+        left_back_metal_leg.get_prompt('Hide').set_formula('IF(OR(Material_Type == 0, Depth_1<INCH(24.01)), True, False)', [Material_Type, Depth_1])
 
         right_back_metal_leg = common_parts.add_metal_leg(self)
         right_back_metal_leg.dim_x(value=0)
@@ -147,7 +147,7 @@ class Garage_Leg(sn_types.Assembly):
         right_back_metal_leg.loc_x("Width-INCH(3)", [Width])
         right_back_metal_leg.loc_y(value=sn_unit.inch(-3))
         right_back_metal_leg.loc_z(value=0)
-        right_back_metal_leg.get_prompt('Hide').set_formula('IF(OR(Material_Type == 0, Last_Depth<INCH(24.01)), True, False) or Hide', [self.hide_var, Material_Type, Last_Depth])
+        right_back_metal_leg.get_prompt('Hide').set_formula('IF(OR(Material_Type == 0, Last_Depth<INCH(24.01)), True, False)', [Material_Type, Last_Depth])
 
         for i in range(1, opening_quantity.get_value() + 1):
             Opening_Width = self.get_prompt("Opening " + str(i) + " Width").get_var("Opening_Width")
@@ -161,20 +161,20 @@ class Garage_Leg(sn_types.Assembly):
             opening_plastic.dim_x(value=0)
             opening_plastic.dim_y(value=0)
             opening_plastic.dim_z("Left_Height", [Left_Height])
-            opening_plastic.loc_x("Opening_Location+(Opening_Width/2)-INCH(0.25)", [Opening_Location, Opening_Width])
+            opening_plastic.loc_x("Opening_Location+(Opening_Width/2)-INCH(0.25)-Left_Side_Filler", [Opening_Location, Opening_Width, Left_Side_Filler])
             opening_plastic.loc_y("(Opening_Depth/2)*-1", [Opening_Depth])
             opening_plastic.loc_z(value=0)
             opening_plastic.rot_z(value=math.radians(90))
-            opening_plastic.get_prompt('Hide').set_formula('IF(OR(Material_Type == 1, Opening_Width<=INCH(35.999)), True, False) or Hide', [self.hide_var, Material_Type, Opening_Width])
+            opening_plastic.get_prompt('Hide').set_formula('IF(OR(Material_Type == 1, Opening_Width<=INCH(35.999)), True, False)', [Material_Type, Opening_Width])
 
             opening_metal = common_parts.add_metal_leg(self)
             opening_metal.dim_x(value=0)
             opening_metal.dim_y(value=0)
             opening_metal.dim_z("Left_Height", [Left_Height])
-            opening_metal.loc_x("Opening_Location+(Opening_Width/2)-INCH(1.5)", [Opening_Location, Opening_Width])
+            opening_metal.loc_x("Opening_Location+(Opening_Width/2)-INCH(1.5)-Left_Side_Filler", [Opening_Location, Opening_Width, Left_Side_Filler])
             opening_metal.loc_y("(Opening_Depth/2)*-1", [Opening_Depth])
             opening_metal.loc_z(value=0)
-            opening_metal.get_prompt('Hide').set_formula('IF(OR(Material_Type == 0, Opening_Width<=INCH(35.999)), True, False)or Hide', [self.hide_var, Material_Type, Opening_Width])
+            opening_metal.get_prompt('Hide').set_formula('IF(OR(Material_Type == 0, Opening_Width<=INCH(35.999)), True, False)', [Material_Type, Opening_Width])
 
         for i in range(1, panel_quantity.get_value() + 1):
             Panel_Location = self.get_prompt("Panel " + str(i) + " Location").get_var("Panel_Location")
@@ -188,11 +188,11 @@ class Garage_Leg(sn_types.Assembly):
             panel_front_plastic.dim_x(value=0)
             panel_front_plastic.dim_y(value=0)
             panel_front_plastic.dim_z("Left_Height", [Left_Height])
-            panel_front_plastic.loc_x("Panel_Location-INCH(.5)", [Panel_Location])
+            panel_front_plastic.loc_x("Panel_Location-INCH(.5)-Left_Side_Filler", [Panel_Location, Left_Side_Filler])
             panel_front_plastic.loc_y("IF(Current_Depth>=Next_Depth,-Current_Depth,-Next_Depth)+INCH(1)", [Current_Depth, Next_Depth])
             panel_front_plastic.loc_z(value=0)
             panel_front_plastic.rot_z(value=math.radians(90))
-            panel_front_plastic.get_prompt('Hide').set_formula('IF(Material_Type == 1, True, False) or Hide', [self.hide_var, Material_Type])
+            panel_front_plastic.get_prompt('Hide').set_formula('IF(Material_Type == 1, True, False)', [Material_Type])
 
             panel_back_plastic = common_parts.add_plastic_leg(self)
             constraint = panel_back_plastic.obj_z.constraints.new(type='LIMIT_LOCATION')
@@ -201,33 +201,33 @@ class Garage_Leg(sn_types.Assembly):
             panel_back_plastic.dim_x(value=0)
             panel_back_plastic.dim_y(value=0)
             panel_back_plastic.dim_z("Left_Height", [Left_Height])
-            panel_back_plastic.loc_x("Panel_Location-INCH(.5)", [Panel_Location])
+            panel_back_plastic.loc_x("Panel_Location-INCH(.5)-Left_Side_Filler", [Panel_Location, Left_Side_Filler])
             panel_back_plastic.loc_y(value=sn_unit.inch(-1))
             panel_back_plastic.loc_z(value=0)
             panel_back_plastic.rot_z(value=math.radians(-90))
             panel_back_plastic.get_prompt('Hide').set_formula(
-                'IF(OR(Material_Type == 1,IF(Current_Depth>=Next_Depth,Current_Depth,Next_Depth)<INCH(24.01)), True, False) or Hide',
-                [self.hide_var, Material_Type, Current_Depth, Next_Depth])
+                'IF(OR(Material_Type == 1,IF(Current_Depth>=Next_Depth,Current_Depth,Next_Depth)<INCH(24.01)), True, False)',
+                [Material_Type, Current_Depth, Next_Depth])
 
             panel_front_metal = common_parts.add_metal_leg(self)
             panel_front_metal.dim_x(value=0)
             panel_front_metal.dim_y(value=0)
             panel_front_metal.dim_z("Left_Height", [Left_Height])
-            panel_front_metal.loc_x("Panel_Location-INCH(1.9)", [Panel_Location])
+            panel_front_metal.loc_x("Panel_Location-INCH(1.9)-Left_Side_Filler", [Panel_Location, Left_Side_Filler])
             panel_front_metal.loc_y("IF(Current_Depth>=Next_Depth,-Current_Depth,-Next_Depth)", [Current_Depth, Next_Depth])
             panel_front_metal.loc_z(value=0)
-            panel_front_metal.get_prompt('Hide').set_formula('IF(Material_Type == 0,True, False)or Hide', [self.hide_var, Material_Type])
+            panel_front_metal.get_prompt('Hide').set_formula('IF(Material_Type == 0,True, False)', [Material_Type])
 
             panel_back_metal = common_parts.add_metal_leg(self)
             panel_back_metal.dim_x(value=0)
             panel_back_metal.dim_y(value=0)
             panel_back_metal.dim_z("Left_Height", [Left_Height])
-            panel_back_metal.loc_x("Panel_Location-INCH(1.9)", [Panel_Location])
+            panel_back_metal.loc_x("Panel_Location-INCH(1.9)-Left_Side_Filler", [Panel_Location, Left_Side_Filler])
             panel_back_metal.loc_y(value=sn_unit.inch(-3))
             panel_back_metal.loc_z(value=0)
             panel_back_metal.get_prompt('Hide').set_formula(
-                'IF(OR(Material_Type == 0,IF(Current_Depth>=Next_Depth,Current_Depth,Next_Depth)<INCH(24.01)),True, False)or Hide',
-                [self.hide_var, Material_Type, Current_Depth, Next_Depth])
+                'IF(OR(Material_Type == 0,IF(Current_Depth>=Next_Depth,Current_Depth,Next_Depth)<INCH(24.01)),True, False)',
+                [Material_Type, Current_Depth, Next_Depth])
 
         self.update()
 
@@ -425,13 +425,15 @@ class DROP_OPERATOR_Place_Garage_Leg(Operator, PlaceClosetInsert):
 
                     Opening_Depth = carcass_assembly.get_prompt('Opening ' + str(i) + ' Depth').get_var("Opening_Depth")
                     self.product.get_prompt("Opening " + str(i) + " Depth").set_formula('Opening_Depth', [Opening_Depth])
+                Left_Side_Wall_Filler = carcass_assembly.get_prompt("Left Side Wall Filler").get_var()
+                self.product.get_prompt("Left Side Filler").set_formula("Left_Side_Wall_Filler", [Left_Side_Wall_Filler])
 
                 self.product.get_prompt("Panel Quantity").set_value(len(self.panels))
                 self.product.get_prompt("Opening Quantity").set_value(len(self.openings))
                 self.confirm_placement(context)
                 context.area.header_text_set(None)
                 self.product.update()
-                return {'FINISHED'}
+                return self.finish(context)
             else:
                 return {'RUNNING_MODAL'}
 
@@ -456,12 +458,18 @@ class DROP_OPERATOR_Place_Garage_Leg(Operator, PlaceClosetInsert):
 
     def get_included_openings(self, panel_1, panel_2):
         self.openings.clear()
-        p1_x_loc = panel_1.obj_bp.location.x
-        p2_x_loc = panel_2.obj_bp.location.x
+        for panel in self.panels:
+            for child in self.sel_product_bp.children:
+                if child.snap.type_group == 'OPENING':
+                    if int(child.sn_closets.opening_name) == panel.obj_bp['PARTITION_NUMBER']:
+                        if child not in self.openings:
+                            self.openings.append(child)
+
         for child in self.sel_product_bp.children:
             if child.snap.type_group == 'OPENING':
-                if p1_x_loc <= child.location.x < p2_x_loc:
-                    self.openings.append(child)
+                if int(child.sn_closets.opening_name) == panel_2.obj_bp['PARTITION_NUMBER']:
+                    if child not in self.openings:
+                        self.openings.append(child)
 
     def get_inculded_panels(self, panel_1, panel_2):
         self.panels.clear()
@@ -469,7 +477,7 @@ class DROP_OPERATOR_Place_Garage_Leg(Operator, PlaceClosetInsert):
         p2_x_loc = panel_2.obj_bp.location.x
 
         for child in self.sel_product_bp.children:
-            if 'IS_BP_BLIND_CORNER_PANEL' in child:
+            if 'IS_BP_BLIND_CORNER_PANEL' in child or 'IS_FILLER' in child:
                 continue
 
             if 'IS_BP_PANEL' in child:

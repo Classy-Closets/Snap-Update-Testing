@@ -67,6 +67,8 @@ class SNAP_OT_move_closet(Operator):
         self.reset_properties()
         self.create_drawing_plane(context)
         self.get_closet(context)
+        self.original_parent = self.closet.obj_bp.parent
+        self.original_loc = self.closet.obj_bp.matrix_world.copy()
         context.window_manager.modal_handler_add(self)
         context.area.tag_redraw()
         return {'RUNNING_MODAL'}
@@ -263,6 +265,10 @@ class SNAP_OT_move_closet(Operator):
 
     def cancel_drop(self, context):
         sn_utils.delete_object_and_children(self.drawing_plane)
+        self.set_placed_properties(self.closet.obj_bp)
+        if self.original_parent:
+            self.closet.obj_bp.parent = self.original_parent
+        self.closet.obj_bp.matrix_world = self.original_loc
         return {'CANCELLED'}
 
     def refresh_data(self, hide=True):
@@ -304,10 +310,12 @@ class Delete_Closet_Assembly(Operator):
 
 class SNAP_OT_delete_closet(Delete_Closet_Assembly):
     bl_idname = "sn_closets.delete_closet"
-    bl_label = "Delete Closet"
+    bl_label = "Delete"
 
     def invoke(self, context, event):
         self.obj_bp = sn_utils.get_closet_bp(context.object)
+        if not self.obj_bp:
+            self.obj_bp = sn_utils.get_appliance_bp(context.object)
         return super().invoke(context, event)
 
     def execute(self, context):
@@ -350,7 +358,9 @@ class SNAP_OT_delete_closet_insert(Delete_Closet_Assembly):
         insert = sn_types.Assembly(obj_bp)
         if obj_bp.parent:
             for child in obj_bp.parent.children:
-                if child.snap.type_group == 'OPENING' and insert.obj_bp.location.x == child.location.x:
+                op_num = child.sn_closets.opening_name
+                insert_op_num = insert.obj_bp.sn_closets.opening_name
+                if child.snap.type_group == 'OPENING' and op_num == insert_op_num:
                     if insert.obj_bp.snap.placement_type == 'SPLITTER':
                         child.snap.interior_open = True
                         child.snap.exterior_open = True
@@ -1032,7 +1042,8 @@ class SNAP_OT_update_door_selection(Operator):
     def get_door_assembly(self, obj):
         is_door = obj.get("IS_DOOR")
         is_bp_drawer_front = obj.get("IS_BP_DRAWER_FRONT")
-        if is_door or is_bp_drawer_front:
+        is_bp_hamper_front = obj.get("IS_BP_HAMPER_FRONT")
+        if is_door or is_bp_drawer_front or is_bp_hamper_front:
             return obj
         else:
             if obj.parent:
@@ -1042,6 +1053,15 @@ class SNAP_OT_update_door_selection(Operator):
         door_bps = []
         props = bpy.context.scene.sn_closets.closet_options
         for obj in context.selected_objects:
+            closet_bp = sn_utils.get_closet_bp(obj)
+            if closet_bp.get("IS_BP_WALL_BED"):
+                for child in closet_bp.children:
+                    if child.get("IS_DOOR"):
+                        for nchild in child.children:
+                            if nchild.get("IS_DOOR"):
+                                door_bp = self.get_door_assembly(nchild)
+                                if door_bp and door_bp not in door_bps:
+                                    door_bps.append(door_bp)
             door_bp = self.get_door_assembly(obj)
             if door_bp and door_bp not in door_bps:
                 door_bps.append(door_bp)
@@ -1104,6 +1124,12 @@ class SNAP_OT_update_door_selection(Operator):
             new_door.obj_bp.snap.comment_2 = door_assembly.obj_bp.snap.comment_2
 
             new_door.obj_bp["ID_PROMPT"] = id_prompt
+
+            wall_bp = sn_utils.get_wall_bp(door_assembly.obj_bp)
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = context.scene.collection
+            sn_utils.add_assembly_to_collection(new_door.obj_bp, wall_coll)
+            sn_utils.remove_assembly_from_collection(new_door.obj_bp, scene_coll)
 
             if obj_props.is_door_bp:
                 new_door.obj_bp['IS_DOOR'] = True

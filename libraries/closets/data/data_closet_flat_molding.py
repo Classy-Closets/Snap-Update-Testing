@@ -47,8 +47,10 @@ class Flat_Molding(sn_types.Assembly):
         # TODO: remove
         props = self.obj_bp.sn_closets
         props.is_crown_molding = True
-
         self.obj_bp["IS_BP_CROWN_MOLDING"] = True
+        if hasattr(self, "flat_molding_type"):
+            self.obj_bp["IS_BP_VALANCE"] = True
+
         self.obj_bp["ID_PROMPT"] = self.id_prompt
         self.obj_bp["ID_DROP"] = self.drop_id
         self.obj_y['IS_MIRROR'] = True
@@ -59,9 +61,6 @@ class Flat_Molding(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.add_prompts()
 
         Width = self.obj_x.snap.get_var('location.x', 'Width')
@@ -115,7 +114,7 @@ class Flat_Molding(sn_types.Assembly):
         left_return.dim_x('Depth-Panel_Thickness+Front_Overhang', [Depth, Panel_Thickness, Front_Overhang])
         left_return.dim_y('Molding_Height', [Molding_Height])
         left_return.dim_z('-Panel_Thickness', [Panel_Thickness])
-        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True) or Hide', [Return_Left,self.hide_var])
+        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True)', [Return_Left])
 
         right_return = common_parts.add_cleat(self)
         right_return.obj_bp.snap.comment_2 = "1040"
@@ -128,7 +127,7 @@ class Flat_Molding(sn_types.Assembly):
         right_return.dim_x('Depth-Panel_Thickness+Front_Overhang', [Depth, Panel_Thickness, Front_Overhang])
         right_return.dim_y('Molding_Height', [Molding_Height])
         right_return.dim_z('-Panel_Thickness', [Panel_Thickness])
-        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True) or Hide', [Return_Right,self.hide_var])
+        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True)', [Return_Right])
 
         self.update()
 
@@ -147,9 +146,6 @@ class Flat_Crown(Flat_Molding):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.add_prompts()
         self.add_prompt("Extend To Ceiling", 'CHECKBOX', False)
         self.add_prompt("Distance From Ceiling", 'DISTANCE', 0)
@@ -206,7 +202,6 @@ class Flat_Crown(Flat_Molding):
         flat_crown.get_prompt('Exposed Right').set_formula('Exposed_Right', [Exposed_Right])
         flat_crown.get_prompt('Exposed Front').set_formula('IF(Show_Layered,True, False)', [Show_Layered])
         flat_crown.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
-        flat_crown.get_prompt('Hide').set_formula('Hide', [self.hide_var])
         flat_crown.get_prompt('C1 Miter Inset').set_formula('IF(AND(Show_Layered,Return_Left),INCH(3.64),0)', [Show_Layered, Return_Left])
         flat_crown.get_prompt('C4 Miter Inset').set_formula('IF(AND(Show_Layered,Return_Right),INCH(3.64),0)', [Show_Layered, Return_Right])
 
@@ -227,7 +222,7 @@ class Flat_Crown(Flat_Molding):
             'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height) * -1)',
             [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         left_return.dim_z('Panel_Thickness', [Panel_Thickness])
-        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True) or Hide', [Return_Left,self.hide_var])
+        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True)', [Return_Left])
         #W
         left_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Left),True, False)', [Show_Layered, Exposed_Left])
         left_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
@@ -250,7 +245,7 @@ class Flat_Crown(Flat_Molding):
             'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD==1,INCH(1.26),IF(TKDHD==2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height)*-1)',
             [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         right_return.dim_z('Panel_Thickness', [Panel_Thickness])
-        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True) or Hide', [Return_Right,self.hide_var])
+        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True)', [Return_Right])
         right_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Right),True, False)', [Show_Layered, Exposed_Right])         
         right_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
         right_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
@@ -282,7 +277,7 @@ class Flat_Crown(Flat_Molding):
         flat_crown.get_prompt('Exposed Right').set_formula('Exposed_Right', [Exposed_Right])
         flat_crown.get_prompt('Exposed Front').set_formula('IF(Show_Layered,True, False)', [Show_Layered])
         flat_crown.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
-        flat_crown.get_prompt('Hide').set_formula('Hide or Layer_Num==0 or not Show_Layered', [self.hide_var,Layer_Num,Show_Layered])
+        flat_crown.get_prompt('Hide').set_formula('Layer_Num==0 or not Show_Layered', [Layer_Num,Show_Layered])
 
         left_return = common_parts.add_flat_crown(self)
         left_return.obj_bp.snap.comment_2 = "1038"
@@ -301,7 +296,7 @@ class Flat_Crown(Flat_Molding):
             'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD == 1,INCH(1.26),IF(TKDHD == 2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height) * -1)',
             [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         left_return.dim_z('Panel_Thickness', [Panel_Thickness])
-        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True) or Hide or Layer_Num==0 or not Show_Layered', [Return_Left,self.hide_var,Layer_Num,Show_Layered])
+        left_return.get_prompt('Hide').set_formula('IF(Return_Left,False,True) or Layer_Num==0 or not Show_Layered', [Return_Left,Layer_Num,Show_Layered])
         left_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Left),True, False)', [Show_Layered, Exposed_Left])
         left_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
         left_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
@@ -323,7 +318,7 @@ class Flat_Crown(Flat_Molding):
             'IF(Show_Layered,INCH(3.64),IF(ETC,IF(TKDHD==1,INCH(1.26),IF(TKDHD==2,INCH(2.52),0))+DFC+INCH(0.25),Molding_Height)*-1)',
             [Molding_Height, ETC, DFC, TKDHD, Show_Layered])
         right_return.dim_z('Panel_Thickness', [Panel_Thickness])
-        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True) or Hide or Layer_Num==0 or not Show_Layered', [Return_Right,self.hide_var,Layer_Num,Show_Layered])
+        right_return.get_prompt('Hide').set_formula('IF(Return_Right,False,True) or Layer_Num==0 or not Show_Layered', [Return_Right,Layer_Num,Show_Layered])
         right_return.get_prompt('Exposed Front').set_formula('IF(AND(Show_Layered,Exposed_Right),True, False)', [Show_Layered, Exposed_Right])
         right_return.get_prompt('Exposed Back').set_formula('Exposed_Back', [Exposed_Back])
         right_return.get_prompt('C1 Miter Inset').set_formula('IF(Show_Layered,INCH(3.64),0)', [Show_Layered])
@@ -471,6 +466,7 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         tkdhd = self.insert.get_prompt('Top KD Holes Down')
         show_layered = self.insert.get_prompt('Show Layered Molding')
         layer_num = self.insert.get_prompt('Number of Layers')
+
         if extend_to_ceiling:
             row = box.row()
             row.prop(extend_to_ceiling, "checkbox_value", text=extend_to_ceiling.name)
@@ -482,17 +478,15 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
                 row.label(text='Top KD Holes Down')
                 row.prop(self, 'TKHD_VAR', expand=True)
             else:
-                if show_layered and not show_layered.get_value():
-                    row = box.row()
-                    row.prop(molding_height, "distance_value", text=molding_height.name)
                 row = box.row()
                 row.prop(molding_location, "distance_value", text=molding_location.name)
+                if show_layered and not show_layered.get_value():
+                    row.prop(molding_height, "distance_value", text=molding_height.name)
         else:
-            if show_layered and not show_layered.get_value():
-                row = box.row()
-                row.prop(molding_height, "distance_value", text=molding_height.name)
             row = box.row()
             row.prop(molding_location, "distance_value", text=molding_location.name)
+            if self.insert.obj_bp.get("IS_BP_VALANCE"):
+                row.prop(molding_height, "distance_value", text=molding_height.name)
 
         row = box.row()
         row.label(text="Extend Ends")
@@ -521,7 +515,6 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
             if show_layered.get_value():
                 row.label(text='Number of Layers')
                 row.prop(self, 'layer_num', expand=True)
-            
 
 
 class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
@@ -628,8 +621,10 @@ class DROP_OPERATOR_Place_Top(Operator, PlaceClosetInsert):
                                         ts_left_extend = ts_assembly.get_prompt('Extend Left Amount')
                                         ts_right_extend = ts_assembly.get_prompt('Extend Right Amount')
                                         if ts_left_extend and ts_right_extend:
-                                            sn_utils.set_prompt_if_exists(self.asset, 'Extend Left Amount', ts_left_extend.get_value())
-                                            sn_utils.set_prompt_if_exists(self.asset, 'Extend Right Amount', ts_right_extend.get_value())
+                                            if ts_left_extend.get_value() > 0:
+                                                sn_utils.set_prompt_if_exists(self.asset, 'Extend Left Amount', ts_left_extend.get_value())
+                                            if ts_right_extend.get_value() > 0:
+                                                sn_utils.set_prompt_if_exists(self.asset, 'Extend Right Amount', ts_right_extend.get_value())
 
                                         ts_exposed_right = ts_assembly.get_prompt('Exposed Right')
                                         if ts_exposed_right:

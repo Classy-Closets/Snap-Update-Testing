@@ -145,7 +145,7 @@ class SN_LIB_OT_drop_object_from_library(bpy.types.Operator):
         path, ext = os.path.splitext(self.filepath)
         object_file_path = os.path.join(path + ".blend")
 
-        with bpy.data.libraries.load(object_file_path, False, False) as (data_from, data_to):
+        with bpy.data.libraries.load(object_file_path, link=False, relative=False) as (data_from, data_to):
             data_to.objects = data_from.objects
         for obj in data_to.objects:
             context.view_layer.active_layer_collection.collection.objects.link(obj)

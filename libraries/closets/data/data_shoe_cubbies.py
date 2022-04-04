@@ -137,10 +137,6 @@ class Shoe_Cubbies(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompt("Cubby Placement", 'COMBOBOX', 0, ['Bottom', 'Top', 'Fill'])  # columns=3
         self.add_prompt("Horizontal Quantity", 'QUANTITY', 2)
         self.add_prompt("Vertical Quantity", 'QUANTITY', 2)

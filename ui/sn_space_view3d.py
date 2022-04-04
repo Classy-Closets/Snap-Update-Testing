@@ -326,7 +326,8 @@ class VIEW3D_HT_header(Header):
                 text="",
             )
 
-            layout.prop(overlay, "show_extras", text="", icon='LIGHT_DATA')                               
+            layout.prop(overlay, "show_extras", text="", icon='LIGHT_DATA')
+            layout.popover(panel="VIEW3D_PT_shading", text="", icon='LIGHT_SUN')
 
         layout.separator_spacer()
 

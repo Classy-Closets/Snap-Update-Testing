@@ -225,6 +225,8 @@ class SNAP_OT_brd_library_items(Operator):
         script_file.write("item.update()\n")
         script_file.write("file_name = item.assembly_name if item.assembly_name != '' else sn_utils.get_product_class_name('" + class_name + "')\n")
         script_file.write("tn_path = os.path.join(r'" + self.library_path + "',item.category_name,file_name)\n")
+        script_file.write("item.run_all_calculators()\n")
+        script_file.write("item.run_all_calculators()\n")
         script_file.write("bpy.ops.object.select_all(action='DESELECT')\n")
         script_file.write("select_objects()\n")
         script_file.write("bpy.ops.view3d.camera_to_view_selected()\n")
@@ -333,6 +335,10 @@ class SNAP_OT_brd_library_items(Operator):
         if item.height:
             item.obj_z.location.z = item.height
         self.placement += item.obj_x.location.x + sn_unit.inch(10)
+
+        # Needs to be done twice to refresh
+        item.run_all_calculators()
+        item.run_all_calculators()
 
         print("{} : Draw Time --- {} seconds --- Objects in scene: {} ({} visible)".format(
             item.obj_bp.snap.name_object,

@@ -9,9 +9,10 @@ from . import pm_utils
 class SNAP_UL_Projects(UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        project = context.window_manager.sn_project.get_project()
         layout.label(text="", icon='FILEBROWSER')
-        layout.label(text=item.name)
-        if item.name == context.window_manager.sn_project.get_project().name:
+        layout.prop(item, 'name', text='', emboss=False)
+        if item.name == project.name:
             layout.popover("SNAP_PT_Project_Info", icon='INFO', text="")
             layout.operator("project_manager.delete_project", text="", icon='X', emboss=True).index = index
 
@@ -35,6 +36,10 @@ class SNAP_MT_Project_Tools(Menu):
         layout.operator("sn_library.open_browser_window",
                         text="Open Projects Location in Browser",
                         icon='FILE_FOLDER').path = pm_utils.get_project_dir()
+
+        layout.operator("project_manager.unarchive_project",
+                        text="Open Archived Projects Location in Browser",
+                        icon='FILE_FOLDER').filepath = pm_utils.get_archive_dir()
 
 
 class SNAP_PT_Project_Popup_Menu(Panel):

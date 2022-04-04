@@ -47,10 +47,6 @@ class Top(sn_types.Assembly):
     
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-        
         self.add_prompt("Extend To Left Panel", 'CHECKBOX', True)
         self.add_prompt("Extend To Right Panel", 'CHECKBOX', True)
         self.add_prompt("Exposed Left", 'CHECKBOX', False)

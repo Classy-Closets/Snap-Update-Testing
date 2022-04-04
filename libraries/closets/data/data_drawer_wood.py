@@ -13,9 +13,6 @@ class Wood_Drawer_Box(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp.snap.export_as_subassembly = True
 
         props = bpy.context.scene.sn_closets
@@ -121,7 +118,7 @@ class Wood_Drawer_Box(sn_types.Assembly):
         front.dim_y('IF(Use_Dovetail_Construction,CHECK(DFH,Four_Hole,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45),Drawer_Height)',
                     [Use_Dovetail_Construction, Drawer_Height, DFH, Four_Hole, Five_Hole, Six_Hole, Seven_Hole, Eight_Hole, Nine_Hole, Ten_Hole])
         front.dim_z('-Front_Back_Thickness', [Front_Back_Thickness])
-        front.get_prompt('Hide').set_formula('IF(HSF,True,Hide) or Hide', [HSF, Hide, self.hide_var])
+        front.get_prompt('Hide').set_formula('IF(HSF,True,Hide)', [HSF, Hide])
         front.get_prompt('Use Dovetail Construction').set_formula('Use_Dovetail_Construction', [Use_Dovetail_Construction])
 
         back = common_parts.add_drawer_back(self)

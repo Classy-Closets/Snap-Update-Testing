@@ -72,10 +72,6 @@ class Belt_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Pin Qty", 'QUANTITY', 11)
 
@@ -105,7 +101,7 @@ class Belt_Accessories(Accessory):
         panel.dim_x('IF(IF(BRC==0,SBRL,EBRL)==0,INCH(12),IF(IF(BRC==0,SBRL,EBRL)==1,INCH(14),INCH(18)))', [SBRL, EBRL, BRC])
         panel.dim_z('depth', [depth])
         panel.dim_y('-height', [height])
-        panel.get_prompt('Hide').set_formula('IF(BRC==0,False,True) or Hide', [BRC, self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(BRC==0,False,True)', [BRC])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -115,7 +111,7 @@ class Belt_Accessories(Accessory):
         deco_panel.dim_x('IF(IF(BRC==0,SBRL,EBRL)==0,INCH(12),IF(IF(BRC==0,SBRL,EBRL)==1,INCH(14),INCH(18)))', [SBRL, EBRL, BRC])
         deco_panel.dim_z('depth', [depth])
         deco_panel.dim_y('-height', [height])
-        deco_panel.get_prompt('Hide').set_formula('IF(BRC==1,False,True) or Hide', [BRC, self.hide_var])
+        deco_panel.get_prompt('Hide').set_formula('IF(BRC==1,False,True)', [BRC])
         deco_panel.cutpart("Panel")
 
         pin = self.add_object_from_file(PEG_OBJECT)
@@ -147,10 +143,6 @@ class Tie_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Top Pin Qty", 'QUANTITY', 12)
         self.add_prompt("Bottom Pin Qty", 'QUANTITY', 11)
@@ -182,7 +174,7 @@ class Tie_Accessories(Accessory):
         panel.dim_x('IF(IF(TRC==0,STRL,ETRL)==0,INCH(12),IF(IF(TRC==0,STRL,ETRL)==1,INCH(14),INCH(18)))', [STRL, ETRL, TRC])
         panel.dim_z('depth', [depth])
         panel.dim_y('-height', [height])
-        panel.get_prompt('Hide').set_formula('IF(TRC==0,False,True) or Hide', [TRC, self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(TRC==0,False,True)', [TRC])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -192,7 +184,7 @@ class Tie_Accessories(Accessory):
         deco_panel.dim_x('IF(IF(TRC==0,STRL,ETRL)==0,INCH(12),IF(IF(TRC==0,STRL,ETRL)==1,INCH(14),INCH(18)))', [STRL, ETRL, TRC])
         deco_panel.dim_z('depth', [depth])
         deco_panel.dim_y('-height', [height])
-        deco_panel.get_prompt('Hide').set_formula('IF(TRC==1,False,True) or Hide', [TRC, self.hide_var])
+        deco_panel.get_prompt('Hide').set_formula('IF(TRC==1,False,True)', [TRC])
         deco_panel.cutpart("Panel")
 
         top_pin = self.add_object_from_file(PEG_OBJECT)
@@ -242,10 +234,6 @@ class Tie_and_Belt_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Top Pin Qty", 'QUANTITY', 5)
         self.add_prompt("Bottom Pin Qty", 'QUANTITY', 11)         
@@ -269,7 +257,7 @@ class Tie_and_Belt_Accessories(Accessory):
         panel.dim_x('width', [width])
         panel.dim_z('depth',[depth])
         panel.dim_y('-height',[height])
-        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True)', [Custom_Rack_Style])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -279,7 +267,7 @@ class Tie_and_Belt_Accessories(Accessory):
         deco_panel.dim_x('width', [width])
         deco_panel.dim_z('depth',[depth])
         deco_panel.dim_y('-height',[height])
-        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
+        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True)', [Custom_Rack_Style])        
         deco_panel.cutpart("Panel")
 
         top_pin = self.add_object_from_file(PEG_OBJECT)
@@ -324,10 +312,6 @@ class Robe_Hook_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Hook Qty", 'QUANTITY', 1)
 
@@ -346,7 +330,7 @@ class Robe_Hook_Accessories(Accessory):
         panel.dim_x('width', [width])
         panel.dim_z('depth',[depth])
         panel.dim_y('-height',[height])
-        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True)', [Custom_Rack_Style])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -356,7 +340,7 @@ class Robe_Hook_Accessories(Accessory):
         deco_panel.dim_x('width', [width])
         deco_panel.dim_z('depth',[depth])
         deco_panel.dim_y('-height',[height])
-        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
+        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True)', [Custom_Rack_Style])        
         deco_panel.cutpart("Panel")
 
         hook = self.add_object_from_file(ROBE_HOOK)
@@ -386,10 +370,6 @@ class Double_Robe_Hook_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Hook Qty", 'QUANTITY', 1)
 
@@ -409,7 +389,7 @@ class Double_Robe_Hook_Accessories(Accessory):
         panel.dim_x('width', [width])
         panel.dim_z('depth',[depth])
         panel.dim_y('-height',[height])
-        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True)', [Custom_Rack_Style])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -419,7 +399,7 @@ class Double_Robe_Hook_Accessories(Accessory):
         deco_panel.dim_x('width', [width])
         deco_panel.dim_z('depth',[depth])
         deco_panel.dim_y('-height',[height])
-        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
+        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True)', [Custom_Rack_Style])        
         deco_panel.cutpart("Panel")
 
         hook = self.add_object_from_file(DOUBLE_ROBE_HOOK)
@@ -450,10 +430,6 @@ class DORB_Hook_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Hook Qty", 'QUANTITY', 1)
 
@@ -473,7 +449,7 @@ class DORB_Hook_Accessories(Accessory):
         panel.dim_x('width', [width])
         panel.dim_z('depth',[depth])
         panel.dim_y('-height',[height])
-        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True)', [Custom_Rack_Style])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -483,7 +459,7 @@ class DORB_Hook_Accessories(Accessory):
         deco_panel.dim_x('width', [width])
         deco_panel.dim_z('depth',[depth])
         deco_panel.dim_y('-height',[height])
-        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
+        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True)', [Custom_Rack_Style])        
         deco_panel.cutpart("Panel")
 
         hook = self.add_object_from_file(DORB_HOOK)
@@ -514,10 +490,6 @@ class Coat_and_Hat_Hook_Accessories(Accessory):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompts()
         self.add_prompt("Hook Qty", 'QUANTITY', 1)
 
@@ -537,7 +509,7 @@ class Coat_and_Hat_Hook_Accessories(Accessory):
         panel.dim_x('width', [width])
         panel.dim_z('depth',[depth])
         panel.dim_y('-height',[height])
-        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True) or Hide', [Custom_Rack_Style,self.hide_var])
+        panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==0,False,True)', [Custom_Rack_Style])
         panel.cutpart("Panel")
 
         deco_panel = sn_types.Part(self.add_assembly_from_file(DECO_PANEL))
@@ -547,7 +519,7 @@ class Coat_and_Hat_Hook_Accessories(Accessory):
         deco_panel.dim_x('width', [width])
         deco_panel.dim_z('depth',[depth])
         deco_panel.dim_y('-height',[height])
-        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True) or Hide', [Custom_Rack_Style,self.hide_var])        
+        deco_panel.get_prompt('Hide').set_formula('IF(Custom_Rack_Style==1,False,True)', [Custom_Rack_Style])        
         deco_panel.cutpart("Panel")
 
         hook = self.add_object_from_file(COAT_AND_HAT_HOOK)
@@ -672,7 +644,7 @@ class OPERATOR_Place_Accessory(Operator, PlaceClosetInsert):
                 eval("bpy.ops." + id_prompt + "('INVOKE_DEFAULT')")
             else:
                 bpy.ops.sn_closets.accessories('INVOKE_DEFAULT')
-            return {'FINISHED'}
+            return self.finish(context)
 
         return {'RUNNING_MODAL'}
 

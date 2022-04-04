@@ -523,7 +523,7 @@ class Closet_Defaults(PropertyGroup):
     
     rear_notch_depth_2: FloatProperty(name="Rear Notch Depth 2",default=0,unit='LENGTH', precision=4)      
     
-    shelf_lip_width: FloatProperty(name="Shelf Lip Width",default=sn_unit.inch(1.5),unit='LENGTH', precision=4)
+    shelf_lip_width: FloatProperty(name="Shelf Lip Width",default=sn_unit.inch(0.75),unit='LENGTH', precision=4)
     
     toe_kick_height: FloatProperty(name="Toe Kick Height", default=sn_unit.inch(4.39), unit='LENGTH', precision=4)
     

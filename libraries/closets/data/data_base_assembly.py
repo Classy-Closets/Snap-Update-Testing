@@ -23,6 +23,7 @@ class Base_Assembly(sn_types.Assembly):
     category_name = ""
 
     def add_parts(self):
+        self.add_prompt('Hide', 'CHECKBOX', False)
         self.add_prompt("Cleat Width", 'DISTANCE', sn_unit.inch(1.5))
         self.add_prompt("Extend Left Amount", 'DISTANCE', 0)
         self.add_prompt("Extend Right Amount", 'DISTANCE', 0)
@@ -173,7 +174,7 @@ class Base_Assembly(sn_types.Assembly):
         toe_kick_skin.loc_y('Depth-Extend_Depth_Amount-TK_Skin_Thickness',
                             [Depth, Extend_Depth_Amount, TK_Skin_Thickness])
         toe_kick_skin.rot_x(value=math.radians(-90))
-        toe_kick_skin.get_prompt('Hide').set_formula("IF(Add_TK_Skin,False,True) or Hide", [self.hide_var, Add_TK_Skin])
+        toe_kick_skin.get_prompt('Hide').set_formula("IF(Add_TK_Skin,False,True)", [Add_TK_Skin])
 
         left_skin_return = common_parts.add_toe_kick_skin(self)
         left_skin_return.set_name("Toe Kick Skin Left Return")
@@ -185,7 +186,7 @@ class Base_Assembly(sn_types.Assembly):
             [Extend_Left_Amount, Toe_Kick_Thickness, DTKL, TK_Skin_Thickness])
         left_skin_return.rot_x(value=math.radians(-90))
         left_skin_return.rot_z(value=math.radians(-90))
-        left_skin_return.get_prompt('Hide').set_formula("IF(Left_Return,False,True) or Hide", [self.hide_var, Left_Return])
+        left_skin_return.get_prompt('Hide').set_formula("IF(Left_Return,False,True)", [Left_Return])
 
         right_skin_limit_x = "INCH(96)-EL_Amt+3.5*TK_Thk"
         right_skin_x_loc =\
@@ -203,7 +204,7 @@ class Base_Assembly(sn_types.Assembly):
              RR, TK_Sk_Thk, DTKL, DTKR])
         right_skin_return.rot_x(value=math.radians(-90))
         right_skin_return.rot_z(value=math.radians(-90))
-        right_skin_return.get_prompt('Hide').set_formula("IF(Right_Return,False,True) or Hide", [self.hide_var, Right_Return])
+        right_skin_return.get_prompt('Hide').set_formula("IF(Right_Return,False,True)", [Right_Return])
 
     def update(self):
         super().update()
@@ -217,9 +218,6 @@ class Base_Assembly(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         common_prompts.add_toe_kick_prompts(self)
         common_prompts.add_thickness_prompts(self)
         self.add_parts()
@@ -626,8 +624,7 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                             self.selected_panel_1.obj_bp.parent == hover_panel.obj_bp.parent
                     hp_to_left = round(hv_x_loc, 1) <= round(sp1_x_loc, 1)
                     ts_length = hv_x_loc - sp1_x_loc
-                    hp_out_of_reach =\
-                        sn_unit.meter_to_inch(ts_length) > self.max_shelf_length
+                    hp_out_of_reach = round(sn_unit.meter_to_inch(ts_length), 2) > self.max_shelf_length
 
                     if same_panel or hp_to_left or not same_product or hp_out_of_reach:
                         self.selected_obj.select_set(False)

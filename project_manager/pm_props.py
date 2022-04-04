@@ -1,6 +1,7 @@
 import bpy
 import os
 import re
+import pathlib
 import xml.etree.ElementTree as ET
 from bpy.types import UIList, PropertyGroup, Menu
 from bpy.props import (StringProperty,
@@ -9,8 +10,10 @@ from bpy.props import (StringProperty,
                        IntProperty,
                        CollectionProperty,
                        PointerProperty)
-from . import pm_utils
+from . import pm_utils, pm_ops
 from shutil import copyfile
+global create_project_flag
+create_project_flag = False
 
 
 def update_project_props(self, context):
@@ -21,46 +24,102 @@ def make_new_name(path, new_name):
     return path + "\\" + new_name + ".blend"
 
 
-def rename_room_callback(self, context):
-    if self.file_path:
-        curr_opnd_file = bpy.data.filepath
-        new_room_name = self.name
-        ccp_file = ""
-        old_bl_path = str(self.file_path)
-        new_bl_path = ""
-        props = bpy.context.window_manager.sn_project
-        proj = props.projects[props.project_index]
+def rename_room(self, context):
+    props = bpy.context.window_manager.sn_project
+    
+    if props.projects_loaded:
+        if self.file_path:
+            curr_opnd_file = bpy.data.filepath
+            new_room_name = self.name
+            ccp_file = ""
+            old_bl_path = str(self.file_path)
+            new_bl_path = ""
+            proj = props.projects[props.project_index]
 
-        for room in proj.rooms:
-            ccp_file = str(proj.file_path)
-            if room.file_path == self.file_path and ccp_file != "":
-                xml_tree = ET.parse(ccp_file)
-                xml_root = xml_tree.getroot()
-                for element in xml_root.findall('Rooms'):
-                    for element_room in list(element):
-                        rel_path = os.path.join(*old_bl_path.split(os.sep)[-2:])
-                        if element_room.attrib["path"] == rel_path:
-                            old_room = element_room.attrib["name"]
-                            renaming = old_room != new_room_name
-                            is_opnd_room = old_room in curr_opnd_file
-                            if renaming:
-                                element_room.attrib["name"] = new_room_name
-                                element_room.text = new_room_name
-                                new_bl_path = make_new_name(proj.dir_path, new_room_name)
-                                new_rel_bl_path = os.path.join(*new_bl_path.split(os.sep)[-2:])
-                                element_room.attrib["path"] = new_rel_bl_path
-                                xml_tree.write(ccp_file)
-                                copyfile(old_bl_path, new_bl_path)
-                                if is_opnd_room:
-                                    bpy.ops.project_manager.open_room(file_path=new_bl_path)
-                                else:
-                                    room.file_path = new_rel_bl_path
-                                os.remove(old_bl_path)
-                                return
+            for room in proj.rooms:
+                ccp_file = str(proj.file_path)
+                if room.file_path == self.file_path and ccp_file != "":
+                    xml_tree = ET.parse(ccp_file)
+                    xml_root = xml_tree.getroot()
+                    for element in xml_root.findall('Rooms'):
+                        for element_room in list(element):
+                            rel_path = os.path.join(*old_bl_path.split(os.sep)[-2:])
+                            if element_room.attrib["path"] == rel_path:
+                                old_room = element_room.attrib["name"]
+                                renaming = old_room != new_room_name
+                                is_opnd_room = old_room in curr_opnd_file
+                                if renaming:
+                                    print("Room name changed to:", self.name)
+                                    element_room.attrib["name"] = new_room_name
+                                    element_room.text = new_room_name
+                                    new_bl_path = make_new_name(proj.dir_path, new_room_name)
+                                    new_rel_bl_path = os.path.join(*new_bl_path.split(os.sep)[-2:])
+                                    element_room.attrib["path"] = new_rel_bl_path
+                                    xml_tree.write(ccp_file)
+                                    copyfile(old_bl_path, new_bl_path)
+                                    if is_opnd_room:
+                                        bpy.ops.project_manager.open_room(file_path=new_bl_path)
+                                    else:
+                                        room.file_path = new_rel_bl_path
+                                    os.remove(old_bl_path)
+                                    return
+
+
+def rename_project(self, context):
+    props = bpy.context.window_manager.sn_project
+    proj = props.projects[props.project_index]
+
+    if create_project_flag:
+        return
+
+    if props.projects_loaded:
+        # Rename Project Directory
+        new_project_dir = os.path.join(pm_utils.get_project_dir(), self.name)
+        if os.path.exists(proj.dir_path):
+            os.rename(proj.dir_path, new_project_dir)
+            proj.dir_path = new_project_dir
+            print("Project name changed to:", self.name)
+
+        """Update .ccp"""
+        old_ccp_path = pathlib.PurePath(proj.file_path)
+        ccp_path = os.path.join(new_project_dir, ".snap", old_ccp_path.name)
+        new_ccp_path = os.path.join(new_project_dir, ".snap", self.name + ".ccp")
+
+        # Rename copied .ccp
+        if os.path.exists(ccp_path):
+            os.rename(ccp_path, new_ccp_path)
+            proj.file_path = new_ccp_path
+
+        # Update name in .ccp
+        if os.path.exists(new_ccp_path):
+            tree = ET.parse(new_ccp_path)
+            root = tree.getroot()
+
+            for elm in root.findall("ProjectInfo"):
+                items = list(elm)
+
+                for item in items:
+                    if item.tag == 'name':
+                        item.text = self.name
+
+            # Update room filepaths
+            for elm in root.findall("Rooms"):
+                items = list(elm)
+
+                for item in items:
+                    bfile_path = pathlib.Path(item.attrib['path'])
+                    new_path = os.path.join(self.name, bfile_path.parts[-1])
+                    item.attrib['path'] = new_path
+
+                for room in proj.rooms:
+                    old_room_path = pathlib.PurePath(room.file_path)
+                    room.file_path = os.path.join(new_project_dir, old_room_path.name)
+
+            tree.write(new_ccp_path)
+    return
 
 
 class CollectionMixIn:
-    name: StringProperty(name="Project Name", default="", update=rename_room_callback)
     dir_path: StringProperty(name="Directory Path", default="", subtype='DIR_PATH')
 
     def init(self, col, name=""):
@@ -76,7 +135,6 @@ class CollectionMixIn:
         for i in illegal:
             if i in name:
                 name = name.replace(i, '')
-
         return name
 
     def set_unique_name(self, col, name):
@@ -111,6 +169,7 @@ class CollectionMixIn:
 
 
 class Room(PropertyGroup, CollectionMixIn):
+    name: StringProperty(name="Room Name", default="", update=rename_room)
     file_path: StringProperty(name="Room Filepath", default="", subtype='FILE_PATH')
     selected: BoolProperty(name="Room Selected", default=False)
 
@@ -160,6 +219,7 @@ class Room(PropertyGroup, CollectionMixIn):
 
 
 class Project(PropertyGroup, CollectionMixIn):
+    name: StringProperty(name="Project Name", default="", update=rename_project)
     file_path: StringProperty(name="Project File Path", default="", subtype='FILE_PATH')
     rooms: CollectionProperty(name="Rooms", type=Room)
     room_index: IntProperty(name="Room Index")
@@ -225,7 +285,6 @@ class Project(PropertyGroup, CollectionMixIn):
         addon_prefs = bpy.context.preferences.addons[__name__.split(".")[0]].preferences
         addon_prefs.project_id_count += 1
         bpy.ops.wm.save_userpref()
-
         return addon_prefs.project_id_count
 
     def create_file(self, project_id):
@@ -388,6 +447,7 @@ class WM_PROPERTIES_Projects(PropertyGroup):
     current_file_room: StringProperty(name="Current File Room", description="Current blend file room name")
     current_file_project: StringProperty(name="Current File Project", description="Current blend file project name")
     use_compact_ui: BoolProperty(name="Use Compact Projects UI Panel", default=False)
+    projects_loaded: BoolProperty(name="Projects Loaded", default=False, description="All projects have been loaded")
 
     def get_project(self):
         return self.projects[self.project_index]

@@ -1,6 +1,8 @@
 from snap.views.pdf_builder.pdf_builder import Pdf_Builder
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfbase.pdfmetrics import registerFont
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import white
 import json
 import os
 
@@ -32,8 +34,6 @@ class New_Template_Builder(Pdf_Builder):
     def __init__(self, path: str, print_paper_size: str) -> None:
         sections_path = os.path.join(os.path.dirname(__file__),
                                      "new_template_sections.json")
-        lines_path = os.path.join(os.path.dirname(__file__),
-                                  "template_db_new.json")
         labels_path = os.path.join(os.path.dirname(__file__),
                                    "new_template_labels.json")
         self.dic_sections = New_Template_Builder._open_json_file(sections_path)
@@ -43,14 +43,6 @@ class New_Template_Builder(Pdf_Builder):
             "label": the name of the section
             "position": a dictionary with the coordinates of the label in the
                         .pdf file, depending on the paper size (key)
-        """
-        self.dic_lines = New_Template_Builder._open_json_file(lines_path)
-        """The .json file in 'lines_path' contains:
-
-        A list of dictionaries each represent a line in the block info:
-            "length": the size of the line
-            "position": the initial position of the line,
-                        depending on the paper size (key)
         """
         self.dic_labels = New_Template_Builder._open_json_file(labels_path)
         """The .json file in 'labels_path' contains:
@@ -71,7 +63,7 @@ class New_Template_Builder(Pdf_Builder):
         return json_file
 
     def _draw_section(self, msg: str, position: tuple) -> None:
-        """Create a section separation (rectangle with rotate text)
+        """Create a section separation (rectangle with text column)
            in the canvas.
 
         Args:
@@ -79,7 +71,7 @@ class New_Template_Builder(Pdf_Builder):
             position (tuple): Coordinates (x, y) of the lower left corner
                               of the rectangle.
         """
-        self.c.setFont("Calibri", 9)
+        self.c.setFont("Calibri-Bold", 9)
         self.c.setFillColorRGB(*GREY)
         self.c.setStrokeColorRGB(*REDWINE)
         posx, posy = position
@@ -87,12 +79,45 @@ class New_Template_Builder(Pdf_Builder):
         self.c.roundRect(x, y, w, h, r, stroke=1, fill=1)
         self.c.setFillColorRGB(*REDWINE)
         self.c.saveState()
-        self.c.translate((posx + 3 + (w / 2)), (posy + (h / 2)))
-        self.c.rotate(90)
-        self.c.drawCentredString(0, 0, msg)
+        self.c.translate((posx + (w / 2)), h)
+        # This draws the section label as a column of upright characters
+        for char in msg:
+            self.c.drawCentredString(0, 0, char)
+            self.c.translate(0, -9)
         self.c.restoreState()
         self.c.setFillColorRGB(*BLACK)
         self.c.setStrokeColorRGB(*BLACK)
+
+    def draw_info(self, form_info: dict) -> None:
+        """Draw the info about the project in the canvas.
+
+        Args:
+            form_info (dict): A dictionary with labels, values and positions.
+        """
+        self.c.setFont("Calibri", 8)
+        form = self.c.acroForm
+        for idx, field in enumerate(form_info):
+            varname = field["varname"]
+            lbl, val = field["label"], field["value"]
+            pos = field["position"][self.print_paper_size]
+            if lbl != "":
+                self.c.drawString(pos[0], pos[1], f'{lbl} ')
+            form = self.c.acroForm
+            if "line" in field.keys():
+                line = field["line"]
+                posx, posy = line["position"][self.print_paper_size]
+                length = line["length"][self.print_paper_size]
+            if not val or val == "None":
+                val = ""
+            if "checkbox" in field.keys():
+                position = field["checkbox"]["position"][self.print_paper_size]
+                self._draw_check_box(position, val)
+                continue
+            if field.get("line"):
+                form.textfield(
+                    x=posx, y=posy, width=length, height=10,
+                    fontSize=6, fillColor=white, borderStyle='underlined',
+                    value=val)
 
     def _draw_sections(self) -> None:
         """Draw a all section separators in the canvas."""
@@ -100,20 +125,11 @@ class New_Template_Builder(Pdf_Builder):
             self._draw_section(section["label"],
                                section["position"][self.print_paper_size])
 
-    def _draw_lines(self) -> None:
-        """Draw a all section separators of the block info."""
-        for line in self.dic_lines:
-            posx, posy = line["line"]["position"][self.print_paper_size]
-            length = line["line"]["length"][self.print_paper_size]
-            self.c.line(posx, posy, posx + length, posy)
-
     def _draw_labels(self) -> None:
         """Write all labels in the block info."""
         for group in self.dic_labels:
             self._set_label_style(group)
             self._write_labels(group["data"])
-            if(group["checkbox"] == 1):
-                self._draw_check_box(group["data"])
             if(group["underline"] == 1):
                 self._draw_underlines(group["data"])
 
@@ -126,31 +142,21 @@ class New_Template_Builder(Pdf_Builder):
         """
         for label in group_label:
             posx, posy = label["position"][self.print_paper_size]
-            len_txt = len(label["label"])
-            self.c.line(posx, posy - 2, posx + 5*len_txt, posy - 2)
+            len_txt = stringWidth(label["label"], 'Calibri-Bold', 9)
+            self.c.line(posx, posy - 2, posx + len_txt, posy - 2)
 
-    def _draw_check_box(self, group_label: dict) -> None:
-        """Draw a group of check box
-
-        Args:
-            group_label (dic): A dictionary with the coordinates
-                               of a group of check box.
-        """
-        selected = False
+    def _draw_check_box(self, position: list, selected: bool) -> None:
+        """Draw a check box"""
         form = self.c.acroForm
-        for label in group_label:
-            posx, posy = label["position"][self.print_paper_size]
-            form.radio(
-                name='ext_ratio',
-                tooltip='Field ext ratio',
-                value='value1',
-                selected=selected,
-                x=posx-12, y=posy,
-                borderStyle='solid',
-                shape='circle',
-                borderWidth=1,
-                size=12
-            )
+        posx = position[0]
+        posy = position[1]
+        form.checkbox(
+            checked=selected,
+            x=posx, y=posy,
+            borderStyle='solid',
+            borderWidth=1,
+            size=9
+        )
 
     def _set_label_style(self, group_label: dict) -> None:
         """Set the text style for a group of labels
@@ -195,5 +201,4 @@ class New_Template_Builder(Pdf_Builder):
     def draw_block_info(self) -> None:
         """Draw the block info of the template in the canvas (override)."""
         self._draw_sections()
-        self._draw_lines()
         self._draw_labels()

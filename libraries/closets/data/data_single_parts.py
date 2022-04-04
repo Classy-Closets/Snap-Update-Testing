@@ -23,9 +23,6 @@ class Pants_Rack(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp.sn_closets.is_accessory_bp = True
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -51,9 +48,6 @@ class Single_Pull_Out_Hamper(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp.sn_closets.is_accessory_bp = True
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -80,9 +74,6 @@ class Double_Pull_Out_Hamper(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp.sn_closets.is_accessory_bp = True
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
@@ -108,9 +99,6 @@ class Wire_Basket(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp.sn_closets.is_accessory_bp = True
 
         for i in range(1, self.max_qty):
@@ -186,19 +174,16 @@ class Hanging_Rod(sn_types.Assembly):
         if is_hanger:
             hide = assembly.get_prompt("Hide")
             hide.set_formula(
-                'IF(Turn_Off_Hangers,True,IF(Add_Middle_Rod,False,True)) or Hide',
-                [Add_Middle_Rod, Turn_Off_Hangers,self.hide_var])
+                'IF(Turn_Off_Hangers,True,IF(Add_Middle_Rod,False,True))',
+                [Add_Middle_Rod, Turn_Off_Hangers])
         else:
             hide = assembly.get_prompt("Hide")
-            hide.set_formula('IF(Add_Middle_Rod,False,True) or Hide', [Add_Middle_Rod,self.hide_var])
+            hide.set_formula('IF(Add_Middle_Rod,False,True)', [Add_Middle_Rod])
 
         return assembly
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         props = bpy.context.scene.sn_closets.closet_defaults
         self.obj_bp.sn_closets.is_accessory_bp = True
 
@@ -242,10 +227,6 @@ class Shelf(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.add_prompt("Shelf Quantity", 'QUANTITY', 1)
         self.add_prompt("Shelf Type", 'COMBOBOX', ['Adjustable','Fixed','Sliding'])
         self.add_prompt("Drawer Slide Gap", 'DISTANCE', sn_unit.inch(.25))
@@ -279,7 +260,7 @@ class Shelf(sn_types.Assembly):
         shelf.get_prompt('Is Locked Shelf').set_formula('IF(Shelf_Type==1,True,False)',[Shelf_Type])
         shelf.get_prompt('Z Quantity').set_formula('Shelf_Quantity',[Shelf_Quantity])
         shelf.get_prompt('Z Offset').set_formula('Shelf_Spacing',[Shelf_Spacing])
-        shelf.get_prompt('Hide').set_formula('IF(Shelf_Type==2,True,False) or Hide',[Shelf_Type,self.hide_var])
+        shelf.get_prompt('Hide').set_formula('IF(Shelf_Type==2,True,False)',[Shelf_Type])
 
         sliding_shelf = common_parts.add_sliding_shelf(self)
         sliding_shelf.loc_x('IF(Shelf_Type==2,Drawer_Slide_Gap,IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap))',[Shelf_Type,Drawer_Slide_Gap,Is_Locked_Shelf,Adj_Shelf_Clip_Gap])
@@ -290,7 +271,7 @@ class Shelf(sn_types.Assembly):
         sliding_shelf.get_prompt('Is Locked Shelf').set_formula('IF(Shelf_Type==1,True,False)',[Shelf_Type])
         sliding_shelf.get_prompt('Z Quantity').set_formula('Shelf_Quantity',[Shelf_Quantity])
         sliding_shelf.get_prompt('Z Offset').set_formula('Shelf_Spacing',[Shelf_Spacing])        
-        sliding_shelf.get_prompt('Hide').set_formula('IF(Shelf_Type==2,False,True) or Hide',[Shelf_Type,self.hide_var])
+        sliding_shelf.get_prompt('Hide').set_formula('IF(Shelf_Type==2,False,True)',[Shelf_Type])
         
         self.update()
 
@@ -351,9 +332,6 @@ class Accessory(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         accessory = self.add_object_from_file(self.object_path)
         accessory.snap.name_object = self.accessory_name
         accessory.snap.loc_x(value=sn_unit.inch(12))
@@ -365,7 +343,7 @@ class Accessory(sn_types.Assembly):
 class Valet_Rod(sn_types.Assembly):
 
     id_prompt = "sn_closets.valet_rod"
-    drop_id = "sn_closets.place_closet_accessory"
+    drop_id = "sn_closets.place_valet_rod"
     show_in_library = True
     placement_type = "INTERIOR"
     type_assembly = "INSERT"
@@ -387,10 +365,6 @@ class Valet_Rod(sn_types.Assembly):
         self.add_prompt('Valet Category', 'COMBOBOX', 0, ['Synergy', 'Elite'])
         self.add_prompt('Metal Color', 'COMBOBOX', 0, ['Chrome', 'Matte Aluminum', 'Matte Nickel', 'Matte Gold', 'ORB', 'Slate'])
         self.add_prompt('Valet Length', 'COMBOBOX', 0, ['12"', '14"'])
-
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
 
         Valet_Length = self.get_prompt("Valet Length").get_var("Valet_Length")
 
@@ -465,7 +439,7 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
             adj_shelf.dim_x('Width-(Shelf_Clip_Gap*2)', [Width, Shelf_Clip_Gap])
             adj_shelf.dim_y('-Depth+Adj_Shelf_Setback', [Depth, Adj_Shelf_Setback])
             adj_shelf.dim_z('Adjustable_Shelf_Thickness', [Adjustable_Shelf_Thickness])
-            adj_shelf.get_prompt('Hide').set_formula('IF(' + str(i) + '>Adj_Shelf_Qty,True,False) or Hide',  [self.hide_var, Adj_Shelf_Qty])
+            adj_shelf.get_prompt('Hide').set_formula('IF(' + str(i) + '>Adj_Shelf_Qty,True,False)',  [Adj_Shelf_Qty])
             
             Z_Loc = adj_shelf.obj_bp.snap.get_var('location.z', 'Z_Loc')
             Shelf_Depth = adj_shelf.obj_y.snap.get_var('location.y', 'Shelf_Depth')
@@ -479,8 +453,8 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
             shelf_lip.dim_y('-Shelf_Lip_Width', [Shelf_Lip_Width])
             shelf_lip.dim_z('-Adjustable_Shelf_Thickness', [Adjustable_Shelf_Thickness])
             shelf_lip.get_prompt('Hide').set_formula(
-                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==0,False,True)) or Hide', 
-                [self.hide_var, Shelf_Lip_Type, Adj_Shelf_Qty])
+                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==0,False,True))', 
+                [Shelf_Lip_Type, Adj_Shelf_Qty])
             
             deco_1_shelf_lip = common_parts.add_deco_shelf_lip_1(self)
             deco_1_shelf_lip.loc_x('Shelf_Clip_Gap', [Shelf_Clip_Gap])
@@ -492,8 +466,8 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
             deco_1_shelf_lip.dim_y('-Shelf_Lip_Width',[Shelf_Lip_Width])
             deco_1_shelf_lip.dim_z('-Adjustable_Shelf_Thickness', [Adjustable_Shelf_Thickness])
             deco_1_shelf_lip.get_prompt('Hide').set_formula(
-                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==1,False,True)) or Hide', 
-                [self.hide_var, Shelf_Lip_Type, Adj_Shelf_Qty])
+                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==1,False,True))', 
+                [Shelf_Lip_Type, Adj_Shelf_Qty])
 
             deco_2_shelf_lip = common_parts.add_deco_shelf_lip_2(self)
             deco_2_shelf_lip.loc_x('Shelf_Clip_Gap', [Shelf_Clip_Gap])
@@ -505,8 +479,8 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
             deco_2_shelf_lip.dim_y('-Shelf_Lip_Width', [Shelf_Lip_Width])
             deco_2_shelf_lip.dim_z('-Adjustable_Shelf_Thickness', [Adjustable_Shelf_Thickness])
             deco_2_shelf_lip.get_prompt('Hide').set_formula(
-                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==2,False,True)) or Hide', 
-                [self.hide_var, Shelf_Lip_Type, Adj_Shelf_Qty])
+                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==2,False,True))', 
+                [Shelf_Lip_Type, Adj_Shelf_Qty])
             
             deco_3_shelf_lip = common_parts.add_deco_shelf_lip_3(self)
             deco_3_shelf_lip.loc_x('Shelf_Clip_Gap',[Shelf_Clip_Gap])
@@ -518,8 +492,8 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
             deco_3_shelf_lip.dim_y('-Shelf_Lip_Width', [Shelf_Lip_Width])
             deco_3_shelf_lip.dim_z('-Adjustable_Shelf_Thickness', [Adjustable_Shelf_Thickness])
             deco_3_shelf_lip.get_prompt('Hide').set_formula(
-                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==3,False,True)) or Hide', 
-                [self.hide_var, Shelf_Lip_Type, Adj_Shelf_Qty])
+                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==3,False,True))', 
+                [Shelf_Lip_Type, Adj_Shelf_Qty])
             
             steel_fence = common_parts.add_shelf_fence(self)
             steel_fence.loc_x('Shelf_Clip_Gap+INCH(1)', [Shelf_Clip_Gap])
@@ -532,8 +506,8 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
             steel_fence.dim_y('-Shelf_Lip_Width', [Shelf_Lip_Width])
             steel_fence.dim_z('-Adjustable_Shelf_Thickness', [Adjustable_Shelf_Thickness])
             steel_fence.get_prompt('Hide').set_formula(
-                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==4,False,True)) or Hide', 
-                [self.hide_var, Shelf_Lip_Type, Adj_Shelf_Qty])
+                'IF(' + str(i) + '>Adj_Shelf_Qty,True,IF(Shelf_Lip_Type==4,False,True))', 
+                [Shelf_Lip_Type, Adj_Shelf_Qty])
 
     def update(self):
         super().update()
@@ -543,9 +517,6 @@ class Slanted_Shoe_Shelves(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.add_shoe_shelf_prompts()
         self.draw_shoe_shelves()
         self.update()
@@ -1386,7 +1357,130 @@ class OPERATOR_Place_Panel_Accessory_X(bpy.types.Operator, PlaceClosetInsert):
             self.cancel_drop(context,event)
             return {'FINISHED'}    
         
-        return self.accessory_drop(context,event)    
+        return self.accessory_drop(context,event)
+
+class OPERATOR_Place_Valet_Rod(bpy.types.Operator, PlaceClosetInsert):
+    bl_idname = "sn_closets.place_valet_rod"
+    bl_label = "Place Accessory"
+    bl_description = "This allows you to place a Valet Rod onto a panel"
+
+    def execute(self, context):
+        self.draw_asset()
+        self.get_insert(context)
+
+        if self.insert is None:
+            bpy.ops.snap.message_box(
+                'INVOKE_DEFAULT',
+                message="Could Not Find Insert Class: " + self.object_name)
+            return {'CANCELLED'}
+
+        self.exclude_objects = sn_utils.get_child_objects(self.insert.obj_bp)
+        self.set_wire_and_xray(self.insert.obj_bp, True)
+        if self.header_text:
+            context.area.header_text_set(text=self.header_text)
+        context.view_layer.update()  # THE SCENE MUST BE UPDATED FOR RAY CAST TO WORK
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def accessory_drop(self, context, event):
+        selected_point, selected_obj, _ = sn_utils.get_selection_point(
+            context, event, exclude_objects=self.exclude_objects)
+        bpy.ops.object.select_all(action='DESELECT')
+        self.asset.obj_bp.location = selected_point
+        self.asset.obj_bp.parent = None
+
+        if selected_obj:
+            wall_bp = sn_utils.get_wall_bp(selected_obj)
+            selected_assembly_bp = sn_utils.get_assembly_bp(selected_obj)
+            selected_assembly = sn_types.Assembly(selected_assembly_bp)
+
+            if wall_bp:
+                self.asset.obj_bp.parent = wall_bp
+                loc_pos = wall_bp.matrix_world.inverted() @ selected_point
+                self.asset.obj_bp.location = loc_pos
+                self.asset.obj_bp.rotation_euler.z = 0
+                self.asset.obj_bp.rotation_euler.y = 0
+                self.asset.obj_bp.rotation_euler.x = 0
+
+            if selected_assembly and selected_assembly.obj_bp:
+                if "IS_BP_PANEL" in selected_assembly.obj_bp:
+                    assy_world_loc = (
+                        selected_assembly.obj_bp.matrix_world[0][3],
+                        selected_assembly.obj_bp.matrix_world[1][3],
+                        selected_assembly.obj_bp.matrix_world[2][3])
+
+                    assy_z_world_loc = (
+                        selected_assembly.obj_z.matrix_world[0][3],
+                        selected_assembly.obj_z.matrix_world[1][3],
+                        selected_assembly.obj_z.matrix_world[2][3])
+
+                    dist_to_bp = math.fabs(sn_utils.calc_distance(selected_point, assy_world_loc))
+                    dist_to_z = math.fabs(sn_utils.calc_distance(selected_point, assy_z_world_loc))
+                    loc_pos = selected_assembly.obj_bp.matrix_world.inverted() @ selected_point
+                    self.asset.obj_bp.parent = selected_assembly.obj_bp
+                    self.asset.obj_bp.location.x = loc_pos[0]
+                    self.asset.obj_bp.location.z = 0
+                    self.asset.obj_x.location.x = math.fabs(selected_assembly.obj_y.location.y)  # SET DEPTH
+
+                    if selected_assembly.obj_z.location.z < 0:  # LEFT PANEL
+                        if dist_to_bp > dist_to_z:  # PLACE ON RIGHT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(0)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(270)
+                            self.asset.obj_bp.location.z = selected_assembly.obj_z.location.z
+                        else:  # PLACE ON LEFT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(180)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(90)
+                            self.asset.obj_bp.location.z = 0
+                    else:  # CENTER AND RIGHT PANEL
+                        if dist_to_bp > dist_to_z:  # PLACE ON LEFT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(180)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(90)
+                            self.asset.obj_bp.location.z = selected_assembly.obj_z.location.z
+                        else:  # PLACE ON RIGHT SIDE
+                            self.asset.obj_bp.location.y = 0
+                            self.asset.obj_bp.rotation_euler.x = math.radians(90)
+                            self.asset.obj_bp.rotation_euler.y = math.radians(0)
+                            self.asset.obj_bp.rotation_euler.z = math.radians(270)
+                            self.asset.obj_bp.location.z = 0
+
+        if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            bpy.context.window.cursor_set('DEFAULT')
+            bpy.ops.object.select_all(action='DESELECT')
+            sn_utils.set_wireframe(self.asset.obj_bp, False)
+            context.view_layer.objects.active = self.asset.obj_bp
+            self.asset.obj_bp.select_set(True)
+            obj = self.asset.obj_bp
+
+            if obj and "ID_PROMPT" in obj and obj["ID_PROMPT"] != "":
+                id_prompt = obj["ID_PROMPT"]
+                eval("bpy.ops." + id_prompt + "('INVOKE_DEFAULT')")
+            else:
+                bpy.ops.sn_closets.accessories('INVOKE_DEFAULT')
+            return self.finish(context)
+
+        return {'RUNNING_MODAL'}
+
+    def modal(self, context, event):
+        bpy.ops.object.select_all(action='DESELECT')
+        context.area.tag_redraw()
+        context.area.header_text_set(text=self.header_text)
+        self.reset_selection()
+
+        if self.event_is_cancel_command(event):
+            context.area.header_text_set(None)
+            return self.cancel_drop(context)
+
+        if self.event_is_pass_through(event):
+            return {'PASS_THROUGH'}
+
+        return self.accessory_drop(context, event)
+
 
 bpy.utils.register_class(PROMPTS_Pants_Rack_Prompts)
 bpy.utils.register_class(PROMPTS_Single_Hanging_Rod_Prompts)
@@ -1400,3 +1494,4 @@ bpy.utils.register_class(PROMPTS_Shoe_Shelf_Prompts)
 bpy.utils.register_class(OPERATOR_Drop_Single_Part)
 bpy.utils.register_class(OPERATOR_Place_Panel_Accessory_Y)
 bpy.utils.register_class(OPERATOR_Place_Panel_Accessory_X)
+bpy.utils.register_class(OPERATOR_Place_Valet_Rod)

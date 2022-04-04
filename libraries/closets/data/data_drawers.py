@@ -18,10 +18,11 @@ SLIDE_TYPE = [('0', 'Sidemount', 'Sidemount'),
               ('1', 'Undermount', 'Undermount')]
 SIDEMOUNT_OPTIONS = [('0', 'Hafele BB Sidemount Slides', 'Hafele BB Sidemount Slides'),
                      ('1', 'HR BB Soft Close Sidemount Slides', 'HR BB Soft Close Sidemount Slides')]
-UNDERMOUNT_OPTIONS = [('0', 'Hettich 4D Undermount Slides', 'Hettich 4D Undermount Slides'),
-                      ('1', 'Hettich V6 Undermount Slide', 'Hettich V6 Undermount Slide'),
-                      ('2', 'Blumotion Undermount Slides', 'Blumotion Undermount Slides'),
-                      ('3', 'King Slide Undermount Slides', 'King Slide Undermount Slides')]
+UNDERMOUNT_OPTIONS = [
+    ('0', 'Hettich 3D Undermount Slide', 'Hettich 3D Undermount Slide'),
+    ('1', 'Hettich 4D Undermount Slides', 'Hettich 4D Undermount Slides'),
+    # ('2', 'Blumotion Undermount Slides', 'Blumotion Undermount Slides'),
+    ('2', 'King Slide Undermount Slides', 'King Slide Undermount Slides')]
 LOCK_DRAWER_TYPES=[('0','None','None'),
                    ('1','Top','Top'),
                    ('2','Left','Left'),
@@ -130,9 +131,11 @@ class Drawer_Stack(sn_types.Assembly):
         self.add_prompt("Use Dovetail Drawer", 'CHECKBOX', False)
         self.add_prompt("Slide Type", 'COMBOBOX', 0, ["Sidemount", "Undermount"])
         self.add_prompt("Sidemount Options", 'COMBOBOX', 0, ["Hafele BB Sidemount Slides", "HR BB Soft Close Sidemount Slides"])
-        self.add_prompt("Undermount Options", 'COMBOBOX', 0, 
-                        ["Hettich 4D Undermount Slides", "Hettich V6 Undermount Slide",
-                        "Blumotion Undermount Slides", "King Slide Undermount Slides"])
+        self.add_prompt("Undermount Options", 'COMBOBOX', 0, [
+            "Hettich 3D Undermount Slide",
+            "Hettich 4D Undermount Slides",
+            # "Blumotion Undermount Slides",
+            "King Slide Undermount Slides"])
         self.add_prompt("Twenty-One Inches", 'DISTANCE', sn_unit.inch(21))
         self.add_prompt("Eighteen Inches", 'DISTANCE', sn_unit.inch(18))
         self.add_prompt("Fifteen Inches", 'DISTANCE', sn_unit.inch(15))
@@ -194,7 +197,6 @@ class Drawer_Stack(sn_types.Assembly):
     def add_right_pull(self):
         dim_x = self.obj_x.snap.get_var("location.x", "dim_x")
         dim_y = self.obj_y.snap.get_var("location.y", "dim_y")
-        Hide = self.get_prompt("Hide").get_var()
         Left_Overlay = self.get_prompt("Left Overlay").get_var('Left_Overlay')
         Door_to_Cabinet_Gap = self.get_prompt("Door to Cabinet Gap").get_var('Door_to_Cabinet_Gap')
         Open = self.get_prompt("Open").get_var('Open')
@@ -229,8 +231,8 @@ class Drawer_Stack(sn_types.Assembly):
                 'dim_x-(dim_x/4)+Right_Overlay',
                 [dim_x, Right_Overlay])
             self.r_pull.get_prompt('Hide').set_formula(
-                'IF(No_Pulls,True,IF(Use_Double_Pulls,False,True)) or Hide',
-                [No_Pulls, Use_Double_Pulls, Hide])
+                'IF(No_Pulls,True,IF(Use_Double_Pulls,False,True))',
+                [No_Pulls, Use_Double_Pulls])
 
     def add_drawer_boxes(self):
         dim_x = self.obj_x.snap.get_var("location.x", "dim_x")
@@ -353,7 +355,6 @@ class Drawer_Stack(sn_types.Assembly):
         Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var('Shelf_Thickness')
         Six_Hole = self.get_prompt("Six Hole").get_var('Six_Hole')
         Seven_Hole = self.get_prompt("Seven Hole").get_var('Seven_Hole')
-        hide_var = self.get_prompt("Hide").get_var()
 
         front = self.get_drawer_front(drawer_num)
         df_z_loc = front.obj_bp.snap.get_var("location.z", "df_z_loc")
@@ -380,8 +381,8 @@ class Drawer_Stack(sn_types.Assembly):
         double_drawer.dim_z("DBH",[DBH])
         double_drawer.get_prompt('Hide').set_formula(
             "IF(AND(DF_Height >= Six_Hole,DF_Height <= Seven_Hole,dim_y >= " + str(sn_unit.inch(15.99)) + "),"
-            "IF(UDD,False,True),True) or Hide",
-            [UDD, DF_Height, Six_Hole, Seven_Hole, dim_y, hide_var])
+            "IF(UDD,False,True),True)",
+            [UDD, DF_Height, Six_Hole, Seven_Hole, dim_y])
         double_drawer.get_prompt('Use File Rail').set_formula('Use_FR', [Use_FR])
         double_drawer.get_prompt('File Rail Type').set_formula('FR_Type', [FR_Type])
         double_drawer.get_prompt('File Rail Direction').set_formula('FR_Direction', [FR_Direction])
@@ -460,7 +461,7 @@ class Drawer_Stack(sn_types.Assembly):
             l_pull.dim_z('Front_Thickness',[Front_Thickness])
             l_pull.get_prompt("Pull X Location").set_formula('IF(DF_Height<Max_Height_For_Centered_Pulls,DF_Height/2,Large_Drawer_Pull_Height)',[Max_Height_For_Centered_Pulls,DF_Height,Large_Drawer_Pull_Height])
             l_pull.get_prompt("Pull Z Location").set_formula('IF(Use_Double_Pulls,(dim_x/4),(dim_x/2))+Right_Overlay',[Use_Double_Pulls,dim_x,Right_Overlay])
-            l_pull.get_prompt('Hide').set_formula('IF(No_Pulls,True,False) or Hide',[No_Pulls,self.hide_var])
+            l_pull.get_prompt('Hide').set_formula('IF(No_Pulls,True,False)',[No_Pulls])
 
             KD_Shelf = common_parts.add_shelf(self)
             IBEKD = KD_Shelf.get_prompt('Is Bottom Exposed KD').get_var('IBEKD')
@@ -474,7 +475,7 @@ class Drawer_Stack(sn_types.Assembly):
             KD_Shelf.get_prompt('Is Locked Shelf').set_value(value=True)
             KD_Shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
             KD_Shelf.get_prompt('Hide').set_value(value=True)
-            KD_Shelf.dim_y('IF(Lock_Drawer>0, dim_y, Default_Middle_KD_Depth) or Hide',  [self.hide_var, Lock_Drawer, dim_y, Default_Middle_KD_Depth])
+            KD_Shelf.dim_y('IF(Lock_Drawer>0, dim_y, Default_Middle_KD_Depth)',  [Lock_Drawer, dim_y, Default_Middle_KD_Depth])
             KD_Shelf.loc_y('IF(Lock_Drawer>0, dim_y, Default_Middle_KD_Depth)', [Lock_Drawer, dim_y, Default_Middle_KD_Depth])
 
             if(i==1):
@@ -482,13 +483,13 @@ class Drawer_Stack(sn_types.Assembly):
                 KD_Shelf.loc_y('dim_y', [dim_y])
                 KD_Shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,True,IF(Lock_Drawer>0,False,True))',[Remove_Top_Shelf,Lock_Drawer])
             if(i==2):
-                KD_Shelf.get_prompt('Hide').set_formula('IF(AHOBD,IF(Lock_Drawer>0,False,True),IF(Drawer_Quantity-1 == 2,False,IF( Drawer_Quantity-1 == 3,False,IF(Lock_Drawer>0,False,True)))) or Hide', [self.hide_var, Drawer_Quantity, Lock_Drawer, AHOBD])
+                KD_Shelf.get_prompt('Hide').set_formula('IF(AHOBD,IF(Lock_Drawer>0,False,True),IF(Drawer_Quantity-1 == 2,False,IF( Drawer_Quantity-1 == 3,False,IF(Lock_Drawer>0,False,True))))', [Drawer_Quantity, Lock_Drawer, AHOBD])
                 
             if(i==3):
-                KD_Shelf.get_prompt('Hide').set_formula('IF(Drawer_Quantity-1 == 4,False,IF(Drawer_Quantity-1 == 5,False,IF(Drawer_Quantity-1 == 7,False,IF(Lock_Drawer>0,False,True)))) or Hide', [self.hide_var, Drawer_Quantity, Lock_Drawer, AHOBD])
+                KD_Shelf.get_prompt('Hide').set_formula('IF(Drawer_Quantity-1 == 4,False,IF(Drawer_Quantity-1 == 5,False,IF(Drawer_Quantity-1 == 7,False,IF(Lock_Drawer>0,False,True))))', [Drawer_Quantity, Lock_Drawer, AHOBD])
                 
             if(i==4):
-                KD_Shelf.get_prompt('Hide').set_formula('IF(Drawer_Quantity-1 == 6,False,IF(Drawer_Quantity-1 == 8,False,IF(Lock_Drawer>0,False,True))) or Hide',  [self.hide_var, Drawer_Quantity, Lock_Drawer])
+                KD_Shelf.get_prompt('Hide').set_formula('IF(Drawer_Quantity-1 == 6,False,IF(Drawer_Quantity-1 == 8,False,IF(Lock_Drawer>0,False,True)))',  [Drawer_Quantity, Lock_Drawer])
                 
             if(i==5):
                 KD_Shelf.get_prompt('Hide').set_formula('IF(Drawer_Quantity-1 == 7,False,IF(Lock_Drawer>0,False,True))',[Lock_Drawer,Drawer_Quantity])
@@ -513,9 +514,6 @@ class Drawer_Stack(sn_types.Assembly):
 
     def draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.add_prompts()
 
         drawer_front_prompts = []
@@ -582,7 +580,7 @@ class Drawer_Stack(sn_types.Assembly):
         cleat.dim_x('dim_x',[dim_x])
         cleat.dim_y('IF(Cleat_Location==0,-Cleat_Height,Cleat_Height)', [Cleat_Height, Cleat_Location])
         cleat.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        cleat.get_prompt("Hide").set_formula("IF(Cleat_Location==2,True,False) or Hide", [Cleat_Location,self.hide_var])
+        cleat.get_prompt("Hide").set_formula("IF(Cleat_Location==2,True,False)", [Cleat_Location])
         cleat.get_prompt('Use Cleat Cover').set_formula('IF(Cleat_Location==0,True,False)', [Cleat_Location])     
         
         top_shelf = common_parts.add_shelf(self)
@@ -596,7 +594,7 @@ class Drawer_Stack(sn_types.Assembly):
         # top_shelf.dim_z('IF(AND(TAS,IBEKD==False), INCH(1),Shelf_Thickness) *-1', [Shelf_Thickness, TAS, IBEKD])
         top_shelf.dim_z('-Shelf_Thickness', [Shelf_Thickness, TAS, IBEKD])
         top_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True) or Hide',[Remove_Top_Shelf,self.hide_var])
+        top_shelf.get_prompt('Hide').set_formula('IF(Remove_Top_Shelf,False,True)',[Remove_Top_Shelf])
         top_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
         top_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
@@ -610,7 +608,7 @@ class Drawer_Stack(sn_types.Assembly):
         bottom_shelf.dim_x('dim_x',[dim_x])
         bottom_shelf.dim_y('dim_y',[dim_y])
         bottom_shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
-        bottom_shelf.get_prompt('Hide').set_formula('IF(Remove_Bottom_Shelf,False,True) or Hide',[Remove_Bottom_Shelf,self.hide_var])
+        bottom_shelf.get_prompt('Hide').set_formula('IF(Remove_Bottom_Shelf,False,True)',[Remove_Bottom_Shelf])
         bottom_shelf.get_prompt('Is Locked Shelf').set_value(value=True)
         bottom_shelf.get_prompt("Is Forced Locked Shelf").set_value(value=True)
         
@@ -2398,12 +2396,10 @@ class OPS_Drawer_Drop(Operator, PlaceClosetInsert):
             cleat_location_ppt.set_value(1)  # Setting Cleat Location to Below
             return
 
-        Hide = drawer_assembly.get_prompt("Hide").get_var()
-
         for child in insert_bp.children:
             if child.sn_closets.is_cleat_bp:
                 cleat_assembly = sn_types.Assembly(child)
-                cleat_assembly.get_prompt('Hide').set_formula('IF(OR(Cleat_Location==2,Back_Thickness==1),True,False) or Hide', [Back_Thickness, Cleat_Location, Hide])
+                cleat_assembly.get_prompt('Hide').set_formula('IF(OR(Cleat_Location==2,Back_Thickness==1),True,False)', [Back_Thickness, Cleat_Location])
 
     def set_backing_bottom_gap(self, insert_bp, selected_opening):
         opening_name = selected_opening.obj_bp.sn_closets.opening_name

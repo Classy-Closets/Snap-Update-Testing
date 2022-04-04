@@ -165,6 +165,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         if is_top:
             shelf.loc_z('Product_Height+Toe_Kick_Height',[Product_Height,Toe_Kick_Height])
             shelf.dim_z('-Shelf_Thickness',[Shelf_Thickness])
+            shelf.obj_bp["IS_BP_TOP_KD_SHELF"] = True
         else:
             shelf.loc_z('Toe_Kick_Height',[Toe_Kick_Height])
             shelf.dim_z('Shelf_Thickness',[Shelf_Thickness])
@@ -323,7 +324,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var()
         No_Countertop = self.get_prompt('No Countertop').get_var()     
         
-        granite_ctop = common_parts.add_countertop(self)
+        granite_ctop = common_parts.add_granite_countertop(self)
         granite_ctop.set_name("Granite Countertop")
         granite_ctop.loc_x('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
         granite_ctop.loc_y('Deck_Overhang',[Deck_Overhang])
@@ -333,7 +334,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         granite_ctop.dim_y('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
         granite_ctop.dim_z('Deck_Thickness',[Deck_Thickness])
         granite_ctop.get_prompt("Hide").set_formula(
-            "IF(No_Countertop,True,IF(Countertop_Type==2,False,True)) or Hide",[Countertop_Type,No_Countertop, self.hide_var])
+            "IF(No_Countertop,True,IF(Countertop_Type==2,False,True))",[Countertop_Type,No_Countertop])
                 
         hpltop = common_parts.add_hpl_top(self)    
         hpltop.set_name("HPL Countertop")
@@ -344,7 +345,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
                    [dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
         hpltop.dim_y('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
         hpltop.dim_z('Deck_Thickness',[Deck_Thickness])
-        hpltop.get_prompt("Hide").set_formula("IF(No_Countertop,True,IF(Countertop_Type==1,False,True)) or Hide",[Countertop_Type,No_Countertop,self.hide_var])
+        hpltop.get_prompt("Hide").set_formula("IF(No_Countertop,True,IF(Countertop_Type==1,False,True))",[Countertop_Type,No_Countertop])
         hpltop.get_prompt("Exposed Left").set_formula("IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
         hpltop.get_prompt("Exposed Right").set_formula("IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
         hpltop.get_prompt("Exposed Back").set_formula("Exposed_Back",[Exposed_Back])
@@ -360,7 +361,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         melamine_deck.dim_z('Deck_Thickness',[Deck_Thickness])   
         melamine_deck.get_prompt("Is Countertop").set_value(value=True) 
         melamine_deck.get_prompt("Hide").set_formula(
-            "IF(No_Countertop,True,IF(Countertop_Type==0,False,True)) or Hide",[Countertop_Type,No_Countertop,self.hide_var]) 
+            "IF(No_Countertop,True,IF(Countertop_Type==0,False,True))",[Countertop_Type,No_Countertop]) 
         melamine_deck.get_prompt("Exposed Left").set_formula("IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
         melamine_deck.get_prompt("Exposed Right").set_formula("IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
         melamine_deck.get_prompt("Exposed Back").set_formula("Exposed_Back",[Exposed_Back])
@@ -502,7 +503,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         front_tk_skin.loc_x('(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness',[Toe_Kick_Thickness,TK_Skin_Thickness,Left_Against_Wall])
         front_tk_skin.loc_y('Depth+Toe_Kick_Setback-TK_Skin_Thickness',[Depth,Toe_Kick_Setback,TK_Skin_Thickness])
         front_tk_skin.rot_x(value=math.radians(-90))
-        front_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True) or Hide',[Add_TK_Skin,self.hide_var])
+        front_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True)',[Add_TK_Skin])
 
         back_tk_skin = common_parts.add_toe_kick_skin(self)
         back_tk_skin.dim_x('IF(Width>INCH(98.25),'
@@ -521,7 +522,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
             back_tk_skin.loc_y('IF(Add_TK_Skin,Toe_Kick_Thickness,0)', [Add_TK_Skin, Toe_Kick_Thickness])
 
         back_tk_skin.rot_x(value=math.radians(-90))
-        back_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True) or Hide',[Add_TK_Skin,self.hide_var]) 
+        back_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True)',[Add_TK_Skin]) 
         
         left_tk_skin = common_parts.add_toe_kick_skin(self)
         if(self.is_double_sided):
@@ -537,8 +538,8 @@ class Closet_Island_Carcass(sn_types.Assembly):
         left_tk_skin.rot_x(value=math.radians(-90))
         left_tk_skin.rot_z(value=math.radians(-90))  
         left_tk_skin.get_prompt("Hide").set_formula(
-            'IF(Left_Against_Wall,True,IF(Add_TK_Skin,False,True)) or Hide',
-            [Add_TK_Skin, Left_Against_Wall,self.hide_var])
+            'IF(Left_Against_Wall,True,IF(Add_TK_Skin,False,True))',
+            [Add_TK_Skin, Left_Against_Wall])
 
         right_tk_skin = common_parts.add_toe_kick_skin(self)
         if(self.is_double_sided):
@@ -557,8 +558,8 @@ class Closet_Island_Carcass(sn_types.Assembly):
         right_tk_skin.rot_x(value=math.radians(90))
         right_tk_skin.rot_z(value=math.radians(-90))
         right_tk_skin.get_prompt("Hide").set_formula(
-            'IF(Right_Against_Wall,True,IF(Add_TK_Skin,False,True)) or Hide',
-            [Add_TK_Skin, Right_Against_Wall,self.hide_var])
+            'IF(Right_Against_Wall,True,IF(Add_TK_Skin,False,True))',
+            [Add_TK_Skin, Right_Against_Wall])
 
     def add_opening_widths_calculator(self):
         calc_distance_obj = self.add_empty('Calc Distance Obj')
@@ -595,12 +596,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
 
     def draw(self):
         defaults = bpy.context.scene.sn_closets.closet_defaults
-
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
-
         self.obj_bp['product_type'] = "Closet"
         product_props = self.obj_bp.sn_closets
         product_props.is_island = True

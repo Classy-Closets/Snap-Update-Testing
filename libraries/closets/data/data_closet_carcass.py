@@ -84,7 +84,7 @@ class Closet_Carcass(sn_types.Assembly):
                     'IF(OR(B_Cleat==False,AND(B_Sections==1,CBT==1,CTR,BIG==0),'
                     'AND(B_Sections>1,AND(BIG==0,OR(AND(IS_SB,CBT==1,BTM),'
                     'AND(IS_SB,CBT==1,BTM,CTR,TOP==False),AND(IS_SB==False,BTM,BBT==1))))),'
-                    'True,False) or Hide',
+                    'True,False)',
                     prompt_vars)
                 use_cleat_cover = cleat.get_prompt('Use Cleat Cover')
                 use_cleat_cover.set_formula('IF(OR(BIB>0,BIG>0),False,True)', prompt_vars)
@@ -93,7 +93,7 @@ class Closet_Carcass(sn_types.Assembly):
                     'IF(OR(Add_Hanging_Rail,AND(B_Sections==1,CBT==1,CTR),'
                     'AND(B_Sections>1,OR(AND(IS_SB,CBT==1,TOP),'
                     'AND(IS_SB,CBT==1,TOP,CTR,BTM==False),'
-                    'AND(IS_SB==False,TOP,TBT==1)))),True,False) or Hide',
+                    'AND(IS_SB==False,TOP,TBT==1)))),True,False)',
                     prompt_vars)
 
     def get_backing_parts(self):
@@ -222,6 +222,8 @@ class Closet_Carcass(sn_types.Assembly):
         Extend_Right_End_Pard_Down = self.get_prompt('Extend Right End Pard Down').get_var()
         Height_Left_Side = self.get_prompt('Height Left Side').get_var('Height_Left_Side')
         Height_Right_Side = self.get_prompt('Height Right Side').get_var('Height_Right_Side')
+        No_Drill_Left = self.get_prompt("No Drilling Left Partition").get_var("No_Drill_Left")
+        No_Drill_Right = self.get_prompt("No Drilling Right Partition").get_var("No_Drill_Right")
         Loc_Left_Side = self.get_prompt('Loc Left Side').get_var('Loc_Left_Side')
         Loc_Right_Side = self.get_prompt('Loc Right Side').get_var('Loc_Right_Side')
         Left_Filler_Setback_Amount = self.get_prompt('Left Filler Setback Amount').get_var()
@@ -271,8 +273,8 @@ class Closet_Carcass(sn_types.Assembly):
         left_filler.rot_z(value=math.radians(-90))
         hide = left_filler.get_prompt("Hide")
         hide.set_formula(
-            'IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,False) or Hide',
-            [Left_Side_Wall_Filler, Left_End_Condition, self.hide_var])
+            'IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,False)',
+            [Left_Side_Wall_Filler, Left_End_Condition])
         left_filler.get_prompt("Exposed Left").set_formula(
             'IF(Edge_Bottom_of_Left_Filler,True,False)', [Edge_Bottom_of_Left_Filler])
         left_filler.get_prompt("Exposed Left").set_value(True)
@@ -299,13 +301,15 @@ class Closet_Carcass(sn_types.Assembly):
         left_capping_filler.rot_y(value=math.radians(-90))
         left_capping_filler.rot_z(value=math.radians(-90))
         left_capping_filler.get_prompt('Hide').set_formula(
-            'IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,IF(Add_Capping_Left_Filler,False,True)) or Hide',
-            [Left_Side_Wall_Filler, Left_End_Condition, Add_Capping_Left_Filler, self.hide_var])
+            'IF(OR(Left_Side_Wall_Filler==0,Left_End_Condition==3),True,IF(Add_Capping_Left_Filler,False,True))',
+            [Left_Side_Wall_Filler, Left_End_Condition, Add_Capping_Left_Filler])
         left_capping_filler.get_prompt("Exposed Left").set_value(True)
         left_capping_filler.get_prompt("Exposed Right").set_value(True)
         left_capping_filler.get_prompt("Exposed Back").set_value(True)
 
         left_side = common_parts.add_panel(self)
+        no_drill = left_side.add_prompt("No Drilling", 'CHECKBOX', False)
+        no_drill.set_formula("No_Drill_Left", [No_Drill_Left])
         left_side.obj_bp['PARTITION_NUMBER'] = 0
         left_props = left_side.obj_bp.sn_closets
         left_props.is_left_panel_bp = True
@@ -322,8 +326,9 @@ class Closet_Carcass(sn_types.Assembly):
              Height_1, Toe_Kick_Height, Extend_Left_End_Pard_Down])
         left_side.rot_y(value=math.radians(-90))
 
+
         hide = left_side.get_prompt('Hide')
-        hide.set_formula('IF(Left_End_Condition==3,True,False) or Hide', [Left_End_Condition, self.hide_var])
+        hide.set_formula('IF(Left_End_Condition==3,True,False)', [Left_End_Condition])
         is_left_end_panel = left_side.get_prompt('Is Left End Panel')
         is_left_end_panel.set_formula('IF(Left_End_Condition==0,True,False)', [Left_End_Condition])
         left_side.get_prompt('Right Depth').set_formula('Depth_1', [Depth_1])
@@ -340,6 +345,7 @@ class Closet_Carcass(sn_types.Assembly):
         left_side.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
         left_side.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])
         left_side.get_prompt("Exposed Bottom").set_formula("Exposed_Bottom_1", [Exposed_Bottom_1])
+        left_side.get_prompt("Is Dogeared Panel").set_formula("Dog_Ear_Active", [Dog_Ear_Active])
 
         # Add_Backing = self.get_prompt('Opening ' + str(self.opening_qty) + ' Add Backing').get_var('Add_Backing')
 
@@ -365,8 +371,8 @@ class Closet_Carcass(sn_types.Assembly):
         right_filler.rot_z(value=math.radians(-90))
         hide = right_filler.get_prompt('Hide')
         hide.set_formula(
-            'IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,False) or Hide',
-            [Right_Side_Wall_Filler, Right_End_Condition, self.hide_var])
+            'IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,False)',
+            [Right_Side_Wall_Filler, Right_End_Condition])
         right_filler.get_prompt("Exposed Left").set_formula(
             'IF(Edge_Bottom_of_Right_Filler,True,False)', [Edge_Bottom_of_Right_Filler])
         right_filler.get_prompt("Exposed Left").set_value(True)
@@ -393,13 +399,15 @@ class Closet_Carcass(sn_types.Assembly):
         right_capping_filler.rot_y(value=math.radians(-90))
         right_capping_filler.rot_z(value=math.radians(-90))
         right_capping_filler.get_prompt('Hide').set_formula(
-            'IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,IF(Add_Capping_Right_Filler,False,True)) or Hide',
-            [Right_Side_Wall_Filler, Right_End_Condition, Add_Capping_Right_Filler, self.hide_var])
+            'IF(OR(Right_Side_Wall_Filler==0,Right_End_Condition==3),True,IF(Add_Capping_Right_Filler,False,True))',
+            [Right_Side_Wall_Filler, Right_End_Condition, Add_Capping_Right_Filler])
         right_capping_filler.get_prompt("Exposed Left").set_value(True)
         right_capping_filler.get_prompt("Exposed Right").set_value(True)
         right_capping_filler.get_prompt("Exposed Back").set_value(True)
 
         right_side = common_parts.add_panel(self)
+        no_drill = right_side.add_prompt("No Drilling", 'CHECKBOX', False)
+        no_drill.set_formula("No_Drill_Right", [No_Drill_Right])
         right_side.obj_bp['PARTITION_NUMBER'] = self.opening_qty
         right_props = right_side.obj_bp.sn_closets
         right_props.is_right_panel_bp = True
@@ -419,7 +427,7 @@ class Closet_Carcass(sn_types.Assembly):
             [Loc_Right_Side, Height_Right_Side, Last_Floor, Product_Height,
              Toe_Kick_Height, Last_Height, Extend_Right_End_Pard_Down])
         right_side.rot_y(value=math.radians(-90))
-        right_side.get_prompt('Hide').set_formula('IF(Right_End_Condition==3,True,False) or Hide', [Right_End_Condition, self.hide_var])
+        right_side.get_prompt('Hide').set_formula('IF(Right_End_Condition==3,True,False)', [Right_End_Condition])
         right_side.get_prompt('Is Right End Panel').set_formula(
             'IF(Right_End_Condition==0,True,False)', [Right_End_Condition])
         right_side.get_prompt('Left Depth').set_formula('Last_Depth', [Last_Depth])
@@ -439,6 +447,7 @@ class Closet_Carcass(sn_types.Assembly):
         right_side.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
         right_side.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])
         right_side.get_prompt("Exposed Bottom").set_formula("Last_Exposed_Bottom", [Last_Exposed_Bottom])
+        right_side.get_prompt("Is Dogeared Panel").set_formula("Dog_Ear_Active", [Dog_Ear_Active])
 
     def add_panel(self, index, previous_panel):
         PH = self.obj_z.snap.get_var('location.z', 'PH')
@@ -526,6 +535,7 @@ class Closet_Carcass(sn_types.Assembly):
         catnum = panel.get_prompt("CatNum")
         catnum.set_formula('IF(Front_Angle_Height>INCH(0),32,31)', [Front_Angle_Height])
         panel.get_prompt("Exposed Bottom").set_formula('EB', [EB])
+        panel.get_prompt("Is Dogeared Panel").set_formula("Dog_Ear_Active", [Dog_Ear_Active])
 
         return panel
 
@@ -584,7 +594,8 @@ class Closet_Carcass(sn_types.Assembly):
             shelf.dim_y("IF(Dog_Ear_Active,-Front_Angle_Depth,-Depth)+IF(Is_Locked_Shelf,Locked_Shelf_Setback,Adj_Shelf_Setback)",
                         [Depth, Dog_Ear_Active, Front_Angle_Depth, Is_Locked_Shelf, Locked_Shelf_Setback, Adj_Shelf_Setback])           
             hide = shelf.get_prompt('Hide')
-            hide.set_formula('IF(Remove_Top_Shelf,False,True) or Hide', [Remove_Top_Shelf, self.hide_var])
+            hide.set_formula('IF(Remove_Top_Shelf,False,True)', [Remove_Top_Shelf])
+            shelf.obj_bp["IS_BP_TOP_KD_SHELF"] = True
         else:
             rear_notch_1_inset = "IF(Floor,IF(Toe_Kick_Height<RN_1_H,RN_1_D,0),0)"
             rear_notch_2_inset = "IF(Floor,IF(Toe_Kick_Height<RN_2_H,RN_2_D,0),0)"
@@ -600,7 +611,7 @@ class Closet_Carcass(sn_types.Assembly):
                         [Floor, Depth, Toe_Kick_Height, RN_1_H, RN_2_H, RN_1_D,
                             RN_2_D, Is_Locked_Shelf, Locked_Shelf_Setback, Adj_Shelf_Setback])
             hide = shelf.get_prompt('Hide')
-            hide.set_formula('IF(Floor,False,IF(Rm_Btm_Hang_Shelf,False,True)) or Hide', [Floor, Rm_Btm_Hang_Shelf, self.hide_var])
+            hide.set_formula('IF(Floor,False,IF(Rm_Btm_Hang_Shelf,False,True))', [Floor, Rm_Btm_Hang_Shelf])
 
         shelf.rot_x(value=0)
         shelf.rot_y(value=0)
@@ -691,8 +702,8 @@ class Closet_Carcass(sn_types.Assembly):
 
         hide = cleat.get_prompt('Hide')
         hide.set_formula(
-            'Add_Hanging_Rail or Hide',
-            [Add_Hanging_Rail, self.hide_var]
+            'Add_Hanging_Rail',
+            [Add_Hanging_Rail]
         )
 
     def add_bottom_cleat(self, i, panel):
@@ -748,7 +759,7 @@ class Closet_Carcass(sn_types.Assembly):
             cleat.loc_x('X_Loc+INCH(.01)',[X_Loc]) #USED TO FIX DRAWER SIDE TOKEN
 
         hide = cleat.get_prompt('Hide')
-        hide.set_formula('IF(B_Cleat,False,True) or Hide', [B_Cleat, self.hide_var])
+        hide.set_formula('IF(B_Cleat,False,True)', [B_Cleat])
 
     def add_closet_opening(self, i, panel):
         calculator = self.get_calculator(self.calculator_name)        
@@ -853,7 +864,6 @@ class Closet_Carcass(sn_types.Assembly):
         Height = self.get_prompt('Opening ' + str(i) + ' Height').get_var('Height')
         width_prompt = eval("calculator.get_calculator_prompt('Opening {} Width')".format(str(i)))
         Width = eval("width_prompt.get_var(calculator.name, 'opening_{}_width')".format(str(i)))
-        self.hide_var = self.get_prompt("Hide").get_var()
 
         Floor = self.get_prompt('Opening ' + str(i) + ' Floor Mounted').get_var('Floor')
         TBT = self.get_prompt('Opening ' + str(i) + ' Top Backing Thickness').get_var('TBT')
@@ -1044,8 +1054,8 @@ class Closet_Carcass(sn_types.Assembly):
         backing.dim_z('IF(OR(AND(B_Sections==1,CBT==0),AND(B_Sections>1,CBT==0)),INCH(-0.25),INCH(-0.75))',[CBT, B_Sections])
         prompt = backing.get_prompt('Hide')
         prompt.set_formula(
-            'IF(OR(AND(B_Sections==1,CTR),AND(B_Sections==2,SB,TOP,BTM),AND(B_Sections==3,CTR)),False,True) or Hide',
-            [CTR,B_Sections,SB,TOP,BTM, self.hide_var])
+            'IF(OR(AND(B_Sections==1,CTR),AND(B_Sections==2,SB,TOP,BTM),AND(B_Sections==3,CTR)),False,True)',
+            [CTR,B_Sections,SB,TOP,BTM])
 
         #Top back
         top_backing = common_parts.add_back(self)
@@ -1086,8 +1096,8 @@ class Closet_Carcass(sn_types.Assembly):
         top_backing.dim_z('IF(TBT==0,INCH(-0.25),INCH(-0.75))',[TBT])
         prompt = top_backing.get_prompt('Hide')
         prompt.set_formula(
-            'IF(OR(B_Sections==1,TOP==False,AND(B_Sections>1,IS_SB)),True,False) or Hide',
-            [B_Sections,TOP,CTR,BTM,IS_SB, self.hide_var])
+            'IF(OR(B_Sections==1,TOP==False,AND(B_Sections>1,IS_SB)),True,False)',
+            [B_Sections,TOP,CTR,BTM,IS_SB])
 
         #Bottom back
         bottom_backing = common_parts.add_back(self)
@@ -1120,15 +1130,15 @@ class Closet_Carcass(sn_types.Assembly):
         bottom_backing.dim_y('opening_{}_width'.format(str(i)),[Width])
         bottom_backing.dim_z('IF(BBT==0,INCH(-0.25),INCH(-0.75))',[BBT])
         prompt = bottom_backing.get_prompt('Hide')
-        prompt.set_formula('IF(OR(B_Sections==1,BTM==False,AND(B_Sections>1,IS_SB)),True,False) or Hide', [B_Sections,TOP,BTM,IS_SB,self.hide_var])                
+        prompt.set_formula('IF(OR(B_Sections==1,BTM==False,AND(B_Sections>1,IS_SB)),True,False)', [B_Sections,TOP,BTM,IS_SB])                
 
         #Additional cleats for multi-section backing
         #BC3 - [0:'Full', 1:'Top', 2:'Bottom', 3:'Center', 4:'Top & Center', 5:'Bottom & Center', 6:'Top & Bottom']
         top_sec_bottom_cleat = self.add_backing_cleat(i, panel, top_cleat=False)
         parts.append(top_sec_bottom_cleat)
         prompt = top_sec_bottom_cleat.get_prompt('Hide')
-        prompt.set_formula('IF(OR(TBT==1,TOP==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False) or Hide',
-            [B_Sections,TBT,TOP,BTM,IS_SB, self.hide_var])
+        prompt.set_formula('IF(OR(TBT==1,TOP==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False)',
+            [B_Sections,TBT,TOP,BTM,IS_SB])
 
         top_sec_bottom_cleat.loc_z('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB+ST,IF(BIB>0,OB+BIB,0)),IF(B_Sections==3,OB+Height-TIB+ST,0))',[Height,OB,TIB,BIB,ST,B_Sections])
 
@@ -1136,21 +1146,21 @@ class Closet_Carcass(sn_types.Assembly):
         parts.append(mid_sec_top_cleat)
         prompt = mid_sec_top_cleat.get_prompt('Hide')
         prompt.set_formula(
-            'IF(OR(AND(B_Sections==3,BC3==5,CTR,BTM,CBT==0,IS_SB),AND(B_Sections==3,CTR,CBT==0,IS_SB==False)),False,True) or Hide',
-            [B_Sections,CTR,BTM,CBT,IS_SB,BC3, self.hide_var])
+            'IF(OR(AND(B_Sections==3,BC3==5,CTR,BTM,CBT==0,IS_SB),AND(B_Sections==3,CTR,CBT==0,IS_SB==False)),False,True)',
+            [B_Sections,CTR,BTM,CBT,IS_SB,BC3])
         mid_sec_top_cleat.loc_z('OB+Height-TIB', [Height, OB, TIB])
 
         mid_sec_bottom_cleat = self.add_backing_cleat(i, panel, top_cleat=False)
         parts.append(mid_sec_bottom_cleat)
         prompt = mid_sec_bottom_cleat.get_prompt('Hide')
-        prompt.set_formula('IF(AND(B_Sections==3,CTR,CBT==0,IS_SB==False),False,True) or Hide', [B_Sections, CTR, CBT, IS_SB, self.hide_var])
+        prompt.set_formula('IF(AND(B_Sections==3,CTR,CBT==0,IS_SB==False),False,True)', [B_Sections, CTR, CBT, IS_SB])
         mid_sec_bottom_cleat.loc_z('OB+BIB', [OB, BIB])
 
         bottom_sec_top_cleat = self.add_backing_cleat(i, panel, top_cleat=True)
         parts.append(bottom_sec_top_cleat)
         prompt = bottom_sec_top_cleat.get_prompt('Hide')
-        prompt.set_formula('IF(OR(BBT==1,BTM==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False) or Hide',
-            [B_Sections,BBT,TOP,BTM,IS_SB, self.hide_var])
+        prompt.set_formula('IF(OR(BBT==1,BTM==False,B_Sections==1,AND(B_Sections>1,IS_SB)),True,False)',
+            [B_Sections,BBT,TOP,BTM,IS_SB])
 
         bottom_sec_top_cleat.loc_z('IF(B_Sections==2,IF(TIB>0,OB+Height-TIB,IF(BIB>0,OB+BIB-ST,0)),IF(B_Sections==3,OB+BIB-ST,0))', [Height, OB, TIB, BIB, ST, B_Sections])
         prompt = bottom_sec_top_cleat.get_prompt('Use Cleat Cover')
@@ -1159,7 +1169,7 @@ class Closet_Carcass(sn_types.Assembly):
         self.backing_parts[str(i)] = parts
 
         Add_Hanging_Rail = self.get_prompt('Add Hanging Rail').get_var('Add_Hanging_Rail')
-        self.update_cleats(i, [B_Cleat, Add_Hanging_Rail, TBT, BIB, BIG, BBT, CBT, B_Sections, TOP, CTR, BTM, IS_SB, self.hide_var])
+        self.update_cleats(i, [B_Cleat, Add_Hanging_Rail, TBT, BIB, BIG, BBT, CBT, B_Sections, TOP, CTR, BTM, IS_SB])
         self.update_backing_sections(i, backing)
 
     def add_hutch_backing(self):
@@ -1190,8 +1200,8 @@ class Closet_Carcass(sn_types.Assembly):
             [Height_Left_Side, Height_Right_Side, Has_Capping_Bottom, Panel_Thickness])
         hutch_backing.dim_z("-Panel_Thickness", [Panel_Thickness])
         hutch_backing.get_prompt('Hide').set_formula(
-            "IF(OR(Extend_Left_End_Pard_Down,Extend_Right_End_Pard_Down),IF(Add_Hutch_Backing,False,True),True) or Hide",
-            [Extend_Left_End_Pard_Down, Extend_Right_End_Pard_Down, Add_Hutch_Backing,self.hide_var])
+            "IF(OR(Extend_Left_End_Pard_Down,Extend_Right_End_Pard_Down),IF(Add_Hutch_Backing,False,True),True)",
+            [Extend_Left_End_Pard_Down, Extend_Right_End_Pard_Down, Add_Hutch_Backing])
 
     def add_system_holes(self,i,panel):
         calculator = self.get_calculator(self.calculator_name)
@@ -1284,7 +1294,7 @@ class Closet_Carcass(sn_types.Assembly):
         elif i == self.opening_qty: #LAST OPENING
             ch_tfl_holes.get_prompt('Hide').set_formula('IF(Front_Angle_Height==0,True,IF(Right_End_Condition!=3,IF(Remove_Left,True,False),True))',[Front_Angle_Height,Right_End_Condition,Remove_Left])
         else:                       #MIDDLE OPENING
-            ch_tfl_holes.get_prompt('Hide').set_formula('IF(Front_Angle_Height==0,True,IF(Remove_Left,True,False)) or Hide',[Front_Angle_Height,Remove_Left, self.hide_var])    
+            ch_tfl_holes.get_prompt('Hide').set_formula('IF(Front_Angle_Height==0,True,IF(Remove_Left,True,False))',[Front_Angle_Height,Remove_Left])    
             
         ch_tfr_holes = common_parts.add_line_bore_holes(self)
         ch_tfr_holes.set_name("Chamfer Top Front Right Holes " + str(i))
@@ -1305,7 +1315,7 @@ class Closet_Carcass(sn_types.Assembly):
         elif i == self.opening_qty: #LAST OPENING
             ch_tfr_holes.get_prompt('Hide').set_formula('IF(Front_Angle_Height==0,True,IF(Right_End_Condition!=3,IF(Remove_Right,True,False),True))',[Right_End_Condition,Remove_Right,Front_Angle_Height])
         else:                       #MIDDLE OPENING
-            ch_tfr_holes.get_prompt('Hide').set_formula('IF(Front_Angle_Height==0,True,IF(Remove_Right,True,False)) or Hide',[Remove_Right,Front_Angle_Height, self.hide_var])     
+            ch_tfr_holes.get_prompt('Hide').set_formula('IF(Front_Angle_Height==0,True,IF(Remove_Right,True,False))',[Remove_Right,Front_Angle_Height])     
             
         ch_trl_holes = common_parts.add_line_bore_holes(self)
         ch_trl_holes.set_name("Chamfer Top Rear Left Holes " + str(i))
@@ -1326,7 +1336,7 @@ class Closet_Carcass(sn_types.Assembly):
         elif i == self.opening_qty: #LAST OPENING
             ch_trl_holes.get_prompt('Hide').set_formula('IF(Right_End_Condition!=3,IF(Remove_Left,True,False),True)',[Right_End_Condition,Remove_Left])
         else:                       #MIDDLE OPENING
-            ch_trl_holes.get_prompt('Hide').set_formula('IF(Remove_Left,True,False) or Hide',[Remove_Left, self.hide_var])    
+            ch_trl_holes.get_prompt('Hide').set_formula('IF(Remove_Left,True,False)',[Remove_Left])    
             
         ch_trr_holes = common_parts.add_line_bore_holes(self)
         ch_trr_holes.set_name("Chamfer Top Rear Right Holes " + str(i))
@@ -1347,7 +1357,7 @@ class Closet_Carcass(sn_types.Assembly):
         elif i == self.opening_qty: #LAST OPENING
             ch_trr_holes.get_prompt('Hide').set_formula('IF(Right_End_Condition!=3,IF(Remove_Right,True,False),True)',[Right_End_Condition,Remove_Right])
         else:                       #MIDDLE OPENING
-            ch_trr_holes.get_prompt('Hide').set_formula('IF(Remove_Right,True,False) or Hide',[Remove_Right, self.hide_var])                  
+            ch_trr_holes.get_prompt('Hide').set_formula('IF(Remove_Right,True,False)',[Remove_Right])                  
 
         for assembly in assemblies: 
             assembly.rot_y(value=math.radians(-90))
@@ -1368,14 +1378,14 @@ class Closet_Carcass(sn_types.Assembly):
                     elif i == self.opening_qty: #LAST OPENING
                         assembly.get_prompt('Hide').set_formula('IF(Right_End_Condition!=3,IF(OR(Remove_Left,Start_LB==0),True,False),True)',[Right_End_Condition,Remove_Left,Start_LB])
                     else:                       #MIDDLE OPENING
-                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Left,Start_LB==0),True,False) or Hide',[Remove_Left,Start_LB, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Left,Start_LB==0),True,False)',[Remove_Left,Start_LB])
                 else:
                     if i == 1:                  #FIRST OPENING
                         assembly.get_prompt('Hide').set_formula('IF(Left_End_Condition!=3,IF(Remove_Left,True,False),True)',[Left_End_Condition,Remove_Left])
                     elif i == self.opening_qty: #LAST OPENING
                         assembly.get_prompt('Hide').set_formula('IF(Right_End_Condition!=3,IF(Remove_Left,True,False),True)',[Right_End_Condition,Remove_Left])
                     else:                       #MIDDLE OPENING
-                        assembly.get_prompt('Hide').set_formula('IF(Remove_Left,True,False) or Hide',[Remove_Left, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(Remove_Left,True,False)',[Remove_Left])
             
             if "Right" in assembly.obj_bp.snap.name_object:
                 if panel:
@@ -1390,14 +1400,14 @@ class Closet_Carcass(sn_types.Assembly):
                     elif i == self.opening_qty: #LAST OPENING
                         assembly.get_prompt('Hide').set_formula('IF(Right_End_Condition!=3,IF(OR(Remove_Right,Start_LB==0),True,False),True)',[Right_End_Condition,Remove_Right,Start_LB])
                     else:                       #MIDDLE OPENING
-                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Right,Start_LB==0),True,False) or Hide',[Remove_Right,Start_LB, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Right,Start_LB==0),True,False)',[Remove_Right,Start_LB])
                 else:
                     if i == 1:                  #FIRST OPENING
                         assembly.get_prompt('Hide').set_formula('IF(Left_End_Condition!=3,IF(Remove_Right,True,False),True)',[Left_End_Condition,Remove_Right])
                     elif i == self.opening_qty: #LAST OPENING
                         assembly.get_prompt('Hide').set_formula('IF(Right_End_Condition!=3,IF(Remove_Right,True,False),True)',[Right_End_Condition,Remove_Right])
                     else:                       #MIDDLE OPENING
-                        assembly.get_prompt('Hide').set_formula('IF(Remove_Right,True,False) or Hide',[Remove_Right, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(Remove_Right,True,False)',[Remove_Right])
 
             if "Top" in assembly.obj_bp.snap.name_object:
                 assembly.rot_y(value=math.radians(90))
@@ -1422,14 +1432,14 @@ class Closet_Carcass(sn_types.Assembly):
                 assembly.loc_y("-IF(Add_Backing,Back_Thickness,0)-INCH(12)+DDFF",[Add_Backing,Back_Thickness,DDFF])
                 if "Left" in assembly.obj_bp.snap.name_object:
                     if "Top" in assembly.obj_bp.snap.name_object:
-                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Left,Start_LB==0),True,IF(Add_Mid,False,True)) or Hide',[Remove_Left,Start_LB,Add_Mid, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Left,Start_LB==0),True,IF(Add_Mid,False,True))',[Remove_Left,Start_LB,Add_Mid])
                     else:
-                        assembly.get_prompt('Hide').set_formula('IF(Remove_Left,True,IF(Add_Mid,False,True)) or Hide',[Remove_Left,Add_Mid, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(Remove_Left,True,IF(Add_Mid,False,True))',[Remove_Left,Add_Mid])
                 if "Right" in assembly.obj_bp.snap.name_object:
                     if "Top" in assembly.obj_bp.snap.name_object:
-                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Right,Start_LB==0),True,IF(Add_Mid,False,True)) or Hide',[Remove_Right,Start_LB,Add_Mid, self.hide_var])
+                        assembly.get_prompt('Hide').set_formula('IF(OR(Remove_Right,Start_LB==0),True,IF(Add_Mid,False,True))',[Remove_Right,Start_LB,Add_Mid])
                     else:
-                        assembly.get_prompt('Hide').set_formula('IF(Remove_Right,True,IF(Add_Mid,False,True)) or Hide',[Remove_Right,Add_Mid, self.hide_var]) 
+                        assembly.get_prompt('Hide').set_formula('IF(Remove_Right,True,IF(Add_Mid,False,True))',[Remove_Right,Add_Mid]) 
 
     def add_blind_panel_holes(self, panel):
         Width = panel.obj_x.snap.get_var('location.x','Width')
@@ -1450,7 +1460,7 @@ class Closet_Carcass(sn_types.Assembly):
             rbf_holes.rot_x(value=math.radians(180))
             rbf_holes.dim_x('Width+INCH(0.455)-MILLIMETER(9.5)-MILLIMETER(32)',[Width])
             rbf_holes.dim_z(value=sn_unit.inch(0.5))
-            rbf_holes.get_prompt("Hide").set_formula("IF(Blind_Corner_Left,False,True) or Hide",[Blind_Corner_Left,self.hide_var])
+            rbf_holes.get_prompt("Hide").set_formula("IF(Blind_Corner_Left,False,True)",[Blind_Corner_Left])
 
         if right_bcp.get_value():
             lbf_holes = common_parts.add_line_bore_holes(panel)
@@ -1460,7 +1470,7 @@ class Closet_Carcass(sn_types.Assembly):
             lbf_holes.loc_z(value=sn_unit.inch(-0.01))
             lbf_holes.dim_x('Width+INCH(0.455)-MILLIMETER(9.5)-MILLIMETER(32)',[Width])
             lbf_holes.dim_z(value=sn_unit.inch(0.5))
-            lbf_holes.get_prompt("Hide").set_formula("IF(Blind_Corner_Right,False,True) or Hide",[Blind_Corner_Right,self.hide_var])
+            lbf_holes.get_prompt("Hide").set_formula("IF(Blind_Corner_Right,False,True)",[Blind_Corner_Right])
 
     def add_blind_corners(self):
         Width = self.obj_x.snap.get_var("location.x", 'Width')
@@ -1495,7 +1505,7 @@ class Closet_Carcass(sn_types.Assembly):
         left_blind_panel.dim_y("Blind_Corner_Left_Depth",[Blind_Corner_Left_Depth])
         left_blind_panel.dim_z("Panel_Thickness", [Panel_Thickness])
 
-        left_blind_panel.get_prompt("Hide").set_formula("IF(Blind_Corner_Left, False, True) or Hide",[Blind_Corner_Left,self.hide_var])
+        left_blind_panel.get_prompt("Hide").set_formula("IF(Blind_Corner_Left, False, True)",[Blind_Corner_Left])
         left_blind_panel.get_prompt("Is Left Blind Corner Panel").set_value(value=True)
         left_blind_panel.get_prompt("CatNum").set_value(value=31)
         left_blind_panel.obj_bp.snap.name_object = "Blind Corner Panel"
@@ -1503,7 +1513,8 @@ class Closet_Carcass(sn_types.Assembly):
         left_blind_panel.obj_bp['IS_BP_PANEL'] = False
         left_blind_panel.obj_bp.sn_closets.is_blind_corner_panel_bp = True  # TODO: remove
         left_blind_panel.obj_bp['IS_BP_BLIND_CORNER_PANEL'] = True
-        self.add_blind_panel_holes(left_blind_panel)
+        # if self.defaults.show_panel_drilling:
+            # self.add_blind_panel_holes(left_blind_panel)
 
         #Right Blind Corner Panel
         right_blind_panel = common_parts.add_panel(self)
@@ -1520,7 +1531,7 @@ class Closet_Carcass(sn_types.Assembly):
         right_blind_panel.dim_y("Blind_Corner_Right_Depth",[Blind_Corner_Right_Depth])
         right_blind_panel.dim_z("Panel_Thickness", [Panel_Thickness])
 
-        right_blind_panel.get_prompt("Hide").set_formula("IF(Blind_Corner_Right,False,True) or Hide",[Blind_Corner_Right,self.hide_var])
+        right_blind_panel.get_prompt("Hide").set_formula("IF(Blind_Corner_Right,False,True)",[Blind_Corner_Right])
         right_blind_panel.get_prompt("Is Right Blind Corner Panel").set_value(value=True)
         right_blind_panel.get_prompt("CatNum").set_value(value=31)
         right_blind_panel.obj_bp.snap.name_object = "Blind Corner Panel"
@@ -1528,13 +1539,11 @@ class Closet_Carcass(sn_types.Assembly):
         right_blind_panel.obj_bp['IS_BP_PANEL'] = False
         right_blind_panel.obj_bp.sn_closets.is_blind_corner_panel_bp = True  # TODO: remove
         right_blind_panel.obj_bp['IS_BP_BLIND_CORNER_PANEL'] = True
-        self.add_blind_panel_holes(right_blind_panel)
+        # if self.defaults.show_panel_drilling:
+            # self.add_blind_panel_holes(right_blind_panel)
 
     def pre_draw(self):
         self.create_assembly()
-        # we are adding a master hide for everything
-        hide_prompt = self.add_prompt('Hide', 'CHECKBOX', False)
-        self.hide_var = hide_prompt.get_var()
         self.obj_bp['product_type'] = "Closet"
 
         product_props = self.obj_bp.sn_closets

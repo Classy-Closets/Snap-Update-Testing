@@ -14,7 +14,7 @@ from bpy.props import (StringProperty,
                        IntProperty)
 from shutil import copyfile
 
-from . import pm_utils
+from . import pm_utils, pm_props
 
 
 class SNAP_OT_Copy_Room(Operator):
@@ -113,19 +113,19 @@ class SNAP_OT_Create_Project(Operator):
 
     def execute(self, context):
         wm = context.window_manager.sn_project
+        pm_props.create_project_flag = True
 
         if self.project_name == "":
             return {'FINISHED'}
 
         proj = wm.projects.add()
-
         proj.init(self.project_name.strip())
         pm_utils.reload_projects()
 
         for index, project in enumerate(wm.projects):
             if project.name == self.project_name:
                 wm.project_index = index
-
+        pm_props.create_project_flag = False
         return {'FINISHED'}
 
 
@@ -243,8 +243,36 @@ class SNAP_OT_Import_Project(Operator):
     def execute(self, context):
         if pathlib.Path(self.filename).suffix == ".ccp":
             copy_tree(self.directory, os.path.join(pm_utils.get_project_dir(), self.filename.split('.')[0]))
-            reload_projects()
+            pm_utils.reload_projects()
 
+        return {'FINISHED'}
+
+
+class SNAP_OT_Unarchive_Project(Operator):
+    """ This will unarchive a project.
+    """
+    bl_idname = "project_manager.unarchive_project"
+    bl_label = "Unarchive Project"
+    bl_description = "Unarchives a project"
+
+    filename: StringProperty(name="Project File Name", description="Project file name to import")
+    filepath: StringProperty(name="Project Path", description="Project path to import", subtype="FILE_PATH")
+    directory: StringProperty(name="Project File Directory Name", description="Project file directory name")
+
+    def invoke(self, context, event):
+        self.filepath = os.path.join(os.path.expanduser("~"), "Documents", "SNaP Archived Projects", "")
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        import zipfile
+        if pathlib.Path(self.filename).suffix == ".zip":
+            with zipfile.ZipFile(os.path.join(pm_utils.get_archive_dir(), self.filename), "r") as zip_ref:
+                zip_ref.extractall(os.path.join(pm_utils.get_project_dir(), self.filename.split('.')[0]))
+                pm_utils.reload_projects()
+
+        if os.path.exists(os.path.join(pm_utils.get_project_dir(), self.filename.split('.')[0])):
+            os.remove(os.path.join(pm_utils.get_archive_dir(), self.filename))
         return {'FINISHED'}
 
 
@@ -254,6 +282,10 @@ class SNAP_OT_Delete_Project(Operator):
     bl_options = {'UNDO'}
 
     index: IntProperty(name="Project Index")
+
+    archive_project: BoolProperty(name="No, send to an archived folder",
+                                          default=False,
+                                          description="Archive project to zipped folder")
 
     def invoke(self, context, event):
         wm = context.window_manager
@@ -269,6 +301,7 @@ class SNAP_OT_Delete_Project(Operator):
 
         col.label(text="'{}'".format(proj.name))
         col.label(text="Are you sure you want to delete this project?")
+        col.prop(self,'archive_project',text="Archive Project upon removal")
 
     def execute(self, context):
         props = context.window_manager.sn_project
@@ -277,6 +310,7 @@ class SNAP_OT_Delete_Project(Operator):
         proj.proj_dir = os.path.join(pm_utils.get_project_dir(), cleaned_name)
         rbin_path = os.path.join(os.path.expanduser("~"), "Documents", "SNaP Projects Recycle Bin")
         rbin_proj_path = os.path.join(rbin_path, cleaned_name)
+        archive_path = os.path.join(os.path.expanduser("~"), "Documents", "SNaP Archived Projects")
         props.projects.remove(self.index)
         props.project_index = 0
 
@@ -285,6 +319,14 @@ class SNAP_OT_Delete_Project(Operator):
 
         if not os.path.exists(rbin_path):
             os.mkdir(rbin_path)
+
+        if self.archive_project:
+            # import zipfile
+            if os.path.isfile(os.path.join(archive_path, cleaned_name + ".zip")):
+                os.remove(os.path.join(archive_path, cleaned_name + ".zip"))
+            if not os.path.exists(archive_path):
+                os.mkdir(archive_path)
+            shutil.move(shutil.make_archive(proj.proj_dir, 'zip', proj.proj_dir), archive_path)
 
         shutil.move(proj.proj_dir, rbin_path)
 
@@ -349,6 +391,7 @@ class SNAP_OT_Open_Room(Operator):
         room_path = os.path.join(project.dir_path, os.path.basename(self.file_path))
         bpy.ops.wm.open_mainfile(filepath=room_path)
         sn_utils.update_accordions_prompt()
+        sn_utils.fetch_mainscene_walls()
 
         return {'FINISHED'}
 
@@ -542,7 +585,8 @@ classes = (
     SNAP_OT_Select_All_Rooms,
     SNAP_OT_Prepare_Project_XML,
     SNAP_OT_Copy_Room,
-    SNAP_OT_Load_Projects
+    SNAP_OT_Load_Projects,
+    SNAP_OT_Unarchive_Project
 )
 
 

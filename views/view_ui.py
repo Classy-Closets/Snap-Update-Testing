@@ -70,7 +70,10 @@ class VIEW_PT_2d_views(bpy.types.Panel):
         sn_wm = context.window_manager.snap
         accordions_only = props.views_option == 'ACCORDIONS'
         elevations_only = props.views_option == 'ELEVATIONS'
-
+        room_type = context.scene.sn_roombuilder.room_type
+        if room_type == 'SINGLE':
+            accordions_only = False
+            elevations_only = True
         layout = self.layout
         scene = context.scene
         panel_box = layout.box()
@@ -142,11 +145,14 @@ class VIEW_PT_2d_views(bpy.types.Panel):
 
         if len(image_views) > 0:
             dimprops = get_dimension_props()
+            room_type = context.scene.sn_roombuilder.room_type
             row = panel_box.row(align=True)
             if accordions_only:
                 row.prop(props, 'accordions_layout_setting', text="Accordions layout")
-            elif elevations_only:
+            elif elevations_only and room_type != 'SINGLE':
                 row.prop(props, 'page_layout_setting', text="Elevations layout")
+            elif room_type == 'SINGLE':
+                row.prop(props, 'single_page_layout_setting', text="Elevations layout")
             paper_row = panel_box.row(align=True)
             paper_row.label(text='Paper Size')
             paper_row.prop(props, 'paper_size', expand=True)

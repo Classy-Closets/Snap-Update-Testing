@@ -28,7 +28,7 @@ def set_login_status(status_type, status):
 class Cache:
     BUBBLE_CACHE_FILE = os.path.join(
         # Use a user path to avoid permission-related errors
-        bpy.utils.user_resource("SCRIPTS", "bubble_cache", create=True), ".cache")
+        bpy.utils.user_resource("SCRIPTS", path="bubble_cache", create=True), ".cache")
 
     def read():
         if not os.path.exists(Cache.BUBBLE_CACHE_FILE):

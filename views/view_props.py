@@ -19,6 +19,11 @@ class WM_PROPERTIES_2d_views(bpy.types.PropertyGroup):
                                               'One elevation per page')],
                                       default='SINGLE')
 
+    single_page_layout_setting: EnumProperty(name="Page Layout Settings",
+                                      items=[('SINGLE', "One elevation per page",
+                                              'One elevation per page')],
+                                      default='SINGLE')
+
     accordions_layout_setting: EnumProperty(name="Page Layout Settings",
                                              items=[
                                                  ('1_ACCORD', "One Accordion per page",

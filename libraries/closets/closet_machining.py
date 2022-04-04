@@ -403,6 +403,18 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             sdtl = assembly.get_prompt('Stop Drilling Top Left').get_value()
             sdbr = assembly.get_prompt('Stop Drilling Bottom Right').get_value()
             sdtr = assembly.get_prompt('Stop Drilling Top Right').get_value()
+            no_drill = assembly.get_prompt('No Drilling')
+
+            if no_drill:
+                if no_drill.get_value():
+                    print("NO DRILLING found for:",assembly)
+                    return
+
+            carcass = sn_types.Assembly(sn_utils.get_closet_bp(assembly.obj_bp))
+            extend_left = carcass.get_prompt("Extend Left End Pard Down")
+            extend_right = carcass.get_prompt("Extend Right End Pard Down")
+            extend_left_amt = carcass.get_prompt("Height Left Side")
+            extend_right_amt = carcass.get_prompt("Height Right Side")
 
             single_sided = False if right_depth.get_value() and left_depth.get_value() else True
 
@@ -514,12 +526,20 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
             token.face_bore_dia = macp.system_hole_dia
             token.distance_between_holes = macp.dim_between_holes
 
-            if corbeled_partition:
-                if single_sided and right_depth.get_value():
-                        token.dim_in_x -= corbel_height_ppt.get_value()
-                else:
-                    if left_depth.get_value():
-                        token.end_dim_in_x += corbel_height_ppt.get_value()                    
+            if single_sided:
+                if extend_left and assembly.obj_z.location.z < 0:
+                    token.dim_in_x -= extend_left_amt.get_value()
+                    token.end_dim_in_x -= extend_left_amt.get_value()
+
+                if extend_right and assembly.obj_z.location.z > 0:
+                    token.end_dim_in_x += extend_right_amt.get_value()
+
+                if corbeled_partition:
+                    if single_sided and right_depth.get_value():
+                            token.dim_in_x -= corbel_height_ppt.get_value()
+                    else:
+                        if left_depth.get_value():
+                            token.end_dim_in_x += corbel_height_ppt.get_value()                    
 
 
     def add_panel_drilling_for_middle_hanging_rods(self, hanging_rod):
@@ -976,6 +996,10 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         macp = get_machining_props()
         self.remove_machining_token(assembly, 'Left Drilling')
         self.remove_machining_token(assembly, 'Right Drilling')
+        self.remove_machining_token(assembly, 'Left Drilling')
+        self.remove_machining_token(assembly, 'Right Drilling')
+        self.remove_machining_token(assembly, 'Left Drilling')
+        self.remove_machining_token(assembly, 'Right Drilling')
         
         is_lock_shelf = assembly.get_prompt("Is Locked Shelf")
         if is_lock_shelf and is_lock_shelf.get_value():
@@ -1002,7 +1026,8 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                         token.face_bore_depth_2 = macp.cam_depth
                         token.face_bore_dia_2 = macp.cam_dia
                         token.backset = width - macp.dim_to_front_system_hole
-                        token.cam_face = '5'                    
+                        token.cam_face = '5'  
+                    self.remove_machining_token(assembly, 'Left Drilling')                
                 
                 if not remove_right_holes.get_value():
                     if assembly.add_machine_token('Right Drilling' ,'CAMLOCK','5'):
@@ -1019,6 +1044,7 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
                         token.face_bore_dia_2 = macp.cam_dia
                         token.backset = macp.dim_to_rear_system_hole
                         token.cam_face = '5'
+                    self.remove_machining_token(assembly, 'Right Drilling')
 
     def add_toe_kick_machining(self,assembly):
         '''

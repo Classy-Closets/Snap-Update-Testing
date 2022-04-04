@@ -445,16 +445,18 @@ class SNAP_OT_add_room_light(Operator):
         if length == 0:
             length = sn_unit.inch(-48)
 
-        bpy.ops.object.light_add(type='AREA')
-        obj_lamp = context.active_object
-        obj_lamp.location.x = x
-        obj_lamp.location.y = y
-        obj_lamp.location.z = z - sn_unit.inch(.01)
-        obj_lamp.data.shape = 'RECTANGLE'
-        obj_lamp.data.size = length
-        obj_lamp.data.size_y = math.fabs(width)
-        obj_lamp.data.energy = 120
-        obj_lamp.data.use_shadow = False
+        light_data = bpy.data.lights.new(name="Room Light", type='AREA')
+        light_obj = bpy.data.objects.new(name="Room Light", object_data=light_data)
+        bpy.context.scene.collection.objects.link(light_obj)
+
+        light_obj.location.x = x
+        light_obj.location.y = y
+        light_obj.location.z = z - sn_unit.inch(.01)
+        light_obj.data.shape = 'RECTANGLE'
+        light_obj.data.size = length
+        light_obj.data.size_y = math.fabs(width)
+        light_obj.data.energy = 120
+        light_obj.data.use_shadow = False
 
         return {'FINISHED'}
 
