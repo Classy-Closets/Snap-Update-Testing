@@ -333,7 +333,7 @@ def generate_retail_pricing_summary(parts_file):
         erp_row = erp_sheet.max_row
 
 
-    pricing_sheet["B" + str(row_start + 2)] = "Special Order Items (Not Calculated in Project Total)"
+    pricing_sheet["B" + str(row_start + 2)] = "Special Order Items"
     pricing_sheet["B" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["A" + str(row_start + 3)] = "Special Order Price"
     pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
@@ -368,7 +368,7 @@ def generate_retail_pricing_summary(parts_file):
     pricing_sheet["C" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["A" + str(row_start + 13)] = "Project Subtotal"
     pricing_sheet["A" + str(row_start + 13)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 13)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10) + "+C" + str(row_start + 11) + "+C" + str(row_start + 12)
+    pricing_sheet["C" + str(row_start + 13)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10) + "+C" + str(row_start + 11) + "+C" + str(row_start + 12) + "+C" + str(row_start + 3)
     pricing_sheet["C" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["A" + str(row_start + 14)] = "Delivery Charge (10%)"
     pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)
@@ -548,9 +548,9 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet["D" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["A" + str(row_start + 13)] = "Project Subtotal"
     pricing_sheet["A" + str(row_start + 13)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 13)] = sum(map(float, F_PROJECT_TOTAL_PRICE))
+    pricing_sheet["C" + str(row_start + 13)] = sum(map(float, F_PROJECT_TOTAL_PRICE)) + "+C" + str(row_start + 3)
     pricing_sheet["C" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["D" + str(row_start + 13)] = sum(map(float, R_PROJECT_TOTAL_PRICE))
+    pricing_sheet["D" + str(row_start + 13)] = sum(map(float, R_PROJECT_TOTAL_PRICE)) + "+D" + str(row_start + 3)
     pricing_sheet["D" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["A" + str(row_start + 14)] = "Delivery Charge (10%)"
     pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)

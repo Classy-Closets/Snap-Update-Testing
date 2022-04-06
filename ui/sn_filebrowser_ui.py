@@ -356,7 +356,7 @@ class FILEBROWSER_PT_bookmarks_system(Panel):
     def poll(cls, context):
         if len(context.area.spaces) > 1:
             return False
-        return not context.preferences.filepaths.hide_system_bookmarks and panel_poll_is_upper_region(context.region)
+        return context.preferences.filepaths.show_system_bookmarks and panel_poll_is_upper_region(context.region)
 
     def draw(self, context):
         layout = self.layout
@@ -431,7 +431,7 @@ class FILEBROWSER_PT_bookmarks_recents(Panel):
     def poll(cls, context):
         if len(context.area.spaces) > 1:
             return False
-        return not context.preferences.filepaths.hide_recent_locations and panel_poll_is_upper_region(context.region)
+        return context.preferences.filepaths.show_recent_locations and panel_poll_is_upper_region(context.region)
 
     def draw(self, context):
         layout = self.layout

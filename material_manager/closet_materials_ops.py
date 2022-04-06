@@ -114,8 +114,8 @@ class SN_MAT_OT_Assign_Materials(Operator):
                         door_part.set_material_pointers("Black", "LeftRightEdge")
                     else:
                         door_part.edgebanding("Exterior_Edge", l1=True, w1=True, l2=True, w2=True)
-                        door_part.set_material_pointers("Garage_Exterior_Edges", "TopBottomEdge")
-                        door_part.set_material_pointers("Garage_Exterior_Edges", "LeftRightEdge")
+                        door_part.set_material_pointers("Garage_Panel_Edges", "TopBottomEdge")
+                        door_part.set_material_pointers("Garage_Panel_Edges", "LeftRightEdge")
                 
                 else:
                     door_part.cutpart("Slab_Door")
@@ -184,7 +184,7 @@ class SN_MAT_OT_Assign_Materials(Operator):
             garage_exterior_surface_pointer.item_name = mat_props.materials.get_mat_color().name
 
             garage_panel_edge_pointer.category_name = "Closet Materials"
-            garage_panel_edge_pointer.item_name = mat_props.materials.get_mat_color().name
+            garage_panel_edge_pointer.item_name = mat_props.edges.get_edge_color().name
 
             garage_interior_edge_pointer.category_name = "Closet Materials"
             garage_interior_edge_pointer.item_name = "Oxford White"
@@ -485,8 +485,8 @@ class SN_MAT_OT_Assign_Materials(Operator):
                 drawer_front_part.set_material_pointers("Black", "LeftRightEdge")
             else:
                 drawer_front_part.edgebanding("Exterior_Edge", l1=True, w1=True, l2=True, w2=True)
-                drawer_front_part.set_material_pointers("Garage_Exterior_Edges", "TopBottomEdge")
-                drawer_front_part.set_material_pointers("Garage_Exterior_Edges", "LeftRightEdge")
+                drawer_front_part.set_material_pointers("Garage_Panel_Edges", "TopBottomEdge")
+                drawer_front_part.set_material_pointers("Garage_Panel_Edges", "LeftRightEdge")
         else:
             drawer_front_part.cutpart("Slab_Drawer_Front")
             drawer_front_part.edgebanding('Door_Edges',l1=True, w1=True, l2=True, w2=True)

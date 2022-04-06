@@ -1638,27 +1638,22 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.start_y(value=lbl_y)
         dim.set_label(label)
 
-    
-    def slanted_shoes_shelves(self, item):
+    def slanted_shoes_shelves_old(self, item):
         already_tagged = item in tagged_sss_list
-        really_sss = 'shoe shelf stack' not in item.name.lower()
-        if already_tagged or really_sss:
+        if already_tagged:
             return
         sss_assembly = sn_types.Assembly(item)
-        shelf_lip_prompt = sss_assembly.get_prompt("Shelf Lip Type")
-        shelf_qty_prompt = sss_assembly.get_prompt("Shelf Quantity")
+        shelf_qty_prompt = sss_assembly.get_prompt("Adj Shelf Qty")
+        if shelf_qty_prompt is None:
+            return
         shelf_offset_prompt = sss_assembly.get_prompt(
             "Distance Between Shelves")
-        shf_lip_val = shelf_lip_prompt.get_value()
-        shelf_lip = shelf_lip_prompt.combobox_items[shf_lip_val].name
         shelf_offset = float(shelf_offset_prompt.get_value())
         shelf_qty = int(shelf_qty_prompt.get_value())
         z_offset = (shelf_qty - 1) * shelf_offset
         width = sss_assembly.obj_x.location.x
         x_offset = width / 2
-        label = "SSS"
         # Skip adding shelf lip type for now. Currently slanted shoe shelf lip options are inaccurate.
-        # label = f'SSS {shelf_lip} Lip'
         rotation = (0, 45, 0)
         hashmark = sn_types.Line(sn_unit.inch(6), rotation)
         hashmark.parent(item)
@@ -1666,9 +1661,45 @@ class SNAP_OT_Auto_Dimension(Operator):
         hashmark.start_z(value=z_offset)
         dim = self.add_tagged_dimension(hashmark.end_point)
         dim.start_z(value=sn_unit.inch(2))
+        dim.set_label("SSS")
+        tagged_sss_list.append(item)
+
+    def slanted_shoes_shelves_v214(self, item):
+        label_parent = item
+        already_tagged = item in tagged_sss_list
+        if already_tagged:
+            return
+        sss_assembly = sn_types.Assembly(item)
+        shelf_lip_prompt = sss_assembly.get_prompt("Shelf Lip Type")
+        shelf_qty_prompt = sss_assembly.get_prompt("Shelf Quantity")
+        shf_lip_val = shelf_lip_prompt.get_value()
+        shelf_lip = shelf_lip_prompt.combobox_items[shf_lip_val].name
+        shelf_qty = int(shelf_qty_prompt.get_value())
+        width = sss_assembly.obj_x.location.x
+        x_offset = width / 2        
+        shelves_ch = item.children
+        shelves = [o for o in shelves_ch if o.get("IS_SHOE_SHELF")]
+        for sh in shelves:
+            tagged_sss_list.append(sh)
+        idx_position = int(shelf_qty / 2) * -1
+        if len(shelves) <= 2:
+            label_parent = shelves[0]
+        elif len(shelves) > 2:
+            label_parent = shelves[idx_position]
+        elif len(shelves) == 0:
+            label_parent = item
+        z_offset = (sn_unit.inch(-3.4))
+        label = f'SSS {shelf_lip}'
+        rotation = (0, 45, 0)
+        hashmark = sn_types.Line(sn_unit.inch(6), rotation)
+        hashmark.parent(label_parent)
+        hashmark.start_x(value=x_offset)
+        hashmark.start_z(value=z_offset)
+        dim = self.add_tagged_dimension(hashmark.end_point)
+        dim.start_z(value=sn_unit.inch(2))
         dim.set_label(label)
         tagged_sss_list.append(item)
-    
+
     def apply_drawer_lbl(self, drawer_stack, drawer_num, label):
         drawer_front = drawer_stack.get_drawer_front(drawer_num)
         hshmk_x = drawer_front.obj_x.location.x / 2
@@ -2574,6 +2605,14 @@ class SNAP_OT_Auto_Dimension(Operator):
         return drawer_h_number
 
     def place_drawer_front_labels(self, drawer_assy, dims_list):
+        suspended_offset = 0
+        suspended_pmpt = drawer_assy.get_prompt('Lift Drawers From Bottom')
+        is_suspended_drw = suspended_pmpt.get_value()
+        if is_suspended_drw:
+            suspended_height_pmpt = drawer_assy.get_prompt(
+                "Bottom Drawer Space")
+            if suspended_height_pmpt:
+                suspended_offset = suspended_height_pmpt.get_value()
         dims_list.reverse()
         width = drawer_assy.obj_x.location.x
         parent = drawer_assy.obj_bp
@@ -2582,7 +2621,7 @@ class SNAP_OT_Auto_Dimension(Operator):
             vert_loc = 0
             idx, face_height, label = drw_face_dim
             curr_idx = len(dims_list) - idx
-            z_offset = curr_idx * sn_unit.inch(0.1)
+            z_offset = (curr_idx * sn_unit.inch(0.1)) + suspended_offset
             if face_height <= 0.3:
                 vert_loc = start_loc + (face_height / 2) + z_offset
             elif face_height > 0.3:
@@ -2915,7 +2954,14 @@ class SNAP_OT_Auto_Dimension(Operator):
 
             # SSS labeling
             if scene_props.slanted_shoe_shelves and props.is_slanted_shelf_bp:
-                self.slanted_shoes_shelves(assembly.obj_bp.parent)
+                sss_version = assembly.obj_bp.get("SNAP_VERSION")
+                if sss_version is not None:
+                    sss_version = sss_version.replace(".", "")
+                    version_number = int(sss_version)
+                    if version_number >= 214:
+                        self.slanted_shoes_shelves_v214(assembly.obj_bp)
+                elif sss_version is None:
+                    self.slanted_shoes_shelves_old(assembly.obj_bp.parent)
 
             # Glass Shelves
             if scene_props.glass_shelves and props.is_glass_shelf_bp:

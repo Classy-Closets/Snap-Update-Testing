@@ -329,7 +329,16 @@ class PlaceClosetInsert(PlaceClosetAsset):
                     if not op_inserts:
                         obj.snap.interior_open = True
                         obj.snap.exterior_open = True
-                if wall and sn_utils.get_wall_bp(obj) and wall.get_wall_mesh().hide_viewport:
+
+                wall_hidden = False
+                collections = bpy.data.collections
+                wall_bp = sn_utils.get_wall_bp(obj)
+                if wall_bp:
+                    wall_name = wall_bp.snap.name_object
+                    if wall_name in collections:
+                        wall_coll = collections[wall_name]
+                        wall_hidden = wall_coll.hide_viewport
+                if wall and sn_utils.get_wall_bp(obj) and wall_hidden:
                     continue
                 if insert_type in ('INTERIOR', 'SPLITTER'):
                     opening = sn_types.Assembly(obj) if obj.snap.interior_open else None

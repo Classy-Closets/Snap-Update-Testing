@@ -965,7 +965,7 @@ class OPS_Export_XML(Operator):
     debugger = None
 
     top_shelf_sizes = (60.0, 72.0, 84.0, 96.0)
-    top_shelf_offset = 6.0    
+    top_shelf_offset = 2.0  
 
     @classmethod
     def poll(cls, context):
@@ -2236,18 +2236,23 @@ class OPS_Export_XML(Operator):
             assembly = sn_types.Assembly(obj.parent)
 
         if assembly.obj_bp.snap.type_group != "PRODUCT":
+            part_name = assembly.obj_bp.snap.name_object if assembly.obj_bp.snap.name_object != "" else assembly.obj_bp.namev
+            closet_materials = bpy.context.scene.closet_materials
+            mat_sku = closet_materials.get_mat_sku(obj, assembly, part_name)
+            mat_inventory_name = closet_materials.get_mat_inventory_name(sku=mat_sku)
+            mat_id = self.write_material(mat_inventory_name, mat_sku)
             elm_part = self.xml.add_element(
                 node,
                 'Part',
                 {
                     'ID': "IDP-{}".format(self.part_count),
-                    'MatID': "IDM-{}".format(self.mat_count),
+                    'MatID': "IDM-{}".format(mat_id),
                     'LabelID': "IDL-{}".format(self.label_count),
                     'OpID': "IDOP-{}".format(self.op_count)
                 }
             )
 
-            part_name = assembly.obj_bp.snap.name_object if assembly.obj_bp.snap.name_object != "" else assembly.obj_bp.name
+            
             self.xml.add_element_with_text(elm_part, 'Name', part_name + " Shelf")
             self.xml.add_element_with_text(elm_part,'Quantity', self.get_part_qty(assembly))
             self.xml.add_element_with_text(elm_part,'Width', self.get_part_width(assembly)) 

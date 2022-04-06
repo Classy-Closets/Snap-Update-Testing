@@ -938,8 +938,27 @@ class VIEW_OT_generate_2d_views(Operator):
         return str(sh_qty)
 
     def get_sss_count(self, assembly):
+        sh_qty = 0
         sss_assembly = sn_types.Assembly(assembly)
-        sh_qty = sss_assembly.get_prompt("Shelf Quantity").get_value()
+        sh_pmpt_new = sss_assembly.get_prompt("Shelf Quantity")
+        sh_pmpt_old = sss_assembly.get_prompt("Adj Shelf Qty")
+        if sh_pmpt_new:
+            sh_qty = sh_pmpt_new.get_value()
+        elif sh_pmpt_old:
+            sh_qty = sh_pmpt_old.get_value()
+        sss_version = assembly.get("SNAP_VERSION")
+        if sss_version is None:
+            return str(sh_qty)
+        elif sss_version is not None:
+            sss_version = sss_version.replace(".", "")
+            version_number = int(sss_version)
+            if version_number >= 214:
+                bottom_pmpt = sn_types.Assembly(assembly).get_prompt(
+                    "Remove Bottom Shelf")
+                if bottom_pmpt:
+                    if bottom_pmpt.get_value():
+                        sh_qty -= 1
+                    return str(sh_qty)
         return str(sh_qty)
 
     def get_shelf_stack_count(self, assembly):
@@ -989,6 +1008,9 @@ class VIEW_OT_generate_2d_views(Operator):
             gloc_height = assembly.matrix_world.translation.z
             gloc_inches = self.to_inch(abs(gloc_height))
             # Hangs
+            sss_name_one = 'shoe shelf stack' in name
+            sss_name_two = 'slanted shoe shelves' in name
+            sss_name_three = 'slanted shoe shelf' in name
             if 'vertical' in name and 'splitters' in name:
                 shelf_count += self.shelf_count_vertical_splitters(assembly)
             if 'hang' in name and 'hanging rod' not in name:
@@ -1025,7 +1047,7 @@ class VIEW_OT_generate_2d_views(Operator):
                     shelf_count += (qty - 1)
                 elif not rmvd_bottom_shelf:
                     shelf_count += qty
-            elif 'shoe' and 'shelf' and 'stack' in name:
+            elif sss_name_one or sss_name_two or sss_name_three:
                 qty = self.get_sss_count(assembly)
                 tag = qty + ' SSS'
                 tags.append((tag, gloc_inches))
@@ -1083,7 +1105,6 @@ class VIEW_OT_generate_2d_views(Operator):
             tags.insert(0, (shelf_tag, 0.0))
         return tags
 
-    # TODO refactor to not use context
     def find_matching_inserts(self, hanging_opening, location):
         def is_insert(obj):
             return hasattr(obj, 'snap') and obj.snap.type_group == 'INSERT'
@@ -1899,7 +1920,7 @@ class VIEW_OT_generate_2d_views(Operator):
         self.plan_view_hashmarks(context, walls_info)
         floor = [o for o in bpy.data.objects if o.sn_roombuilder.is_floor][0]
         x_axis_len = floor.dimensions[0]
-        ratio = self.planview_orthoscale_ratio(x_axis_len)
+        floor_length = unit.meter_to_inch(x_axis_len)
         camera = self.create_camera(pv_scene)
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.view3d.camera_to_view_selected()
@@ -1907,8 +1928,10 @@ class VIEW_OT_generate_2d_views(Operator):
         camera.data.ortho_scale += self.pv_pad
         if room_type == 'USHAPE':
             camera.data.ortho_scale += 1
-        elif room_type == 'CUSTOM':
+        elif room_type == 'CUSTOM' and floor_length > 230:
+            ratio = self.planview_orthoscale_ratio(x_axis_len)
             camera.data.ortho_scale = ratio
+
 
 
     def add_pulls_to_plan_view(self, obj, pv_scene):
@@ -2378,6 +2401,28 @@ class VIEW_OT_generate_2d_views(Operator):
                         "x_offset": x_offset
                     }
                     parts_destiny.append(dest_data)
+    
+    def add_remaining_space_dims(self, assemblies_dict, wall_groups):
+        for wall, assemblies_data in assemblies_dict.items():
+            wall_length = self.to_inch(
+                sn_types.Assembly(wall).obj_x.location.x)
+            start_data = assemblies_data.get('min_loc_data')
+            end_data = assemblies_data.get('max_loc_data')
+            if start_data:
+                assys_start = start_data.get('start', 0)
+                if assys_start > 0:
+                    wall_grp = wall_groups[wall.name]
+                    dim = self.add_remaining_space_lbl_elv(
+                        wall_grp, wall, assys_start, "left")
+                    wall_grp.objects.link(dim.anchor)
+            if end_data:
+                assys_end = end_data.get('end', wall_length)
+                rem_space = wall_length - assys_end
+                if rem_space > 0:
+                    wall_grp = wall_groups[wall.name]
+                    dim = self.add_remaining_space_lbl_elv(
+                        wall_grp, wall, rem_space, "right")
+                    wall_grp.objects.link(dim.anchor)
 
     def add_cross_sections(self, walls, wall_groups):
         joints = self.get_walls_joints(walls)
@@ -2410,7 +2455,8 @@ class VIEW_OT_generate_2d_views(Operator):
                     self.place_cross_sections_instances(joint_parts_dict)
                     self.process_virtual_objects(virtual_parts,
                                                  joint_parts_dict)
-                    
+                return assemblies_dict
+
     def create_acordion_scene(self, context, grp):
         bpy.ops.scene.new('INVOKE_DEFAULT', type='EMPTY')
         new_scene = context.scene
@@ -2706,6 +2752,7 @@ class VIEW_OT_generate_2d_views(Operator):
         slots = {}
         slots["left"] = False
         slots["right"] = False
+        left_space, right_space = 0.0, 0.0
         curr_wall_width = sn_types.Assembly(current_wall).obj_x.location.x
         curr_wall_width_inches = self.to_inch(curr_wall_width)
         prvs_wall_width = sn_types.Assembly(previous_wall).obj_x.location.x
@@ -2731,7 +2778,10 @@ class VIEW_OT_generate_2d_views(Operator):
             end_situation = (curr_wall_width_inches - end_curr) <= offset
             start_situation = (prvs_wall_width_inches - end_prvs) <= offset
             if depth_prvs <= start_curr and (start_situation or end_situation):
+                # NOTE Issue #1197 - start_curr is the value we want!
+                #      when a left slot is True
                 slots["left"] = True
+                left_space = start_curr
             elif depth_prvs > start_curr:
                 slots["left"] = False
         elif start_curr is None and depth_prvs is not None:
@@ -2740,19 +2790,26 @@ class VIEW_OT_generate_2d_views(Operator):
             slots["left"] = False
         # RIGHT check
         if end_curr is not None and depth_next is not None:
-            if (curr_wall_width_inches - end_curr) >= depth_next and start_next <= offset:
+            remaining_space = curr_wall_width_inches - end_curr
+            if remaining_space >= depth_next and start_next <= offset:
+                # NOTE Issue #1197 - remaining_space is the value we want!
+                #      when a right slot is True
                 slots["right"] = True
-            elif (curr_wall_width_inches - end_curr) < depth_next:
+                right_space = remaining_space
+            elif remaining_space < depth_next:
                 slots["right"] = False
         elif end_curr is None and depth_next is not None:
             slots["right"] = True
         elif end_curr is None and depth_next is None:
             slots["right"] = False
-        return slots
+        spaces = left_space, right_space
+        section_slots = (slots, spaces)
+        return section_slots
 
     def accordion_instances_arragement(self, walls, accordions, 
                                        assemblies_dict, extra_dims):
         targets = {}
+        walls_rem_spaces = {}
         walls_sum = 0
         for wall in walls:
             walls_sum += wall.obj_x.location.x
@@ -2764,11 +2821,12 @@ class VIEW_OT_generate_2d_views(Operator):
             prvs_wall_key = walls[walls.index(key) - 1]
             curr_wall_key = walls[walls.index(key)]
             next_wall_key = walls[walls.index(key) - (len(walls) - 1)]
-            slots = self.accordion_cross_section_slot(curr_wall_key,
+            slots, spaces = self.accordion_cross_section_slot(curr_wall_key,
                                                       prvs_wall_key,
                                                       next_wall_key,
                                                       assemblies_dict)
             extra_dims[curr_wall_key] = []
+            walls_rem_spaces[curr_wall_key] = spaces
             left_slot = slots.get("left") 
             right_slot = slots.get("right")
             curr_wall_ch = curr_wall_key.children
@@ -2826,7 +2884,7 @@ class VIEW_OT_generate_2d_views(Operator):
                     right_instance.location = (offset, (offset * -1), 0)
                 right_instance.rotation_euler = (0, 0, math.radians(-90))
             targets[curr_wall_key] = (left_instance, right_instance)
-        return targets
+        return (targets, walls_rem_spaces)
 
     def add_ch_accordion_parts(self, extra_dims, curr_wall_key,
                                parts_data, grp):
@@ -3063,9 +3121,14 @@ class VIEW_OT_generate_2d_views(Operator):
     
     def accordion_building_height_ceiling_height(self, context, 
                                                  accordion, walls_list,
-                                                 extra_dims):
+                                                 extra_dims, wall_rem_spaces):
         offsets = []
         for wall in accordion:
+            left_space, right_space = wall_rem_spaces.get(wall, (0, 0))
+            if left_space > 0:
+                self.add_remaining_space_lbl(wall, left_space, "left")
+            elif right_space > 0:
+                self.add_remaining_space_lbl(wall, right_space, "right")
             self.wall_width(walls_list, wall)
             offset = self.accordion_build_hight_n_ceiling_dimensions(context, 
                                                                      accordion, 
@@ -3078,7 +3141,9 @@ class VIEW_OT_generate_2d_views(Operator):
         for ch in item.children:
             is_layered = ch.get('IS_BP_LAYERED_CROWN')
             snap_attr = hasattr(ch, 'snap')
-            if is_layered and snap_attr:
+            not_ext_left = 'left' not in ch.name.lower()
+            not_ext_right = 'right' not in ch.name.lower()
+            if is_layered and snap_attr and not_ext_left and not_ext_right:
                 hidden = sn_types.Assembly(ch).get_prompt('Hide').get_value()
                 if not hidden:
                     flat_crown_layers += 1
@@ -3370,6 +3435,44 @@ class VIEW_OT_generate_2d_views(Operator):
                     loc_off = (0, depth, dim_loc_z)
                     utils.copy_world_loc(insert, d, loc_off)
 
+    def add_remaining_space_lbl(self, wall, value, position):
+        x_loc = 0
+        wall_length = self.to_inch(sn_types.Assembly(wall).obj_x.location.x)
+        if position == "left":
+            x_loc = unit.inch(value / 2)
+        elif position == "right":
+            x_loc = unit.inch(wall_length - (value / 2))
+        label = str(value) + "\""
+        spdim = sn_types.Dimension()
+        spdim.parent(wall)
+        spdim.start_x(value=x_loc)
+        spdim.start_y(value=0)
+        spdim.start_z(value=unit.inch(-3))
+        spdim.set_label(label)
+        self.ignore_obj_list.append(spdim)
+        return spdim
+
+    def add_remaining_space_lbl_elv(self, wall_grp, wall, value, position):
+        x_loc = 0
+        scene_name = f'{wall_grp.name}'
+        floor_name = f'{wall_grp.name} Floor'
+        floor_obj = bpy.data.objects[floor_name]
+        bpy.context.window.scene = bpy.data.scenes[scene_name]
+        wall_length = self.to_inch(sn_types.Assembly(wall).obj_x.location.x)
+        if position == "left":
+            x_loc = unit.inch(value / 2)
+        elif position == "right":
+            x_loc = unit.inch(wall_length - (value / 2))
+        label = str(round(value, 2)) + "\""
+        spdim = sn_types.Dimension()
+        spdim.parent(floor_obj)
+        utils.copy_world_loc(
+            floor_obj, spdim.anchor, (x_loc, 0, unit.inch(-3)))
+        utils.copy_world_rot(floor_obj, spdim.anchor)
+        spdim.set_label(label)
+        self.ignore_obj_list.append(spdim)
+        return spdim
+
     def add_accordion_views(self, context):
         # Get all annotations
         added_annotations = []
@@ -3392,7 +3495,7 @@ class VIEW_OT_generate_2d_views(Operator):
         walls_list = list(wall_groups.keys())
         assemblies_dict = self.get_walls_assys_arrangement(wall_groups)
         # Getting the accordion cross-sections displacement
-        targets = self.accordion_instances_arragement(new_walls,
+        targets, walls_rem_spaces = self.accordion_instances_arragement(new_walls,
                                                       accordions,
                                                       assemblies_dict,
                                                       extra_dims)
@@ -3459,6 +3562,7 @@ class VIEW_OT_generate_2d_views(Operator):
                         grp.objects.link(wall_mesh)
                         grp.objects.unlink(obj)
                 new_scene.collection.objects.link(wall)
+                # left_space, right_space = walls_rem_spaces.get(wall, (0, 0))
                 self.link_tagged_dims_to_scene(new_scene, wall)
                 target = targets.get(wall)
                 has_target = target is not None
@@ -3491,7 +3595,8 @@ class VIEW_OT_generate_2d_views(Operator):
             offset = self.accordion_building_height_ceiling_height(context, 
                                                                    accordion,
                                                                    walls_list,
-                                                                   extra_dims)                
+                                                                   extra_dims,
+                                                                   walls_rem_spaces)                
             self.add_flat_crowns(context, accordion, offset)
             proportion = round((walls_length_sum / max(walls_heights)), 2)
             instance_name = "Accordion Instance " + str(i + 1)
@@ -4482,18 +4587,8 @@ class VIEW_OT_generate_2d_views(Operator):
 
     def unhide_wall(self, obj):
         wall_bp = utils.get_wall_bp(obj)
-        children = utils.get_child_objects(wall_bp)
-        for child in children:
-            if child.get('IS_CAGE'):
-                continue
-            if child.type == 'EMPTY':
-                if child.get('obj_prompts'):
-                    prompt = child.snap.get_prompt('Hide')
-                    if prompt:
-                        prompt.set_value(False)
-                continue
-            child.hide_viewport = False
-        obj.hide_viewport = False
+        bpy.ops.sn_roombuilder.hide_show_wall(
+            wall_bp_name=f"{wall_bp.name}", hide=False)
 
     def enable_all_elvs(self):
         all_scenes = bpy.data.scenes
@@ -4637,7 +4732,8 @@ class VIEW_OT_generate_2d_views(Operator):
             virtual = self.create_virtual_scene()
             if len(walls) > 0:
                 if elevations_only:
-                    self.add_cross_sections(walls, wall_groups)
+                    assy_dict = self.add_cross_sections(walls, wall_groups)
+                    self.add_remaining_space_dims(assy_dict, wall_groups)
                 elif accordions_only:
                     self.add_accordion_views(context)
 

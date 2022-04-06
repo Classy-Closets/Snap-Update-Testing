@@ -7,12 +7,14 @@ from collections import Counter
 
 class Query_PDF_Form_Data:
     def __init__(self, context, etl_object, page_walls_dict):
+        self.spotted_garage_legs = []
         self.context = context
         self.etl_object = etl_object
         self.data_dict = {}
         self.page_walls_dict = page_walls_dict
         self.main_sc_objs = bpy.data.scenes['_Main'].objects
         self.walls_basepoints = self.__get_walls_obj_bp(context)
+        self.garage_legs = self.__get_garage_legs()
         self.ext_colors = self.__walls_ext_color(self.walls_basepoints)
         self.full_backs = self.__get_full_backs(self.walls_basepoints)
         self.job_info = self.__job_info()
@@ -22,6 +24,60 @@ class Query_PDF_Form_Data:
         self.hampers = self.__get_hampers(page_walls_dict)
         self.__dict_from_pages(page_walls_dict)
         self.__fill_pulls()
+        self.__fill_garage_legs()
+
+    def __get_garage_leg_qty(self, garage_leg):
+        qty = 0
+        for leg in garage_leg.children:
+            if leg.get("IS_BP_GARAGE_LEG"):
+                for item in leg.children:
+                    is_mesh = item.type == "MESH"
+                    not_hidden = item.hide_render == False
+                    if is_mesh and not_hidden:
+                        qty += 1
+        return qty
+
+    def __get_garage_legs(self):
+        leg_type_dict = {
+            0: "Plastic",
+            1: "Metal"
+        }
+        metal_leg = {
+            0: "Brushed Steel", 
+            1: "Black Matte", 
+            2: "Polished Chrome"
+        }
+        garage_legs = {}
+        for item in self.main_sc_objs:
+            is_garage_leg ="garage leg" in item.name.lower()
+            is_mesh = item.type != "MESH"
+            unseen = item not in self.spotted_garage_legs
+            if is_garage_leg and is_mesh and unseen:
+                leg_str = ''
+                leg_assy = sn_types.Assembly(item)
+                leg_type = leg_assy.get_prompt("Material Type").get_value()
+                leg_wall = sn_utils.get_wall_bp(item)
+                leg_wall_letter = leg_wall.snap.name_object.replace(
+                    "Wall ", "")
+                leg_qty = self.__get_garage_leg_qty(item)
+                if leg_type == 0:
+                    leg_str = f"{leg_type_dict[leg_type]}"
+                if leg_type == 1:
+                    mat_type = leg_assy.get_prompt("Material Type").get_value()
+                    leg_str = f"{metal_leg[mat_type]}"
+                leg_entry = garage_legs.get(leg_wall_letter)
+                if leg_entry:
+                    entry_type = garage_legs[leg_wall_letter].get(f"{leg_str}")
+                    if entry_type:
+                        garage_legs[leg_wall_letter][leg_str] += leg_qty
+                    elif not entry_type:
+                        garage_legs[leg_wall_letter] = {}
+                        garage_legs[leg_wall_letter][f"{leg_str}"] = leg_qty
+                if not leg_entry:
+                    garage_legs[leg_wall_letter] = {}
+                    garage_legs[leg_wall_letter][f"{leg_str}"] = leg_qty
+                self.spotted_garage_legs.append(item)
+        return garage_legs
 
     def __get_hampers(self, page_walls_dict):
         mat_props = bpy.context.scene.closet_materials
@@ -189,6 +245,17 @@ class Query_PDF_Form_Data:
                     self.data_dict[page]["drawer_hardware"] += ' / '
                 self.data_dict[page]["drawer_hardware_qty"] += str(qty)
                 self.data_dict[page]["drawer_hardware"] += pull
+
+    def __fill_garage_legs(self):
+        for page, pg_data in self.page_walls_dict.items():
+            for wall_letter, legs_data in self.garage_legs.items():
+                if wall_letter in pg_data:
+                    for leg_color, leg_qty in legs_data.items():
+                        if self.data_dict[page]["legs_qty"] != '':
+                            self.data_dict[page]["legs_qty"] += ' / '
+                            self.data_dict[page]["legs"] += ' / '
+                        self.data_dict[page]["legs"] += leg_color
+                        self.data_dict[page]["legs_qty"] += str(leg_qty)
 
     def __walls_ext_color(self, walls):
         ext_colors = []
@@ -376,6 +443,10 @@ class Query_PDF_Form_Data:
             data_dict["int_white"] = True
         elif "almond" in color.name.lower():
             data_dict["int_almond"] = True
+        if material_type.name == 'Garage Material':
+            data_dict["int_white"] = True
+            data_dict["int_color"] = "Oxford White"
+            self.ext_colors = color.name
         return data_dict
 
     def __write_trim_color(self):

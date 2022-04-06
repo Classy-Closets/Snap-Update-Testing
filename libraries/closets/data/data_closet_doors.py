@@ -265,6 +265,8 @@ class Doors(sn_types.Assembly):
         for shelf in self.shelves:
             sn_utils.update_obj_driver_expressions(shelf.obj_bp)
 
+        self.update_collections()
+
     def add_glass_shelves(self):
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Height = self.obj_z.snap.get_var('location.z', 'Height')
@@ -517,6 +519,17 @@ class Doors(sn_types.Assembly):
         
         self.update()
 
+    def add_to_wall_collection(self, obj_bp):
+        wall_bp = sn_utils.get_wall_bp(self.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(obj_bp, wall_coll)
+            sn_utils.remove_assembly_from_collection(obj_bp, scene_coll)
+
+    def update_collections(self):
+        for i, shelf in enumerate(self.shelves):
+            self.add_to_wall_collection(shelf.obj_bp)
 
 class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
     bl_idname = "sn_closets.door_prompts"

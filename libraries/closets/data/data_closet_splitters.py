@@ -215,6 +215,8 @@ class Shelf_Stack(sn_types.Assembly):
         for splitter in self.splitters:
             sn_utils.update_obj_driver_expressions(splitter.obj_bp)
 
+        self.update_collections()
+
     def update(self):
         super().update()
         if hasattr(self, "width"):
@@ -233,6 +235,18 @@ class Shelf_Stack(sn_types.Assembly):
         self.obj_bp['IS_BP_SPLITTER'] = True
         props = self.obj_bp.sn_closets
         props.is_splitter_bp = True  # TODO: remove
+
+    def add_to_wall_collection(self, obj_bp):
+        wall_bp = sn_utils.get_wall_bp(self.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(obj_bp, wall_coll)
+            sn_utils.remove_assembly_from_collection(obj_bp, scene_coll)
+
+    def update_collections(self):
+        for i, shelf in enumerate(self.splitters):
+            self.add_to_wall_collection(shelf.obj_bp)
 
 
 class Shoe_Shelf_Stack(Shelf_Stack):
@@ -906,23 +920,24 @@ class PROMPTS_Vertical_Splitter_Prompts(sn_types.Prompts_Interface):
 
     object_name: StringProperty(name="Object Name")
 
-    shelf_quantity: EnumProperty(name="Shelf Quantity",
-                                           items=[('1', "1", '1'),
-                                                  ('2', "2", '2'),
-                                                  ('3', "3", '3'),
-                                                  ('4', "4", '4'),
-                                                  ('5', "5", '5'),
-                                                  ('6', "6", '6'),
-                                                  ('7', "7", '7'),
-                                                  ('8', "8", '8'),
-                                                  ('9', "9", '9'),
-                                                  ('10', "10", '10'),
-                                                  ('11', "11", '11'),
-                                                  ('12', "12", '12'),
-                                                  ('13', "13", '13'),
-                                                  ('14', "14", '14'),
-                                                  ('15', "15", '15')],
-                                           default='5')
+    shelf_quantity: EnumProperty(
+        name="Shelf Quantity",
+        items=[
+            ('2', "2", '2'),
+            ('3', "3", '3'),
+            ('4', "4", '4'),
+            ('5', "5", '5'),
+            ('6', "6", '6'),
+            ('7', "7", '7'),
+            ('8', "8", '8'),
+            ('9', "9", '9'),
+            ('10', "10", '10'),
+            ('11', "11", '11'),
+            ('12', "12", '12'),
+            ('13', "13", '13'),
+            ('14', "14", '14'),
+            ('15', "15", '15')],
+        default='5')
 
     shelf_type: EnumProperty(
         name="Shelf Type",
@@ -956,13 +971,15 @@ class PROMPTS_Vertical_Splitter_Prompts(sn_types.Prompts_Interface):
 
         if shoe_shelves:
             shelves = self.assembly.shoe_shelves
+            num_shelves = len(shelves) + 1
             if self.shelf_lip_type_prompt:
                 lip_type_changed = self.shelf_lip_type_prompt.get_value() != self.prev_lip_type
                 self.prev_lip_type = self.shelf_lip_type_prompt.get_value()
         else:
             shelves = self.assembly.splitters
+            num_shelves = len(shelves)
 
-        shelf_amt_changed = len(shelves) != int(self.shelf_quantity) - 1
+        shelf_amt_changed = num_shelves != int(self.shelf_quantity)
 
         if shelf_amt_changed:
             for i, assembly in enumerate(shelves):
@@ -1172,7 +1189,6 @@ class PROMPTS_Vertical_Splitter_Prompts(sn_types.Prompts_Interface):
         else:
             label = ""
             for opening_height in opening_heights:
-                print(round(sn_unit.meter_to_millimeter(height.distance_value), 1))
                 if float(opening_height[0]) == round(sn_unit.meter_to_millimeter(height.distance_value), 1):
                     label = opening_height[1]
             row.menu("SNAP_MT_Opening_{}_Heights".format(str(i + 1)), text=label)
