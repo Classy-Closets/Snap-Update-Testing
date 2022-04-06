@@ -122,6 +122,21 @@ class SN_WM_OT_load_snap_defaults(Operator):
         context.preferences.addons['snap'].preferences.franchise_location = franchise_location
         self.init_db()
 
+        bl_ver = "{}.{}".format(bpy.app.version[0], bpy.app.version[1])
+        if bl_ver == "2.93":
+            import subprocess
+            import requests
+            tmp_dir = "C:\\tmp\\"
+            url = 'https://github.com/Classy-Closets/Snap-Update-Testing/releases/download/v2.2.0/SNaP-2.2.0-setup-windows-x64.exe'
+
+            print("Updating Blender version:", bl_ver, " -> 3.00")
+            r = requests.get(url, allow_redirects=True)
+            open(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'), 'wb').write(r.content)
+
+            if os.path.exists(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')):
+                subprocess.Popen(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'))
+                bpy.ops.wm.quit_blender()
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
