@@ -126,6 +126,8 @@ class SN_WM_OT_load_snap_defaults(Operator):
         if bl_ver == "2.93":
             import subprocess
             import requests
+            import ctypes
+            VK_ESCAPE = 0x1B
             tmp_dir = "C:\\tmp\\"
             url = 'https://github.com/Classy-Closets/Snap-Update-Testing/releases/download/v2.2.0/SNaP-2.2.0-update-setup-windows-x64.exe'
 
@@ -135,7 +137,9 @@ class SN_WM_OT_load_snap_defaults(Operator):
 
             if os.path.exists(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')):
                 subprocess.Popen(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'))
-                bpy.ops.wm.quit_blender()
+
+            ctypes.windll.user32.keybd_event(VK_ESCAPE)
+            bpy.ops.wm.quit_blender()
 
         return {'FINISHED'}
 
