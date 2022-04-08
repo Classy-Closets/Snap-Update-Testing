@@ -137,9 +137,8 @@ class SN_WM_OT_load_snap_defaults(Operator):
 
             if os.path.exists(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')):
                 subprocess.Popen(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'))
-
-            ctypes.windll.user32.keybd_event(VK_ESCAPE)
-            bpy.ops.wm.quit_blender()
+                ctypes.windll.user32.keybd_event(VK_ESCAPE)
+                bpy.ops.wm.quit_blender()
 
         return {'FINISHED'}
 
