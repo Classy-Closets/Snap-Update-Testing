@@ -109,6 +109,8 @@ class SN_WM_OT_load_snap_defaults(Operator):
                     shutil.rmtree(os.path.join(subdir, dir))
 
     def execute(self, context):
+        import ctypes
+        VK_R = 0x52
         config_path = sn_paths.CONFIG_PATH
         app_template_path = sn_paths.APP_TEMPLATE_PATH
         franchise_location = context.preferences.addons['snap'].preferences.franchise_location
@@ -126,19 +128,18 @@ class SN_WM_OT_load_snap_defaults(Operator):
         if bl_ver == "2.93":
             import subprocess
             import requests
-            import ctypes
-            VK_ESCAPE = 0x1B
+
             tmp_dir = "C:\\tmp\\"
             url = 'https://github.com/Classy-Closets/Snap-Update-Testing/releases/download/v2.2.0/SNaP-2.2.0-update-setup-windows-x64.exe'
-
             print("Updating Blender version:", bl_ver, " -> 3.00")
             r = requests.get(url, allow_redirects=True)
             open(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'), 'wb').write(r.content)
 
             if os.path.exists(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')):
                 subprocess.Popen(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'))
-                ctypes.windll.user32.keybd_event(VK_ESCAPE)
-                bpy.ops.wm.quit_blender()
+
+        ctypes.windll.user32.keybd_event(VK_R)
+        bpy.ops.wm.quit_blender()
 
         return {'FINISHED'}
 
