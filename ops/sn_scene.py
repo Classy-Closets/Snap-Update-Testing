@@ -61,8 +61,16 @@ class SN_SCENE_OT_user_clear_2d_views(Operator):
         if os.path.exists(xml_4_pdf):
             os.remove(xml_4_pdf)
 
+    def show_annotation_objects(self):
+        for o in bpy.data.scenes["_Main"].objects:
+            if o.get("IS_BP_ANNOTATION"):
+                for m in o.children:
+                    if m.type == 'MESH':
+                        m.hide_viewport = False
+
     def execute(self, context):
         self.remove_pdf_xml_file()
+        self.show_annotation_objects()
         bpy.ops.sn_scene.clear_2d_views()
         for obj in bpy.data.objects:
             if obj.get('IS_VISDIM_A') or obj.get('IS_VISDIM_B'):

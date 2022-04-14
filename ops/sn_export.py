@@ -1019,15 +1019,17 @@ class OPS_Export_XML(Operator):
 
     def is_variable_section(self, assembly):
         opening_name = assembly.obj_bp.sn_closets.opening_name
+        var_section = False
+
         if opening_name:
             carcass_bp = sn_utils.get_closet_bp(assembly.obj_bp)
             carcass_assembly = sn_types.Assembly(carcass_bp)
-            variable_section = carcass_assembly.get_prompt("CTF Opening {}".format(opening_name)).get_value()
-            
-            return variable_section
+            variable_section = carcass_assembly.get_prompt("CTF Opening {}".format(opening_name))
 
-        else:
-            return False
+            if variable_section:
+                if variable_section.get_value():
+                    var_section = True
+        return var_section
 
     def is_var_width_toe_kick(self,assembly):
         p_assembly = sn_types.Assembly(assembly.obj_bp.parent)

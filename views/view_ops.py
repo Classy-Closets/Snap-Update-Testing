@@ -490,13 +490,14 @@ class VIEW_OT_generate_2d_views(Operator):
 
     def door_has_style(self, obj):
         door_mesh = self.get_obj_mesh(obj)
-        for slot in door_mesh.snap.material_slots:
-            if "Wood_Door_Surface" == slot.pointer_name:
-                return True
-            elif "Door_Surface" == slot.pointer_name:
-                return False
-            elif "Moderno_Door" == slot.pointer_name:
-                return True
+        if door_mesh:
+            for slot in door_mesh.snap.material_slots:
+                if "Wood_Door_Surface" == slot.pointer_name:
+                    return True
+                elif "Door_Surface" == slot.pointer_name:
+                    return False
+                elif "Moderno_Door" == slot.pointer_name:
+                    return True
 
     def create_replaced_mesh(self, obj, styled=False):
         thick = 2.25
@@ -534,13 +535,16 @@ class VIEW_OT_generate_2d_views(Operator):
         if not_cage and obj not in ignore and not_empty_group and obj not in group_list:
             grp.objects.link(obj)
         for child in obj.children:
+            shown = any(
+                [True for c in child.children \
+                    if c.type == 'MESH' and not c.hide_viewport])
             is_door = child.sn_closets.is_door_bp
             is_hamper_door = child.sn_closets.is_hamper_front_bp
             is_drawer_door = child.sn_closets.is_drawer_front_bp
-            skippable = is_door or is_hamper_door or is_drawer_door
+            skippable = (is_door or is_hamper_door or is_drawer_door) and shown
             if len(child.children) > 0:
                 if child.get('IS_OBSTACLE'):
-                    for cc in child.children:
+                    for cc in child.children: 
                         if cc.get('IS_CAGE'):
                             cc.hide_render = False
                             grp.objects.link(cc)
@@ -556,16 +560,45 @@ class VIEW_OT_generate_2d_views(Operator):
                         if not grp.objects.get(child.name):
                             grp.objects.link(child)
         return grp
+
+    def group_children_island(self, grp, obj):
+        not_cage = not bool(obj.get('IS_CAGE'))
+        ignore = self.ignore_obj_list
+        group_list = [item for item in grp.objects]
+        not_empty_group = len(group_list) > 0
+        if not_cage and obj not in ignore and not_empty_group and obj not in group_list:
+            grp.objects.link(obj)
+        for child in obj.children:
+            shown = any(
+                [True for c in child.children \
+                    if c.type == 'MESH' and not c.hide_viewport])
+            if len(child.children) > 0:
+                if child.get('IS_OBSTACLE'):
+                    for cc in child.children:
+                        if cc.get('IS_CAGE'):
+                            cc.hide_render = False
+                            grp.objects.link(cc)
+                else:
+                    self.group_children_island(grp, child)
+            else:
+                if not child.snap.is_wall_mesh:
+                    if not child.get('IS_CAGE') and obj not in self.ignore_obj_list:
+                        if not grp.objects.get(child.name):
+                            grp.objects.link(child)
+        return grp
     
     def group_every_children_on_acc(self, grp, obj):
         ignore = self.ignore_obj_list
         group_list = [item for item in grp.objects]
         not_empty_group = len(group_list) > 0
         is_door = obj.sn_closets.is_door_bp
+        shown = any(
+                [True for c in obj.children \
+                    if c.type == 'MESH' and not c.hide_viewport])
         is_hamper_door = obj.sn_closets.is_hamper_front_bp
         is_drawer_door = obj.sn_closets.is_drawer_front_bp
         not_acc_cross_sec =  'left' not in grp.name and 'right' not in grp.name
-        skippable = (is_door or is_hamper_door or is_drawer_door) and not_acc_cross_sec
+        skippable = (is_door or is_hamper_door or is_drawer_door) and not_acc_cross_sec and shown
         if skippable:
             has_style = self.door_has_style(obj)
             self.create_replaced_mesh(obj, has_style)
@@ -587,7 +620,10 @@ class VIEW_OT_generate_2d_views(Operator):
         is_door = obj.sn_closets.is_door_bp
         is_hamper_door = obj.sn_closets.is_hamper_front_bp
         is_drawer_door = obj.sn_closets.is_drawer_front_bp
-        skippable = is_door or is_hamper_door or is_drawer_door
+        shown = any(
+                [True for c in obj.children \
+                    if c.type == 'MESH' and not c.hide_viewport])
+        skippable = (is_door or is_hamper_door or is_drawer_door) and shown
         if skippable:
             has_style = self.door_has_style(obj)
             self.create_replaced_mesh(obj, has_style)
@@ -652,6 +688,7 @@ class VIEW_OT_generate_2d_views(Operator):
         l_shelves = 0
         accessories = 0
         wall_cleat = 0
+        wall_beds = 0
         for item in wall.children:
             if 'section' in item.name.lower():
                 sections += 1
@@ -665,12 +702,15 @@ class VIEW_OT_generate_2d_views(Operator):
                 l_shelves += 1
             elif item.sn_closets.is_accessory_bp:
                 accessories += 1
+            elif item.get("IS_BP_WALL_BED"):
+                wall_beds += 1
         no_sections = sections == 0
         no_csh = corner_shelves == 0
         no_lsh = l_shelves == 0
         no_accessories = accessories == 0
         no_wall_cleat = wall_cleat == 0
-        if no_sections and no_csh and no_lsh and no_accessories:
+        no_beds = wall_beds == 0
+        if no_sections and no_csh and no_lsh and no_accessories and no_beds:
             return True
         return False
 
@@ -1377,6 +1417,9 @@ class VIEW_OT_generate_2d_views(Operator):
 
     def is_closet_floor_mounted(self, closet):
         closet_assembly = sn_types.Assembly(obj_bp=closet)
+        if closet_assembly.obj_bp.get("IS_BP_ISLAND"):
+            return True
+
         is_clt_floor_mounted = True
         opening_qty =\
             closet_assembly.get_prompt("Opening Quantity").get_value()
@@ -1801,6 +1844,7 @@ class VIEW_OT_generate_2d_views(Operator):
             scene.collection.objects.link(topshelf)
 
     def create_plan_view_scene(self, context):
+        WIDE_ROOM_THRES = 200 # 200 inches
         room_type = context.scene.sn_roombuilder.room_type
         bpy.ops.scene.new('INVOKE_DEFAULT', type='EMPTY')
         pv_scene = context.scene
@@ -1920,7 +1964,10 @@ class VIEW_OT_generate_2d_views(Operator):
         self.plan_view_hashmarks(context, walls_info)
         floor = [o for o in bpy.data.objects if o.sn_roombuilder.is_floor][0]
         x_axis_len = floor.dimensions[0]
+        y_axis_len = floor.dimensions[1]
         floor_length = unit.meter_to_inch(x_axis_len)
+        floor_height = unit.meter_to_inch(y_axis_len)
+        wide_room = floor_length > WIDE_ROOM_THRES or floor_height > WIDE_ROOM_THRES
         camera = self.create_camera(pv_scene)
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.view3d.camera_to_view_selected()
@@ -1928,8 +1975,15 @@ class VIEW_OT_generate_2d_views(Operator):
         camera.data.ortho_scale += self.pv_pad
         if room_type == 'USHAPE':
             camera.data.ortho_scale += 1
-        elif room_type == 'CUSTOM' and floor_length > 230:
-            ratio = self.planview_orthoscale_ratio(x_axis_len)
+        elif room_type == 'CUSTOM' and wide_room:
+            width_ratio = 1
+            wider_measure = max([x_axis_len, y_axis_len])
+            if wider_measure == y_axis_len:
+                x_resolution = pv_scene.render.resolution_x
+                y_resolution = pv_scene.render.resolution_y
+                width_ratio = x_resolution / y_resolution
+            scene_width = width_ratio * wider_measure
+            ratio = self.planview_orthoscale_ratio(scene_width)
             camera.data.ortho_scale = ratio
 
 
@@ -3473,12 +3527,8 @@ class VIEW_OT_generate_2d_views(Operator):
         self.ignore_obj_list.append(spdim)
         return spdim
 
-    def add_accordion_views(self, context):
-        # Get all annotations
-        added_annotations = []
+    def add_accordion_views(self, context):        
         main_sc_objs = bpy.data.scenes["_Main"].objects
-        annotations = [o for o in main_sc_objs\
-            if o.get("IS_ANNOTATION") and o.get("TARGET_WALL")]
         dimprops = get_dimension_props()
         any_csh_lsh = [o for o in bpy.data.objects if 'cshlsh' in o.name.lower()]
         has_csh_lsh = len(any_csh_lsh) > 0
@@ -3488,6 +3538,7 @@ class VIEW_OT_generate_2d_views(Operator):
         main_scene, new_walls = self.main_accordion_scene(context)
         data_dict = self.fetch_accordions_walls_data(main_scene, new_walls)
         accordions = self.divide_walls_to_acordions(main_scene, data_dict)
+        main_sc_objs = [o for o in bpy.data.scenes["Z_Main Accordion"].objects]
         for wall in new_walls:
             wall_name = wall.obj_bp.name
             wall_obj = context.view_layer.objects[wall.obj_bp.name]
@@ -3528,28 +3579,6 @@ class VIEW_OT_generate_2d_views(Operator):
                 # Making copies of existing annotations
                 if (just_door or empty) and not has_lsh_csh:
                     continue
-                for annotation in annotations:
-                    anno_dad = annotation.get("TARGET_WALL")
-                    same_dad = anno_dad == wall.snap.name_object
-                    if same_dad and annotation not in added_annotations:
-                        an_x, an_y, an_z = annotation.location
-                        mesh = [w for w in wall.children if w.type == 'MESH'][0]
-                        wall_gl_pos = self.get_object_global_location(mesh)
-                        main_sc_objs = bpy.data.scenes["_Main"].objects
-                        orig_wall = [o for o in main_sc_objs\
-                            if o.snap.name_object == anno_dad][0]
-                        orig_wall_angle = orig_wall.rotation_euler[2]
-                        x_axis_cord = abs(round(an_x, 4)) *  math.cos(orig_wall_angle)
-                        y_axis_cord = abs(round(an_y, 4)) *  math.sin(orig_wall_angle)
-                        label = annotation.snap.opengl_dim.gl_label
-                        an_x_pos = round(abs(x_axis_cord), 2) + round(abs(y_axis_cord), 2)
-                        full_anno_x_pos = an_x_pos + (walls_length_sum - current_wall_width)
-                        acc_annotation = sn_types.Dimension()
-                        acc_annotation.parent = wall
-                        acc_annotation.start_x(value=full_anno_x_pos)
-                        acc_annotation.start_z(value=an_z)
-                        acc_annotation.set_label(label)
-                        added_annotations.append(annotation) 
                 self.group_every_children_on_acc(grp, wall)
                 # wall height / building height need to be added just at the
                 # first wall of each accordion. So we remove the existing ones
@@ -3684,9 +3713,19 @@ class VIEW_OT_generate_2d_views(Operator):
                     entry_mod.object = bool_mesh
 
         return elv_wall
+    
+    def add_annotation_label(self, wall, annotation):
+        annotation_assy = sn_types.Assembly(annotation)
+        annotation_label = annotation_assy.get_prompt("Label").get_value()
+        an_x, an_y, an_z = annotation.location
+        an_dim = sn_types.Dimension()
+        utils.copy_world_loc(annotation, an_dim.anchor)
+        utils.copy_world_rot(annotation, an_dim.anchor)
+        an_dim.set_label(annotation_label)
+        self.ignore_obj_list.append(an_dim)
 
     def create_elv_view_scene(self, context, assembly, grp):
-        added_annotations = []
+        main_sc_objs = [o for o in bpy.data.scenes["_Main"].objects]
         if assembly.obj_bp and assembly.obj_x and assembly.obj_y and assembly.obj_z:
             new_scene = self.create_new_scene(context, grp, assembly.obj_bp)
 
@@ -3708,7 +3747,7 @@ class VIEW_OT_generate_2d_views(Operator):
             for item in assembly.obj_bp.children:
                 if item.get("IS_BP_ASSEMBLY"):
                     for n_item in item.children:
-                        if n_item.sn_closets.is_panel_bp:
+                        if n_item.sn_closets.is_panel_bp: 
                             self.ignore_obj_list.append(n_item)
 
                 if any('Door Frame' in c.name for c in item.children):
@@ -3717,23 +3756,6 @@ class VIEW_OT_generate_2d_views(Operator):
                 if item.get("IS_VISDIM_A"):
                     self.ignore_obj_list.append(item)
 
-                is_wall = assembly.obj_bp.get("IS_BP_WALL")
-                if is_wall:
-                    current_wall = assembly.obj_bp
-                    snap_wall_name = assembly.obj_bp.snap.name_object
-                    main_sc_objs = bpy.data.scenes["_Main"].objects
-                    sc_annot = [a for a in main_sc_objs\
-                        if a.get('IS_ANNOTATION')\
-                        and a.get('TARGET_WALL') and a not in added_annotations]
-                    if len(sc_annot) > 0:
-                        to_add = [to for to in sc_annot\
-                            if to.get('TARGET_WALL') == snap_wall_name]
-                        for target in sc_annot:
-                            if target.get('TARGET_WALL') == snap_wall_name:
-                                target.parent = current_wall
-                                new_scene.collection.objects.link(target)
-                                self.ignore_obj_list.append(target)
-                                added_annotations.append(target)
 
             x_offset = assembly.obj_x.location.x / 2
             text_loc = (x_offset, 0, -unit.inch(10))
@@ -4568,7 +4590,10 @@ class VIEW_OT_generate_2d_views(Operator):
         grp = bpy.data.collections.new(scene_name)
         new_scene =\
             self.create_island_new_scene(context, grp, scene_name, island)
-        self.group_children(grp, island)
+        # NOTE As the Islands are rotated instances of the original islands
+        #      the code that replaces door/drawer/hamper meshes won't work
+        #      properly.
+        self.group_children_island(grp, island)
         view = 'A'
         for i in range(4):
             instance_name = scene_name + "Instance " + view
@@ -4585,10 +4610,26 @@ class VIEW_OT_generate_2d_views(Operator):
         self.write_view_D(island, dimprops)
         return grp
 
+    def hide_annotation_objects(self):
+        for o in bpy.data.scenes["_Main"].objects:
+            if o.get("IS_BP_ANNOTATION"):
+                lbl = sn_types.Assembly(o).get_prompt("Label").get_value()
+                anno_dim = sn_types.Dimension()
+                anno_dim.parent(o)
+                anno_dim.start_x(value=0)
+                anno_dim.start_y(value=0)
+                anno_dim.start_z(value=0)
+                anno_dim.set_label(lbl)
+                for m in o.children:
+                    if m.type == 'MESH':
+                        m.hide_viewport = True
+                        m.hide_render = True
+
     def unhide_wall(self, obj):
         wall_bp = utils.get_wall_bp(obj)
-        bpy.ops.sn_roombuilder.hide_show_wall(
-            wall_bp_name=f"{wall_bp.name}", hide=False)
+        if bpy.context.view_layer.objects.get(wall_bp.name):
+            bpy.ops.sn_roombuilder.hide_show_wall(
+                wall_bp_name=f"{wall_bp.name}", hide=False)
 
     def enable_all_elvs(self):
         all_scenes = bpy.data.scenes
@@ -4630,6 +4671,7 @@ class VIEW_OT_generate_2d_views(Operator):
         context.scene.name = "_Main"
         mesh_data_dict = {}
         joint_parts = None
+        self.hide_annotation_objects()
 
         if self.use_single_scene:
             self.create_single_elv_view(context)
@@ -5156,105 +5198,29 @@ class VIEW_OT_add_annotation(Operator):
     bl_idname = "sn_2d_views.add_annotation"
     bl_label = "Add Annotation"
 
-    wall_qty = 0
-    annotation_text: StringProperty(name="Annotation Text",
-                                    description="Enter in the name of the annoation")
-
-    attach_walls: EnumProperty(name="Wall to attach",
-                               items=fetch_attach_walls)
-
     header_text = "Place Annotation"
-
-    annotation = None
-    drawing_plane = None
-
-
-    def place_annotation(self, context, event):
-        selected_point, selected_obj, _ = utils.get_selection_point(context, event, floor=self.drawing_plane)
-        self.annotation.anchor.location = selected_point
-        if event.type == 'LEFTMOUSE':
-            return self.finish_drop(context, event)
-
-        return {'RUNNING_MODAL'}
-
-    def create_drawing_plane(self, context):
-        bpy.ops.mesh.primitive_plane_add()
-        self.drawing_plane = context.active_object
-        self.drawing_plane.location = (0, 0, 0)
-        self.drawing_plane.display_type = 'WIRE'
-        self.drawing_plane.dimensions = (100, 100, 1)
 
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=utils.get_prop_dialog_width(550))
 
     def draw(self, context):
-        snap = context.window_manager.snap
-        wall_qty = snap.main_scene_wall_qty
-        if wall_qty > 0:
-            layout = self.layout
-            layout.prop(self, 'annotation_text')
-            layout.prop(self, 'attach_walls')
-        elif wall_qty == 0:
-            layout = self.layout
-            box = layout.box()
-            col = box.column()
-            col.label(text="To be able to add annotations you need to go to: Projects -> Open Room")
+        layout = self.layout
+        box = layout.box()
+        row = box.row()
+        row.label(text="Annotations were moved as a drop object to: Products - Basic")
 
     def execute(self, context):
-        current_scenes = [sc.name for sc in bpy.data.scenes]
-        has_main_scene = '_Main' in current_scenes
-        has_scene_scene = 'Scene' in current_scenes
-        main_sc_objs = []
-        if has_main_scene:
-            main_sc_objs = bpy.data.scenes["_Main"].objects
-        elif has_scene_scene:
-            main_sc_objs = bpy.data.scenes["Scene"].objects
-        walls = [o for o in main_sc_objs if o.get('IS_BP_WALL')]
-        if len(walls) > 0 and self.attach_walls != '':
-            matching_wall = [w for w in walls\
-                if w.snap.name_object == self.attach_walls][0]
-            bpy.ops.object.select_all(action='DESELECT')
-            self.create_drawing_plane(context)
-
-            self.annotation = sn_types.Dimension()
-            self.annotation.anchor["IS_ANNOTATION"] = True
-            self.annotation.anchor["TARGET_WALL"] = matching_wall.snap.name_object 
-            self.annotation.end_point["IS_ANNOTATION"] = True
-            self.annotation.end_x(value=unit.inch(0))
-            self.annotation.anchor.select_set(True)
-            self.annotation.set_label(self.annotation_text)
-
-            context.view_layer.objects.active = self.annotation.anchor
-            bpy.ops.sn_2d_views.toggle_dimension_handles(turn_on=True)
-            context.window_manager.snap.use_opengl_dimensions = True
-
-            context.window_manager.modal_handler_add(self)
-        return {'RUNNING_MODAL'}
+        bpy.ops.object.select_all(action='DESELECT')
+        return {'FINISHED'}
 
     def modal(self, context, event):
         context.area.tag_redraw()
         context.area.header_text_set(text=self.header_text)
 
-        if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
-            return {'PASS_THROUGH'}
-
         if event.type in {'ESC'}:
-            self.cancel_drop(context, event)
             return {'FINISHED'}
 
-        return self.place_annotation(context, event)
-
-    def cancel_drop(self, context, event):
-        utils.delete_object_and_children(self.annotation.anchor)
-        utils.delete_object_and_children(self.drawing_plane)
-        bpy.context.window.cursor_set('DEFAULT')
-        return {'CANCELLED'}
-
-    def finish_drop(self, context, event):
-        utils.delete_object_and_children(self.drawing_plane)
-        bpy.context.window.cursor_set('DEFAULT')
-        context.area.header_text_set(None)
         return {'FINISHED'}
 
 
@@ -5833,7 +5799,9 @@ class VIEW_OT_walk_space_dimension(Operator):
                 walls.append(wall)
             name = obj.name
             if "Island" in name:
-                islands.append(obj)
+                wall_bp = sn_utils.get_wall_bp(obj)
+                if not wall_bp:
+                    islands.append(obj)
         islands = sorted(islands, 
                 key=lambda i: i.location[0])
         for idx, island in enumerate(islands):

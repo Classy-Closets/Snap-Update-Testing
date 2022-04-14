@@ -19,7 +19,7 @@ class Wall_Cleat(sn_types.Assembly):
 
     type_assembly = "PRODUCT"
     id_prompt = "closet.wall_cleat"
-    #drop_id = "sn_closets.place_wall_cleat"
+    drop_id = "sn_closets.place_closet_accessory"
     show_in_library = True
     category_name = "Products - Add Pards"
 
@@ -63,7 +63,7 @@ class Wall_Cleat(sn_types.Assembly):
         cleat.obj_bp.snap.comment_2 = "1024"
         cleat.set_name("Wall Cleat")
 
-        cleat.loc_z('Distance_Above_Floor', [Distance_Above_Floor])
+        #  cleat.loc_z('Distance_Above_Floor', [Distance_Above_Floor])
         cleat.rot_x(value=math.radians(-90))
 
         cleat.dim_x('Width', [Width])
@@ -92,7 +92,7 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
     depth: FloatProperty(name="Depth",unit='LENGTH',precision=4)
 
 
-    placement_on_wall: EnumProperty(name="Placement on Wall",items=[('SELECTED_POINT',"Selected Point",""),
+    placement_on_wall: EnumProperty(name="Placement on Wall", items=[('SELECTED_POINT',"Selected Point",""),
                                                                      ('FILL',"Fill",""),
                                                                      ('FILL_LEFT',"Fill Left",""),
                                                                      ('LEFT',"Left",""),
@@ -139,18 +139,23 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
         return wm.invoke_props_dialog(self, width=sn_utils.get_prop_dialog_width(400))
 
     def update_placement(self, context):
-        left_x = self.product.get_collision_location('LEFT')
-        right_x = self.product.get_collision_location('RIGHT')
-        if self.placement_on_wall == 'SELECTED_POINT':
-            self.product.obj_bp.location.x = self.current_location
-        if self.placement_on_wall == 'LEFT':
-            self.product.obj_bp.location.x = left_x + self.left_offset
-            self.product.obj_x.location.x = self.width
-        if self.placement_on_wall == 'RIGHT':
-            if self.product.obj_bp.snap.placement_type == 'Corner':
-                self.product.obj_bp.rotation_euler.z = math.radians(-90)
-            self.product.obj_x.location.x = self.width
-            self.product.obj_bp.location.x = (right_x - self.product.calc_width()) - self.right_offset
+        parent_obj = self.product.obj_bp.parent
+        if parent_obj and parent_obj.get("IS_BP_WALL"):
+            left_x = self.product.get_collision_location('LEFT')
+            right_x = self.product.get_collision_location('RIGHT')
+            if self.placement_on_wall == 'SELECTED_POINT':
+                self.product.obj_bp.location.x = self.current_location
+            if self.placement_on_wall == 'LEFT':
+                self.product.obj_bp.location.x = left_x + self.left_offset
+                self.product.obj_x.location.x = self.width
+            if self.placement_on_wall == 'RIGHT':
+                if self.product.obj_bp.snap.placement_type == 'Corner':
+                    self.product.obj_bp.rotation_euler.z = math.radians(-90)
+                self.product.obj_x.location.x = self.width
+                self.product.obj_bp.location.x = (right_x - self.product.calc_width()) - self.right_offset
+        else:
+            self.placement_on_wall = 'SELECTED_POINT'
+            # self.product.obj_bp.location.x = self.current_location
 
     def set_product_defaults(self):
         self.product.obj_bp.location.x = self.selected_location + self.left_offset
@@ -165,15 +170,15 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
         row.prop_enum(self, "placement_on_wall", 'LEFT', icon='TRIA_LEFT', text="Left")
         row.prop_enum(self, "placement_on_wall", 'RIGHT', icon='TRIA_RIGHT', text="Right")
 
-        
-
     def draw(self, context):
         """ This is where you draw the interface """
         layout = self.layout
         layout.label(text=self.product.obj_bp.snap.name_object)
         box = layout.box()
         row = box.row()
-        self.draw_product_placement(layout)
+        parent_obj = self.product.obj_bp.parent
+        if parent_obj and parent_obj.get("IS_BP_WALL"):
+            self.draw_product_placement(layout)
         distance_above_floor = self.product.get_prompt("Distance Above Floor")
         height = self.product.get_prompt("Height")
         exposed_top = self.product.get_prompt("Exposed Top")
@@ -181,7 +186,6 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
         exposed_right = self.product.get_prompt("Exposed Right")
         exposed_bottom = self.product.get_prompt("Exposed Bottom")
         Panel_Thickness = self.product.get_prompt('Panel Thickness')
-
 
         row = row.split(factor=0.50)
 
@@ -193,27 +197,35 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
         row1.label(text='Height:')
         row1.prop(height, "distance_value", text='')
 
-        col = row.column()
-        row2 = col.row()
-        row2.label(text="Distance Above Floor:")
-        row2.prop(distance_above_floor, "distance_value", text='')
-        row2 = col.row()
-        if self.placement_on_wall in 'LEFT':
-            row2.label(text='Offset', icon='BACK')
-            row2.prop(self, "left_offset", icon='TRIA_LEFT', text="Left")
+        if parent_obj and parent_obj.get("IS_BP_WALL"):
+            col = row.column()
+            row2 = col.row()
+            row2.label(text="Distance Above Floor:")
+            row2.prop(self.product.obj_bp, 'location', index=2, text='')
+            row2 = col.row()
+            if self.placement_on_wall in 'LEFT':
+                row2.label(text='Offset', icon='BACK')
+                row2.prop(self, "left_offset", icon='TRIA_LEFT', text="Left")
 
-        if self.placement_on_wall in 'RIGHT':
-            row2.label(text='Offset', icon='FORWARD')
-            row2.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right")
+            if self.placement_on_wall in 'RIGHT':
+                row2.label(text='Offset', icon='FORWARD')
+                row2.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right")
 
-        if self.placement_on_wall == 'SELECTED_POINT':
-            row2.label(text='Location:')
-            row2.prop(self, 'current_location', text="")
+            if self.placement_on_wall == 'SELECTED_POINT':
+                row2.label(text='Location:')
+                row2.prop(self, 'current_location', text="")
 
-        
-        row2 = col.row()
-        row2.label(text='Move Off Wall:')
-        row2.prop(self.product.obj_bp, 'location', index=1, text="")
+            row2 = col.row()
+            row2.label(text='Move Off Wall:')
+            row2.prop(self.product.obj_bp, 'location', index=1, text="")
+        else:
+            col = row.column()
+            row2 = col.row()
+            row2.label(text="Distance From Bottom: ")
+            row2.prop(self.product.obj_bp, 'location', index=0, text='')
+            row2 = col.row()
+            row2.label(text="Location: ")
+            row2.prop(self.product.obj_bp, 'location', index=1, text='')
 
         split = box.split()
         col = split.column(align=True)
@@ -228,8 +240,6 @@ class PROMPTS_Wall_Cleat_Prompts(sn_types.Prompts_Interface):
             row.prop(exposed_right, 'checkbox_value', text="Right")
             row.prop(exposed_bottom, 'checkbox_value', text="Bottom")
         row = box.row()
-
-       
 
 
 bpy.utils.register_class(PROMPTS_Wall_Cleat_Prompts)

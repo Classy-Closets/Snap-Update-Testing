@@ -352,6 +352,10 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         if etc:
             if(self.insert.get_prompt("Molding Height").get_value() < sn_unit.inch(3) or etc.get_value()):
                 self.insert.get_prompt("Exposed Back").set_value(False)
+            if etc.get_value():
+                layered_molding = self.insert.get_prompt("Show Layered Molding")
+                if layered_molding:
+                    layered_molding.set_value(False)
 
         dfc = self.insert.get_prompt("Distance From Ceiling")
         tkdhd = self.insert.get_prompt('Top KD Holes Down')
@@ -509,7 +513,7 @@ class PROMPTS_prompts_flat_molding(sn_types.Prompts_Interface):
         row.prop(return_right, "checkbox_value", text="Right Return")
         row = box.row()
         row.prop(front_overhang, "distance_value", text=front_overhang.name)
-        if show_layered:
+        if show_layered and not extend_to_ceiling.get_value():
             row = box.row()
             row.prop(show_layered, 'checkbox_value', text='Layered Crown')
             if show_layered.get_value():

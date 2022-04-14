@@ -1059,7 +1059,8 @@ class Wall(Assembly):
     def get_wall_mesh(self):
         for child in self.obj_bp.children:
             if child.type == 'MESH' and len(child.data.vertices) != 1:
-                return child
+                if child.get('ID_PROMPT') == "room_builder.wall_prompts":
+                    return child
 
     def refresh_hook_modifiers(self):
         for child in self.obj_bp.children:

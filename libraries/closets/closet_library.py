@@ -20,6 +20,8 @@ from .data import data_closet_wall_cleat
 from .data import data_closet_bottom_capping
 from .data import data_garage_leg
 from .data import data_topshelf_support_corbels
+from .data import data_annotation
+
 from .data import data_closet_wall_bed
 from .data import data_214
 
@@ -1009,6 +1011,14 @@ class PRODUCT_Garage_Leg(data_garage_leg.Garage_Leg):
         self.height = sn_unit.inch(4)
         self.depth = sn_unit.inch(.5)
 
+class PRODUCT_Annotation(data_annotation.Annotation):
+
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = CLOSET_PARTS_ACCESSORIES
+        self.width = sn_unit.inch(1)
+        self.height = sn_unit.inch(1)
+        self.depth = sn_unit.inch(1)
 
 # --------Closet Product - Wall Beds
 class PRODUCT_Eurobed_Twin_Wall_Bed(data_closet_wall_bed.Wall_Bed):

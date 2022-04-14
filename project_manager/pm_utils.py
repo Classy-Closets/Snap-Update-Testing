@@ -145,7 +145,6 @@ def load_projects():
                 if room.file_path == bpy.data.filepath:
                     current_project.room_index = index
                     wm.current_file_room = room.name
-                    print("Found Room:", room.name, current_bfile_name)
 
         else:
             wm.project_index = 0

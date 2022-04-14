@@ -435,11 +435,11 @@ class SN_MAT_OT_Assign_Materials(Operator):
                 cleat_part.cutpart("Garage_Cover_Cleat")
                 cleat_part.edgebanding("Interior_Edge", l1=True)
                 cleat_part.set_material_pointers("Garage_Interior_Edges", "Edgebanding")
-            else:
+            elif not assembly.obj_bp.get("IS_WALL_CLEAT"):
                 cleat_part.cutpart("Garage_Cleat")
                 cleat_part.edgebanding("Interior_Edge", l1=True)
                 cleat_part.set_material_pointers("Garage_Interior_Edges", "Edgebanding")
-                
+
         else:
             if assembly.obj_bp.get("IS_COVER_CLEAT"):
                 cleat_part.cutpart("Cover_Cleat")
@@ -449,7 +449,7 @@ class SN_MAT_OT_Assign_Materials(Operator):
                 cleat_part.cutpart("Cleat")
                 cleat_part.edgebanding("Edge_2", l1=True)
                 cleat_part.set_material_pointers("Closet_Part_Edges_Secondary", "Edgebanding")
-    
+
     def set_back_material(self, assembly):
         cab_mat_props = self.props_closet_materials
         mat_type = cab_mat_props.materials.get_mat_type()
@@ -887,11 +887,13 @@ class SN_MAT_OT_Assign_Materials(Operator):
 
                 # Wall_Cleat
                 if "IS_WALL_CLEAT" in assembly.obj_bp:
-
                     exposed_left = assembly.get_prompt("Exposed Left")
                     exposed_right = assembly.get_prompt("Exposed Right")
                     exposed_top = assembly.get_prompt("Exposed Top")
                     exposed_bottom = assembly.get_prompt("Exposed Bottom")
+                    cab_mat_props = self.props_closet_materials
+                    mat_type = cab_mat_props.materials.get_mat_type()
+                    mat_color_name = cab_mat_props.materials.get_mat_color().name
 
                     if exposed_left:
                         if exposed_left.get_value():
@@ -900,7 +902,10 @@ class SN_MAT_OT_Assign_Materials(Operator):
                                     child.snap.edge_w1 = 'Edge'
                                     for mat_slot in child.snap.material_slots:
                                         if mat_slot.name == 'LeftEdge':
-                                            mat_slot.pointer_name = "Closet_Part_Edges"
+                                            if mat_type.name == 'Garage Material' and mat_color_name == "Graphite Spectrum":
+                                                mat_slot.pointer_name = "Black"
+                                            else:
+                                                mat_slot.pointer_name = "Closet_Part_Edges"
                         else:
                             for child in assembly.obj_bp.children:
                                 if child.snap.type_mesh == 'CUTPART':
@@ -915,7 +920,10 @@ class SN_MAT_OT_Assign_Materials(Operator):
                                     child.snap.edge_w2 = 'Edge'
                                     for mat_slot in child.snap.material_slots:
                                         if mat_slot.name == 'RightEdge':
-                                            mat_slot.pointer_name = "Closet_Part_Edges"
+                                            if mat_type.name == 'Garage Material' and mat_color_name == "Graphite Spectrum":
+                                                mat_slot.pointer_name = "Black"
+                                            else:
+                                                mat_slot.pointer_name = "Closet_Part_Edges"
                         else:
                             for child in assembly.obj_bp.children:
                                 if child.snap.type_mesh == 'CUTPART':
@@ -931,7 +939,10 @@ class SN_MAT_OT_Assign_Materials(Operator):
                                     child.snap.edge_l2 = 'Edge'
                                     for mat_slot in child.snap.material_slots:
                                         if mat_slot.name == 'Edgebanding':
-                                            mat_slot.pointer_name = "Closet_Part_Edges"
+                                            if mat_type.name == 'Garage Material' and mat_color_name == "Graphite Spectrum":
+                                                mat_slot.pointer_name = "Black"
+                                            else:
+                                                mat_slot.pointer_name = "Closet_Part_Edges"
                         else:
                             for child in assembly.obj_bp.children:
                                 if child.snap.type_mesh == 'CUTPART':
@@ -947,7 +958,10 @@ class SN_MAT_OT_Assign_Materials(Operator):
                                     child.snap.edge_l2 = 'Edge'
                                 for mat_slot in child.snap.material_slots:
                                     if mat_slot.name == 'BackEdge':
-                                        mat_slot.pointer_name = "Closet_Part_Edges"
+                                        if mat_type.name == 'Garage Material' and mat_color_name == "Graphite Spectrum":
+                                            mat_slot.pointer_name = "Black"
+                                        else:
+                                            mat_slot.pointer_name = "Closet_Part_Edges"
                         else:
                             for child in assembly.obj_bp.children:
                                 if child.snap.type_mesh == 'CUTPART':

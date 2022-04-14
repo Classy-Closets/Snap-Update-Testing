@@ -1,6 +1,7 @@
 import os
 import math
 import time
+import re
 
 import bpy
 from bpy.types import Operator
@@ -124,6 +125,7 @@ class ROOM_BUILDER_OT_Collect_Walls(Operator):
                 self.assign_wall_material(context, wall.get_wall_mesh())
 
                 wall_coll = collections.new(wall.obj_bp.snap.name_object)
+                wall_coll.snap.type = 'WALL'
                 scene_coll.children.link(wall_coll)
                 sn_utils.add_assembly_to_collection(wall.obj_bp, wall_coll, recursive=True)
                 sn_utils.remove_assembly_from_collection(wall.obj_bp, scene_coll, recursive=True)
@@ -1854,6 +1856,81 @@ class ROOM_BUILDER_OT_update_floor_material(Operator):
         return {'FINISHED'}
 
 
+class ROOM_BUILDER_OT_rebuild_wall_collections(Operator):
+    bl_idname = "sn_roombuilder.rebuild_wall_collections"
+    bl_label = "Rebuild wall collections"
+
+    def unhide_wall(self, wall_bp):
+        children = sn_utils.get_child_objects(wall_bp)
+
+        for child in children:
+            if child.get('IS_CAGE'):
+                continue
+            if child.type == 'EMPTY':
+                if child.get('obj_prompts'):
+                    prompt = child.snap.get_prompt('Hide')
+                    if prompt:
+                        prompt.set_value(False)
+                continue
+            child.hide_viewport = False
+        wall_bp.hide_viewport = False
+
+    def clear_collections(self, collections):
+        for coll in collections:
+            if re.findall('Wall.*[0-9]', coll.name):
+                objects = [o for o in coll.objects if o.users == 1]
+                while objects:
+                    bpy.data.objects.remove(objects.pop())
+                bpy.data.collections.remove(coll)
+
+    def execute(self, context):
+        collections = bpy.data.collections
+        d_scene = bpy.data.scenes.get("Scene")
+        m_scene = bpy.data.scenes.get("_Main")
+
+        self.clear_collections(collections)
+
+        if d_scene:
+            bpy.context.window.scene = d_scene
+        elif m_scene:
+            bpy.context.window.scene = m_scene
+            bpy.ops.sn_scene.clear_2d_views()
+            for obj in context.scene.collection.objects:
+                if obj.get('IS_VISDIM_A') or obj.get('IS_VISDIM_B'):
+                    obstacle_bp = sn_utils.get_obstacle_bp(obj)
+                    annotation = obj.get('IS_ANNOTATION')
+                    if obstacle_bp or annotation:
+                        continue
+                    bpy.data.objects.remove(obj, do_unlink=True)
+
+        scene_coll = context.scene.collection
+        wall_bps = [obj for obj in context.scene.objects if obj.get("IS_BP_WALL")]
+
+        for obj_bp in wall_bps:
+            wall_mesh = sn_types.Wall(obj_bp=obj_bp).get_wall_mesh()
+            hide = wall_mesh.hide_viewport
+
+            if hide:
+                self.unhide_wall(obj_bp)
+
+            wall_coll = collections.get(obj_bp.snap.name_object)
+            if not wall_coll:
+                wall_coll = collections.new(obj_bp.snap.name_object)
+                scene_coll.children.link(wall_coll)
+            wall_coll.snap.type = 'WALL'
+            sn_utils.add_assembly_to_collection(obj_bp, wall_coll, recursive=True)
+            sn_utils.remove_assembly_from_collection(obj_bp, scene_coll, recursive=True)
+            if "Collection" in bpy.data.collections:
+                default_coll = bpy.data.collections["Collection"]
+                sn_utils.remove_assembly_from_collection(obj_bp, default_coll, recursive=True)
+
+            wall_coll.hide_viewport = hide
+
+        bpy.ops.wm.save_mainfile()
+
+        return {'FINISHED'}
+
+
 class ROOM_BUILDER_OT_update_wall_material(Operator):
     bl_idname = "sn_roombuilder.update_wall_material"
     bl_label = "Update Wall Material"
@@ -1971,6 +2048,7 @@ classes = (
     ROOM_BUILDER_OT_Collect_Walls,
     ROOM_BUILDER_OT_update_floor_material,
     ROOM_BUILDER_OT_update_wall_material,
+    ROOM_BUILDER_OT_rebuild_wall_collections,
     PROMPTS_Molding,
     PROMPTS_OT_Wall,
 )

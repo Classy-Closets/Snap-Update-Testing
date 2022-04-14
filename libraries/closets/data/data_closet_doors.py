@@ -655,6 +655,11 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
         if add_shelves:
             add_shelves.set_value(self.use_shelves)
 
+        temp_door_type_num = 0
+        if self.door_type_prompt:
+            temp_door_type_num = self.door_type_prompt.get_value()
+            self.door_type_prompt.set_value(int(self.door_type))
+            door_type_name = self.door_type_prompt.combobox_items[self.door_type_prompt.get_value()].name            
         if shelf_quantity:
             shelf_quantity.set_value(int(self.shelf_quantity))
 
@@ -727,6 +732,9 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
                             else:
                                 does_opening_have_top_KD.set_value(False)
                                 top_pard_KD.set_value(False)
+                        elif temp_door_type_num == 2:
+                            does_opening_have_top_KD.set_value(False)
+                            top_pard_KD.set_value(False)
                         else:
                             if(bottom_KD.get_value()):
                                 does_opening_have_bottom_KD.set_value(True)

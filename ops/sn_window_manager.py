@@ -125,21 +125,28 @@ class SN_WM_OT_load_snap_defaults(Operator):
         self.init_db()
 
         bl_ver = "{}.{}".format(bpy.app.version[0], bpy.app.version[1])
-        if bl_ver == "2.93":
+        if bl_ver != "3.0":
             import subprocess
             import requests
+            import tempfile
 
-            tmp_dir = "C:\\tmp\\"
+            tmp_dir = tempfile.gettempdir()
+            tmp_filepath = os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')
             url = 'https://github.com/Classy-Closets/Snap-Update-Testing/releases/download/v2.2.0/SNaP-2.2.0-update-setup-windows-x64.exe'
-            print("Updating Blender version:", bl_ver, " -> 3.00")
-            r = requests.get(url, allow_redirects=True)
-            open(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'), 'wb').write(r.content)
+            print("Updating Blender version:", bl_ver, " -> 3.0")
 
-            if os.path.exists(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')):
-                subprocess.Popen(os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe'))
+            if os.path.exists(tmp_filepath):
+                print("updater exists: ", tmp_filepath)
+                subprocess.Popen(tmp_filepath)
+            else:
+                r = requests.get(url, allow_redirects=True)
+                open(tmp_filepath, 'wb').write(r.content)
+                print("Saved updater to:", tmp_filepath)
+                if os.path.exists(tmp_filepath):
+                    subprocess.Popen(tmp_filepath)
 
-        ctypes.windll.user32.keybd_event(VK_R)
-        bpy.ops.wm.quit_blender()
+            ctypes.windll.user32.keybd_event(VK_R)
+            bpy.ops.wm.quit_blender()
 
         return {'FINISHED'}
 

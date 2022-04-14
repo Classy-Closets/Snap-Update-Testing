@@ -814,7 +814,7 @@ class PROMPTS_Belt_Rack_Prompts(sn_types.Prompts_Interface):
             ('1', 'Matte Aluminum', 'Matte Aluminum'),
             ('2', 'Matte Nickel', 'Matte Nickel'),
             ('3', 'Matte Gold', 'Matte Gold'),
-            ('4', 'Orb?', 'Orb?'),
+            ('4', 'Orb', 'Orb'),
             ('5', 'Slate', 'Slate')],
         default='0')
 
@@ -956,7 +956,7 @@ class PROMPTS_Tie_Rack_Prompts(sn_types.Prompts_Interface):
             ('1', 'Matte Aluminum', 'Matte Aluminum'),
             ('2', 'Matte Nickel', 'Matte Nickel'),
             ('3', 'Matte Gold', 'Matte Gold'),
-            ('4', 'Orb?', 'Orb?'),
+            ('4', 'Orb', 'Orb'),
             ('5', 'Slate', 'Slate')],
         default='0')
 

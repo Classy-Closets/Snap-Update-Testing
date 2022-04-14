@@ -15,6 +15,8 @@ from shutil import copyfile
 global create_project_flag
 create_project_flag = False
 
+from snap import sn_utils
+
 
 def update_project_props(self, context):
     self.modify_project_file()
@@ -172,12 +174,14 @@ class Room(PropertyGroup, CollectionMixIn):
     name: StringProperty(name="Room Name", default="", update=rename_room)
     file_path: StringProperty(name="Room Filepath", default="", subtype='FILE_PATH')
     selected: BoolProperty(name="Room Selected", default=False)
+    version: StringProperty(name="Version", default="")
 
     def init(self, name, path=None, project_index=None):
         wm = bpy.context.window_manager.sn_project
         # On initial load, project index won't work.
         col = wm.projects[project_index or wm.project_index].rooms
         super().init(col, name=name)
+        self.version = sn_utils.get_version_str()
 
         # Set file name
         self.file_name = self.get_clean_name(self.name)

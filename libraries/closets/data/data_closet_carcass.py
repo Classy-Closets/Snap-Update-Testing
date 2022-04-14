@@ -1616,6 +1616,15 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
     def draw_closet_top(self,obj):
         if 'top shelf' in obj.name.lower():
             self.add_applied_top(obj)
+        
+        if 'wall bed' in obj.name.lower():
+            self.add_wallbed_top(obj)
+        
+        if 'wall bed' in obj.name.lower() and 'murphy' in obj.name.lower():
+            for item in obj.children:
+                if 'top support' in item.name.lower():
+                    self.add_wallbed_top(item)
+        
         for child in obj.children:
             self.draw_closet_top(child)
 
@@ -1721,7 +1730,6 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
         if parent_csh or parent_lsh:
             return
         top = sn_types.Assembly(obj)
-        
         extend_left = top.get_prompt("Extend To Left Panel")
         extend_right = top.get_prompt("Extend To Right Panel")
         extend_left_amount = top.get_prompt("Extend Left Amount")
@@ -1743,6 +1751,19 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
         closet_top.rotation_euler = self.product.obj_bp.rotation_euler
         closet_top['IS_CAGE'] = True
 
+    def add_wallbed_top(self, obj):
+        is_valance = 'valance' in obj.name.lower()
+        top_support = 'top support' in obj.name.lower()
+        if is_valance or top_support:
+            valace_assy = sn_types.Assembly(obj)
+            cube = (valace_assy.obj_x.location.x,
+                    valace_assy.obj_y.location.y,
+                    valace_assy.obj_z.location.z)
+            valance_top = sn_utils.create_cube_mesh(obj.name, cube)
+            sn_utils.copy_world_loc(obj, valance_top)
+            sn_utils.copy_world_rot(obj, valance_top)
+            valance_top['IS_CAGE'] = True
+
     def add_parts(self, parts):
         for part in parts:
             assembly = sn_types.Assembly(part)
@@ -1751,9 +1772,15 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
             if assembly.obj_bp.snap.type_group == 'OPENING':
                 opening_num = assembly.obj_bp.sn_closets.opening_name
                 opening_width = self.product.get_prompt("Opening " + opening_num + " Width")
+                if opening_width:
+                    width = opening_width.get_value()
+                else:
+                    width = assembly.obj_x.location.x
                 opening_depth = self.product.get_prompt("Opening " + opening_num + " Depth")
-                width = opening_width.get_value() 
-                depth = opening_depth.get_value() 
+                if opening_depth:
+                    depth = opening_depth.get_value()
+                else:
+                    depth = assembly.obj_y.location.y
             else:
                 width = assembly.obj_x.location.x
                 depth = assembly.obj_y.location.y                

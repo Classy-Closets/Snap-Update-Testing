@@ -173,6 +173,22 @@ def check_for_update(scene=None):
         addon_updater_ops.check_for_update_background()
 
 
+@persistent
+def create_wall_collections(scene=None):
+    bg_mode = bpy.app.background
+    if bpy.data.is_saved and not bg_mode:
+        collections = bpy.data.collections
+        wall_coll = {}
+
+        for coll in collections:
+            if coll.snap.type == 'WALL':
+                wall_coll[coll.name] = wall_coll
+
+        if not wall_coll:
+            print("Rebuilding wall collections...")
+            bpy.ops.sn_roombuilder.rebuild_wall_collections()
+
+
 def register():
     bpy.app.handlers.load_post.append(check_for_update)
     bpy.app.handlers.load_post.append(load_driver_functions)
@@ -184,6 +200,7 @@ def register():
     bpy.app.handlers.load_post.append(load_libraries)
     bpy.app.handlers.load_post.append(load_library_modules)
     bpy.app.handlers.load_post.append(init_machining_collection)
+    bpy.app.handlers.load_post.append(create_wall_collections)
 
 
 def unregister():
@@ -197,3 +214,4 @@ def unregister():
     bpy.app.handlers.load_post.remove(load_libraries)
     bpy.app.handlers.load_post.remove(load_library_modules)
     bpy.app.handlers.load_post.remove(init_machining_collection)
+    bpy.app.handlers.load_post.remove(create_wall_collections)

@@ -96,7 +96,10 @@ class Query_PDF_Form_Data:
             hamper_assy = sn_types.Assembly(hmp)
             hamper_ins_assy = sn_types.Assembly(hmp.parent)
             hidden = hamper_assy.get_prompt("Hide").get_value()
-            hamper_pmpt = hamper_ins_assy.get_prompt("Hamper Type").get_value()
+            hamper_type_pmpt = hamper_ins_assy.get_prompt("Hamper Type")
+            hamper_pmpt = None
+            if hamper_type_pmpt:
+                hamper_pmpt = hamper_type_pmpt.get_value()
             hamper_type = hamper_types.get(hamper_pmpt)
             wall = sn_utils.get_wall_bp(hmp)
             if not wall:
@@ -198,6 +201,9 @@ class Query_PDF_Form_Data:
                 wall_letter = wall_name.replace("Wall ", "")
             elif not wall and island:
                 wall_letter = "Island"
+            elif not wall_letter and wall:
+                wall_name = wall.snap.name_object
+                wall_letter = wall_name.replace("Wall ", "")
             daddy = parent.lower()
             dad_hamper = 'hamper' in daddy
             dad_drawer = 'drawer' in daddy
@@ -809,70 +815,71 @@ class Query_PDF_Form_Data:
             if (within_walls and not in_spot) or (is_island and not in_spot):
                 mat_type = None
                 door_mesh = self.__get_obj_mesh(door)
-                active_mat = door_mesh.active_material_index
-                mat_name = door_mesh.material_slots[active_mat].name
-                mesh_slots = door_mesh.snap.material_slots
-                for slot in mesh_slots:
-                    if 'Glass' == slot.pointer_name:
-                        has_glass = True
-                        mat_name = [s.item_name for s in mesh_slots\
-                            if s.item_name != 'Glass'][:1][0]
-                    if "Wood_Door_Surface" == slot.pointer_name:
-                        mat_type = "Wood"
-                    elif "Door_Surface" == slot.pointer_name:
+                if door_mesh:
+                    active_mat = door_mesh.active_material_index
+                    mat_name = door_mesh.material_slots[active_mat].name
+                    mesh_slots = door_mesh.snap.material_slots
+                    for slot in mesh_slots:
+                        if 'Glass' == slot.pointer_name:
+                            has_glass = True
+                            mat_name = [s.item_name for s in mesh_slots\
+                                if s.item_name != 'Glass'][:1][0]
+                        if "Wood_Door_Surface" == slot.pointer_name:
+                            mat_type = "Wood"
+                        elif "Door_Surface" == slot.pointer_name:
+                            mat_type = "Slab"
+                        elif "Moderno_Door" == slot.pointer_name:
+                            mat_type = "Moderno"
+                    spotted.append(door.name)
+                    fillname = door.name
+                    is_drawer = door.sn_closets.is_drawer_front_bp
+                    if is_drawer and mat_type != "Moderno" and 'part' not in door_mesh.name.lower():
+                        fillname = door_mesh.name
+                    to_replace = [
+                        "Door","Drawer","Face","Glass",
+                        "Left","Right","Mesh","MESH..", " "]
+                    for each in to_replace:
+                        fillname = fillname.replace(each, "")
+                    number_re = re.findall(r'\.\d{3}', fillname)
+                    if number_re:
+                        fillname = fillname.replace(number_re[0], "")
+                    if not has_glass and mat_type == "Wood":
+                        is_wood = True
+                    # Setting Style name
+                    if fillname == "":
                         mat_type = "Slab"
-                    elif "Moderno_Door" == slot.pointer_name:
-                        mat_type = "Moderno"
-                spotted.append(door.name)
-                fillname = door.name
-                is_drawer = door.sn_closets.is_drawer_front_bp
-                if is_drawer and mat_type != "Moderno" and 'part' not in door_mesh.name.lower():
-                    fillname = door_mesh.name
-                to_replace = [
-                    "Door","Drawer","Face","Glass",
-                    "Left","Right","Mesh","MESH..", " "]
-                for each in to_replace:
-                    fillname = fillname.replace(each, "")
-                number_re = re.findall(r'\.\d{3}', fillname)
-                if number_re:
-                    fillname = fillname.replace(number_re[0], "")
-                if not has_glass and mat_type == "Wood":
-                    is_wood = True
-                # Setting Style name
-                if fillname == "":
-                    mat_type = "Slab"
-                elif fillname != "":
-                    mat_type = fillname
-                # Adding drawer name exceptions I couldn't deal other way
-                if mat_type == 'SanMarino':
-                    mat_type = 'San Marino'
-                if mat_type == 'MolinoVecchio':
-                    mat_type = 'Molino Vecchio'
-                # Adding to entries
-                if not has_glass and not is_wood and not is_hidden:
-                    has_current_style = doors['melamine'].get(mat_type)
-                    if has_current_style:
-                        doors["melamine"][mat_type]["qty"] += 1
-                    elif not has_current_style:
-                        doors["melamine"][mat_type] = {}
-                        doors["melamine"][mat_type]["qty"] = 1
-                        doors["melamine"][mat_type]["color"] = mat_name
-                if has_glass and not is_wood and not is_hidden:
-                    has_current_style = doors["glass"].get(mat_type)
-                    if has_current_style:
-                        doors["glass"][mat_type]["qty"] += 1
-                    elif not has_current_style:
-                        doors["glass"][mat_type] = {}
-                        doors["glass"][mat_type]["qty"] = 1
-                        doors["glass"][mat_type]["color"] = mat_name
-                if not has_glass and is_wood and not is_hidden:
-                    has_current_style = doors["wood"].get(mat_type)
-                    if has_current_style:
-                        doors["wood"][mat_type]["qty"] += 1
-                    elif not has_current_style:
-                        doors["wood"][mat_type] = {}
-                        doors["wood"][mat_type]["qty"] = 1
-                        doors["wood"][mat_type]["color"] = mat_name
+                    elif fillname != "":
+                        mat_type = fillname
+                    # Adding drawer name exceptions I couldn't deal other way
+                    if mat_type == 'SanMarino':
+                        mat_type = 'San Marino'
+                    if mat_type == 'MolinoVecchio':
+                        mat_type = 'Molino Vecchio'
+                    # Adding to entries
+                    if not has_glass and not is_wood and not is_hidden:
+                        has_current_style = doors['melamine'].get(mat_type)
+                        if has_current_style:
+                            doors["melamine"][mat_type]["qty"] += 1
+                        elif not has_current_style:
+                            doors["melamine"][mat_type] = {}
+                            doors["melamine"][mat_type]["qty"] = 1
+                            doors["melamine"][mat_type]["color"] = mat_name
+                    if has_glass and not is_wood and not is_hidden:
+                        has_current_style = doors["glass"].get(mat_type)
+                        if has_current_style:
+                            doors["glass"][mat_type]["qty"] += 1
+                        elif not has_current_style:
+                            doors["glass"][mat_type] = {}
+                            doors["glass"][mat_type]["qty"] = 1
+                            doors["glass"][mat_type]["color"] = mat_name
+                    if not has_glass and is_wood and not is_hidden:
+                        has_current_style = doors["wood"].get(mat_type)
+                        if has_current_style:
+                            doors["wood"][mat_type]["qty"] += 1
+                        elif not has_current_style:
+                            doors["wood"][mat_type] = {}
+                            doors["wood"][mat_type]["qty"] = 1
+                            doors["wood"][mat_type]["color"] = mat_name
         return doors
 
     def __get_walls_doors_types(self, walls):

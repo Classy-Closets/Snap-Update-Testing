@@ -199,6 +199,14 @@ def get_wall_bp(obj):
     elif obj.parent:
         return get_wall_bp(obj.parent)
 
+def get_wallbed_bp(obj):
+    if not obj:
+        return None
+    if "IS_BP_WALL_BED" in obj:
+        return obj
+    elif obj.parent:
+        return get_wallbed_bp(obj.parent)
+
 
 def get_room_bp(obj):
     if not obj:
@@ -307,6 +315,14 @@ def get_exterior_bp(obj):
     elif obj.parent:
         return get_exterior_bp(obj.parent)
 
+def get_annotation_bp(obj):
+    if not obj:
+        return None
+    if "IS_BP_ANNOTATION" in obj:
+        return obj
+    elif obj.parent:
+        return get_annotation_bp(obj.parent)
+        
 def get_island_bp(obj):
     if not obj:
         return None
@@ -1023,6 +1039,19 @@ def copy_world_rot(source, target, offset=(0, 0, 0)):
     off_mtx = mathutils.Euler(off_rad, source.rotation_mode).to_matrix()
     result_rot = source.matrix_world.to_3x3().normalized() @ off_mtx
     target.matrix_world @= result_rot.to_4x4()
+
+
+def link_objects_to_scene(obj_bp, scene_collection):
+    """ This Function links an object and all of it's children
+        to the scene
+    """
+    obj_bp.display_type = 'WIRE'  # THIS IS NEEDED FOR DRAG AND DROP
+    obj_bp.select_set(False)
+    scene_collection.objects.link(obj_bp)
+    if obj_bp.type == 'EMPTY':
+        obj_bp.hide_set(True)
+    for child in obj_bp.children:
+        link_objects_to_scene(child, scene_collection)
 
 
 def link_objects_to_scene(obj_bp, scene_collection):

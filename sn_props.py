@@ -1549,6 +1549,28 @@ class SnapObjectProps(PropertyGroup):
         del bpy.types.Object.snap
 
 
+class SnapCollectionProps(PropertyGroup):
+
+    type: EnumProperty(name="Collection Type",
+                            items=[('NONE', "None", "None"),
+                                   ('WALL', "Wall", "Wall"),
+                                   ('BP', "Base Point", "Base Point")],
+                            description="Colection Type.",
+                            default='NONE')
+
+    @classmethod
+    def register(cls):
+        bpy.types.Collection.snap = PointerProperty(
+            name="SNaP Collection",
+            description="SNaP Collections Properties",
+            type=cls
+        )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.Collection.snap
+
+
 class library_items(PropertyGroup):
     is_selected: BoolProperty(name="Is Selected")
     name: StringProperty(name="Library Item Name")
@@ -2056,6 +2078,7 @@ classes = (
     SnapObjectProps,
     SnapWindowManagerProps,
     SnapSceneProps,
+    SnapCollectionProps,
     SnapAddonPreferences,
 )
 
