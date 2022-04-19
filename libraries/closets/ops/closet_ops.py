@@ -161,6 +161,10 @@ class SNAP_OT_move_closet(Operator):
         self.drawing_plane.dimensions = (100, 100, 1)
 
     def confirm_placement(self, context):
+        collections = bpy.data.collections
+        scene_coll = bpy.context.scene.collection
+        wall_collections = [coll for coll in bpy.data.collections if coll.snap.type == "WALL"]
+
         if self.current_wall:
             x_loc = sn_utils.calc_distance((self.closet.obj_bp.location.x,self.closet.obj_bp.location.y,0),
                                            (self.current_wall.obj_bp.matrix_local[0][3],self.current_wall.obj_bp.matrix_local[1][3],0))
@@ -169,6 +173,14 @@ class SNAP_OT_move_closet(Operator):
             self.closet.obj_bp.rotation_euler = (0,0,0)
             self.closet.obj_bp.parent = self.current_wall.obj_bp
             self.closet.obj_bp.location.x = x_loc
+
+            wall_coll = collections.get(self.current_wall.obj_bp.snap.name_object)
+            sn_utils.clear_assembly_wall_collections(self.closet.obj_bp, wall_collections, recursive=True)
+            sn_utils.add_assembly_to_collection(self.closet.obj_bp, wall_coll, recursive=True)
+            sn_utils.remove_assembly_from_collection(self.closet.obj_bp, scene_coll, recursive=True)
+            if "Collection" in bpy.data.collections:
+                default_coll = bpy.data.collections["Collection"]
+                sn_utils.remove_assembly_from_collection(self.closet.obj_bp, default_coll, recursive=True)
 
         if self.placement == 'LEFT':
             self.closet.obj_bp.parent = self.selected_closet.obj_bp.parent
@@ -287,7 +299,7 @@ class SNAP_OT_move_closet(Operator):
         context.window.cursor_set('DEFAULT')
         if self.drawing_plane:
             sn_utils.delete_obj_list([self.drawing_plane])
-        self.set_placed_properties(self.closet.obj_bp) 
+        self.set_placed_properties(self.closet.obj_bp)
         bpy.ops.object.select_all(action='DESELECT')
         context.area.tag_redraw()
         return {'FINISHED'}

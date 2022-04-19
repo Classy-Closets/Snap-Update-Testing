@@ -57,6 +57,7 @@ def sync_spec_groups(scene):
 @persistent
 def load_libraries(scene=None):
     wm_props = bpy.context.window_manager.snap
+    scene_props = bpy.context.scene.snap
 
     wm_props.add_library(
         name="Product Library",
@@ -108,11 +109,12 @@ def load_libraries(scene=None):
 
     wm_props.get_library_assets()
 
-    path = os.path.join(sn_paths.CLOSET_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
+    if not bpy.data.is_saved or scene_props.active_library_name == "Product Library":
+        path = os.path.join(sn_paths.CLOSET_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
 
-    if os.path.exists(path):
-        sn_utils.update_file_browser_path(bpy.context, path)
-        bpy.ops.sn_library.change_library_category(category=sn_paths.DEFAULT_CATEGORY)
+        if os.path.exists(path):
+            sn_utils.update_file_browser_path(bpy.context, path)
+            bpy.ops.sn_library.change_library_category(category=sn_paths.DEFAULT_CATEGORY)
 
 
 @persistent
@@ -138,6 +140,7 @@ def default_settings(scene=None):
     scene.cycles.max_bounces = 6
     scene.cycles.transparent_max_bounces = 6
     scene.cycles.transmission_bounces = 6
+    prefs.view.render_display_type = 'NONE'
     # Prefs
     prefs.use_preferences_save = False  # Disable autosave
     if not bpy.data.is_saved:
@@ -185,6 +188,9 @@ def create_wall_collections(scene=None):
                 wall_coll[coll.name] = wall_coll
 
         if not wall_coll:
+            backup_path = bpy.data.filepath.replace(".blend", "-backup.blend")
+            print("Saving backup", backup_path)
+            bpy.ops.wm.save_as_mainfile(filepath=backup_path, copy=True)
             print("Rebuilding wall collections...")
             bpy.ops.sn_roombuilder.rebuild_wall_collections()
 

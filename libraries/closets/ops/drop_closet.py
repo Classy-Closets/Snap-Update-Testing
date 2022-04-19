@@ -147,6 +147,7 @@ class PlaceClosetAsset():
         collections = bpy.data.collections
         scene_coll = context.scene.collection
         wall_name = ""
+        wall_collections = [coll for coll in bpy.data.collections if coll.snap.type == "WALL"]
 
         if self.current_wall:
             wall_name = self.current_wall.obj_bp.snap.name_object
@@ -155,6 +156,7 @@ class PlaceClosetAsset():
         if wall_name:
             if wall_name in collections:
                 wall_coll = collections[wall_name]
+                sn_utils.clear_assembly_wall_collections(self.asset.obj_bp, wall_collections, recursive=True)
                 sn_utils.add_assembly_to_collection(self.asset.obj_bp, wall_coll, recursive=True)
                 sn_utils.remove_assembly_from_collection(self.asset.obj_bp, scene_coll, recursive=True)
 

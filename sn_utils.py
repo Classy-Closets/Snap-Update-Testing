@@ -1638,6 +1638,13 @@ def copy_assembly_prompts(assembly, target_assembly):
                                         newtarget.data_path = target.data_path
 
 
+def clear_assembly_wall_collections(obj_bp, collections, recursive=False):
+    """ Clears assembly wall collections
+    """
+    for coll in collections:
+        remove_assembly_from_collection(obj_bp, coll, recursive=True)
+
+
 def add_assembly_to_collection(obj_bp, coll, recursive=False):
     """ Adds assembly objects to the provided collection
     """

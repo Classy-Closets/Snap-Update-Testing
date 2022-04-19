@@ -131,8 +131,8 @@ class SN_WM_OT_load_snap_defaults(Operator):
             import tempfile
 
             tmp_dir = tempfile.gettempdir()
-            tmp_filepath = os.path.join(tmp_dir, 'SNaP-2.2.0-setup-windows-x64.exe')
-            url = 'https://github.com/Classy-Closets/Snap-Update-Testing/releases/download/v2.2.0/SNaP-2.2.0-update-setup-windows-x64.exe'
+            tmp_filepath = os.path.join(tmp_dir, 'SNaP-2.2.2-setup-windows-x64.exe')
+            url = 'https://github.com/Classy-Closets/Snap-Update-Testing/releases/download/v2.2.2/SNaP-2.2.2-update-setup-windows-x64.exe'
             print("Updating Blender version:", bl_ver, " -> 3.0")
 
             if os.path.exists(tmp_filepath):

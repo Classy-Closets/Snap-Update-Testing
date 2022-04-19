@@ -689,6 +689,7 @@ class VIEW_OT_generate_2d_views(Operator):
         accessories = 0
         wall_cleat = 0
         wall_beds = 0
+        wall_islands = 0
         for item in wall.children:
             if 'section' in item.name.lower():
                 sections += 1
@@ -704,13 +705,16 @@ class VIEW_OT_generate_2d_views(Operator):
                 accessories += 1
             elif item.get("IS_BP_WALL_BED"):
                 wall_beds += 1
+            elif item.get("IS_BP_ISLAND"):
+                wall_islands += 1
         no_sections = sections == 0
         no_csh = corner_shelves == 0
         no_lsh = l_shelves == 0
-        no_accessories = accessories == 0
+        no_acc = accessories == 0
         no_wall_cleat = wall_cleat == 0
         no_beds = wall_beds == 0
-        if no_sections and no_csh and no_lsh and no_accessories and no_beds:
+        no_isl = wall_islands == 0
+        if no_sections and no_csh and no_lsh and no_acc and no_beds and no_isl:
             return True
         return False
 
@@ -5032,21 +5036,21 @@ class VIEW_OT_render_2d_views(Operator):
                     area.tag_redraw()
                 screen.update_tag()
 
-        
         bpy.context.window.scene = current_scene
         
         win = bpy.context.window
         scr = win.screen
         areas3d = [area for area in scr.areas if area.type == 'VIEW_3D']
-        region = [region for region in areas3d[0].regions if region.type == 'WINDOW']
+        if areas3d:
+            region = [region for region in areas3d[0].regions if region.type == 'WINDOW']
 
-        override = {'window':win,
-                    'screen':scr,
-                    'area'  :areas3d[0],
-                    'region':region[0],
-                    'scene' :current_scene,
-                    }
-        bpy.ops.view3d.dolly(override, mx=1, my=1, delta=0, use_cursor_init=False)
+            override = {'window':win,
+                        'screen':scr,
+                        'area'  :areas3d[0],
+                        'region':region[0],
+                        'scene' :current_scene,
+                        }
+            bpy.ops.view3d.dolly(override, mx=1, my=1, delta=0, use_cursor_init=False)
         return {'FINISHED'}
 
 class VIEW_OT_accordion_interface(Operator):
