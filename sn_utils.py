@@ -163,8 +163,6 @@ def get_part_thickness(obj):
     if obj.snap.type_mesh == 'CUTPART':
         spec_group = bpy.context.scene.snap.spec_groups[obj.snap.spec_group_index]
         if obj.snap.cutpart_name in spec_group.cutparts:
-            print('using cutpart thickness')
-            print(spec_group.cutparts[obj.snap.cutpart_name].thickness)
             return spec_group.cutparts[obj.snap.cutpart_name].thickness
         else:
             # For whatever reason, no matter the thickness I try to set crown molding to

@@ -66,13 +66,15 @@ class Bottom_Capping(sn_types.Assembly):
         self.add_prompt("Right Partition Extended", 'CHECKBOX', False)
         self.add_prompt("Left Partition Extension Height", 'DISTANCE', 0)
         self.add_prompt("Right Partition Extension Height", 'DISTANCE', 0)
+        self.add_prompt("Left Filler Amount", 'DISTANCE', 0)
+        self.add_prompt("Right Filler Amount", 'DISTANCE', 0)
 
         common_prompts.add_thickness_prompts(self)
 
         Width = self.obj_x.snap.get_var('location.x', 'Width')
         Depth = self.obj_y.snap.get_var('location.y', 'Depth')
-        Extend_Left = self.get_prompt('Extend To Left Panel').get_var('Extend_Left')        
-        Extend_Right = self.get_prompt('Extend To Right Panel').get_var('Extend_Right')      
+        Extend_Left = self.get_prompt('Extend To Left Panel').get_var('Extend_Left')
+        Extend_Right = self.get_prompt('Extend To Right Panel').get_var('Extend_Right')
         Panel_Thickness = self.get_prompt('Panel Thickness').get_var()
         Extend_Left_Amount = self.get_prompt('Extend Left Amount').get_var()
         Extend_Right_Amount = self.get_prompt('Extend Right Amount').get_var()
@@ -80,6 +82,8 @@ class Bottom_Capping(sn_types.Assembly):
         Exposed_Left = self.get_prompt('Exposed Left').get_var()
         Exposed_Right = self.get_prompt('Exposed Right').get_var()
         Exposed_Back = self.get_prompt('Exposed Back').get_var()
+        LFA = self.get_prompt("Left Filler Amount").get_var('LFA')
+        RFA = self.get_prompt("Right Filler Amount").get_var('RFA')
 
         # Capping Bottom
         Partition_Height = self.get_prompt('Partition Height').get_var()
@@ -91,8 +95,8 @@ class Bottom_Capping(sn_types.Assembly):
         bottom.obj_bp.snap.comment_2 = "1024"
         bottom.set_name("Capping Bottom")
         bottom.loc_x(
-            'IF(LPE,Panel_Thickness,0)-Extend_Left_Amount',
-            [Extend_Left, Extend_Left_Amount, Panel_Thickness, LPE])
+            'IF(LPE,Panel_Thickness,0)-Extend_Left_Amount-LFA',
+            [Extend_Left, Extend_Left_Amount, Panel_Thickness, LPE, LFA])
 
         bottom.loc_z('-Partition_Height-Panel_Thickness', [Partition_Height, Panel_Thickness, LPE])
         bottom.rot_x(value=math.radians(180))
@@ -100,9 +104,10 @@ class Bottom_Capping(sn_types.Assembly):
             "Width-IF(Extend_Left,0,Panel_Thickness/2)"
             "-IF(Extend_Right,0,Panel_Thickness/2)+Extend_Left_Amount+Extend_Right_Amount"
             "-IF(LPE,Panel_Thickness,0)"
-            "-IF(RPE,Panel_Thickness,0)",
+            "-IF(RPE,Panel_Thickness,0)"
+            "+LFA+RFA",
             [Width, Extend_Left, Extend_Right, Panel_Thickness,
-             Extend_Right_Amount, Extend_Left_Amount, LPE, RPE])
+             Extend_Right_Amount, Extend_Left_Amount, LPE, RPE, LFA, RFA])
 
         bottom.dim_y('Depth+Front_Overhang', [Depth, Front_Overhang])
         bottom.dim_z('-Panel_Thickness', [Panel_Thickness])
@@ -132,6 +137,8 @@ class PROMPTS_Prompts_Bottom_Support(sn_types.Prompts_Interface):
         """ This is called everytime a change is made in the UI """
         left_partition_extended = self.insert.get_prompt('Left Partition Extended')
         right_partition_extended = self.insert.get_prompt('Right Partition Extended')
+        exposed_left = self.insert.get_prompt("Exposed Left")
+        exposed_right = self.insert.get_prompt("Exposed Right")
         against_left_wall = self.insert.get_prompt('Against Left Wall')
         against_right_wall = self.insert.get_prompt('Against Right Wall')
         left_partition_extension_height = self.insert.get_prompt("Left Partition Extension Height")
@@ -140,12 +147,12 @@ class PROMPTS_Prompts_Bottom_Support(sn_types.Prompts_Interface):
         prompts = [
             left_partition_extended, right_partition_extended, against_left_wall,
             against_right_wall, left_partition_extension_height,
-            right_partition_extension_height]
+            right_partition_extension_height, exposed_left, exposed_right]
 
         if all(prompts):
-            if(left_partition_extended.get_value() and left_partition_extension_height.get_value() > 0):
+            if((left_partition_extended.get_value() and left_partition_extension_height.get_value() > 0) or exposed_left.get_value()):
                 against_left_wall.set_value(False)
-            if(right_partition_extended.get_value() and right_partition_extension_height.get_value() > 0):
+            if((right_partition_extended.get_value() and right_partition_extension_height.get_value() > 0) or exposed_right.get_value()):
                 against_right_wall.set_value(False)
         closet_props.update_render_materials(self, context)
         return True
@@ -191,11 +198,14 @@ class PROMPTS_Prompts_Bottom_Support(sn_types.Prompts_Interface):
         exposed_back.draw(row, alt_text="Back", allow_edit=False)
 
         row = box.row()
-        row.label(text="Against Wall:")
-        aw_box = box.box()
-        row = aw_box.row()
-        against_left_wall.draw(row, alt_text="Left", allow_edit=False)
-        against_right_wall.draw(row, alt_text="Right", allow_edit=False)
+        if not exposed_left.get_value() or not exposed_right.get_value():
+            row.label(text="Against Wall:")
+            aw_box = box.box()
+            row = aw_box.row()
+            if not exposed_left.get_value():
+                against_left_wall.draw(row, alt_text="Left", allow_edit=False)
+            if not exposed_right.get_value():
+                against_right_wall.draw(row, alt_text="Right", allow_edit=False)
 
 
 class DROP_OPERATOR_Place_Bottom_Capping(Operator, PlaceClosetInsert):
@@ -373,11 +383,20 @@ class DROP_OPERATOR_Place_Bottom_Capping(Operator, PlaceClosetInsert):
                             against_left_wall = self.bottom_capping.get_prompt("Against Left Wall")
                             against_right_wall = self.bottom_capping.get_prompt("Against Right Wall")
 
+                            left_side_wall_filler = parent_assembly.get_prompt("Left Side Wall Filler")
+                            right_side_wall_filler = parent_assembly.get_prompt("Right Side Wall Filler")
+                            left_filler_amount = self.bottom_capping.get_prompt("Left Filler Amount")
+                            right_filler_amount = self.bottom_capping.get_prompt("Right Filler Amount")
+
                             prompts = [
                                 extend_left_side, extend_right_side, height_left_side,
                                 height_right_side, left_partition_extended, right_partition_extended,
                                 left_partition_extension_height, right_partition_extension_height,
                                 against_left_wall, against_right_wall, has_capping_bottom]
+
+                            filler_prompts = [
+                                left_side_wall_filler, right_side_wall_filler,
+                                left_filler_amount, right_filler_amount]
 
                             if all(prompts):
                                 self.bottom_capping.get_prompt("Partition Height").set_value(
@@ -392,6 +411,12 @@ class DROP_OPERATOR_Place_Bottom_Capping(Operator, PlaceClosetInsert):
                                 if(extend_right_side.get_value() and height_right_side.get_value() > 0):
                                     against_right_wall.set_value(False)
                                 has_capping_bottom.set_value(True)
+
+                                if all(filler_prompts):
+                                    LSWF = left_side_wall_filler.get_var("LSWF")
+                                    RSWF = right_side_wall_filler.get_var("RSWF")
+                                    left_filler_amount.set_formula("LSWF", [LSWF])
+                                    right_filler_amount.set_formula("RSWF", [RSWF])
 
                             return {'RUNNING_MODAL'}
 

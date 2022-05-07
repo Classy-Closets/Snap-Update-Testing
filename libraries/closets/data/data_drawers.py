@@ -326,6 +326,14 @@ class Drawer_Stack(sn_types.Assembly):
         DF_Height = front.obj_x.snap.get_var("location.x", "DF_Height")
 
         drawer_lock = common_parts.add_lock(self)
+
+        wall_bp = sn_utils.get_wall_bp(drawer_lock.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(drawer_lock.obj_bp, wall_coll)
+            sn_utils.remove_assembly_from_collection(drawer_lock.obj_bp, scene_coll)
+
         drawer_lock.obj_bp["DRAWER_NUM"] = drawer_num
         drawer_lock.loc_x(
             'IF(Lock_Drawer==2,-Division_Thickness,IF(Lock_Drawer==3,dim_x+Division_Thickness,dim_x/2))',

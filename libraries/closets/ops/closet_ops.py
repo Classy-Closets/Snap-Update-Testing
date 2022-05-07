@@ -1423,6 +1423,16 @@ class SNAP_OT_Auto_Add_Molding(Operator):
 
                         empty_assembly.obj_bp.parent = product.obj_bp
 
+                        wall_bp = sn_utils.get_wall_bp(empty_assembly.obj_bp)
+                        if wall_bp:
+                            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+                            scene_coll = bpy.context.scene.collection
+                            sn_utils.add_assembly_to_collection(empty_assembly.obj_bp, wall_coll, recursive=True)
+                            sn_utils.remove_assembly_from_collection(empty_assembly.obj_bp, scene_coll, recursive=True)
+                            if "Collection" in bpy.data.collections:
+                                default_coll = bpy.data.collections["Collection"]
+                                sn_utils.remove_assembly_from_collection(empty_assembly.obj_bp, default_coll, recursive=True)
+
                         length = 0
                         if(len(curve.data.splines[0].bezier_points) == 3):
                             x1 = curve.data.splines[0].bezier_points[0].co[0]

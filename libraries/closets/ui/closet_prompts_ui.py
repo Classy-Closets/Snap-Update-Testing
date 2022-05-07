@@ -907,11 +907,6 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                 if left_filler.get_value():
                                     if left_filler_setback.get_value() == 0:
                                         extend_left_amount.set_value(left_filler_length.get_value() - (toe_kick_thickness/2))
-                                    else:
-                                        extend_left_amount.set_value(0)
-                                else:
-                                    extend_left_amount.set_value(0)
-
 
                 far_right_panel_selected = insert.get_prompt("Far Right Panel Selected")
                 if far_right_panel_selected:
@@ -926,10 +921,6 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                                 if right_filler.get_value():
                                     if right_filler_setback.get_value() == 0:
                                         extend_right_amount.set_value(right_filler_length.get_value() + (toe_kick_thickness/2))
-                                    else:
-                                        extend_right_amount.set_value(0)
-                                else:
-                                    extend_right_amount.set_value(0)
 
         has_capping_bottom = self.closet.get_prompt("Has Capping Bottom")
         if(has_capping_bottom):

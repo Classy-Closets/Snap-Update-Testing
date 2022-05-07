@@ -2163,6 +2163,17 @@ class OPS_Export_XML(Operator):
 
         return circles
 
+    def get_wall_name(self, obj):
+        wall_name = ""
+        closet_bp = sn_utils.get_closet_bp(obj)
+        wall_bp = sn_utils.get_wall_bp(obj)
+        if closet_bp.get("IS_BP_ISLAND"):
+            wall_name = "Island"
+        elif wall_bp:
+            wall_name = wall_bp.snap.name_object
+
+        return wall_name
+
     def get_drilling(self, assembly):
         circles = []
         sys_holes = (
@@ -3772,7 +3783,10 @@ class OPS_Export_XML(Operator):
             assembly = sn_types.Assembly(obj_bp=obj_bp)
         else:
             assembly = sn_types.Assembly(obj_bp.parent)
-
+        obj_hasnt_wall = not sn_utils.get_wall_bp(obj_bp)
+        obj_hasnt_island = not sn_utils.get_island_bp(obj_bp)
+        if obj_hasnt_wall and obj_hasnt_island:
+            return
         if name != "":
             hardware_name = name
             if "Hook" in hardware_name:
@@ -3805,10 +3819,12 @@ class OPS_Export_XML(Operator):
         self.xml.add_element_with_text(elm_hdw_part, 'Routing', "HDSTK")#Str literal OKAY
         self.xml.add_element_with_text(elm_hdw_part, 'Type', "hardware")#Str literal OKAY
 
+        wall_name = self.get_wall_name(obj_bp)        
+
         lbl = [
             ("IDL-{}".format(self.label_count), "IDJ-{}".format(self.job_count), "IDP-{}".format(self.part_count)),
             ("name", "text", hardware_name),
-            ("wallname", "text", 'Island' if sn_utils.get_closet_bp(obj_bp).get("IS_BP_ISLAND") else sn_utils.get_wall_bp(obj_bp).snap.name_object),
+            ("wallname", "text", wall_name),
             ("x", "text", "0"),
             ("y", "text", "0"),
             ("z", "text", "0"),
@@ -3852,6 +3868,10 @@ class OPS_Export_XML(Operator):
             assembly = sn_types.Assembly(obj_bp=obj)
         else:
             assembly = sn_types.Assembly(obj.parent)
+        obj_hasnt_wall = not sn_utils.get_wall_bp(obj)
+        obj_hasnt_island = not sn_utils.get_island_bp(obj)
+        if obj_hasnt_wall and obj_hasnt_island:
+            return
         if assembly.obj_bp.snap.type_group != "PRODUCT":
 
             obj_props = assembly.obj_bp.sn_closets
@@ -4701,15 +4721,16 @@ class OPS_Export_XML(Operator):
 
             if obj_props.is_hamper_front_bp:
                 len_x = self.get_part_width(assembly)
-                len_y = self.get_part_length(assembly)          
+                len_y = self.get_part_length(assembly)
 
+            wall_name = self.get_wall_name(obj)
             
             #Create and add label
             lbl = [
                 ("IDL-{}".format(self.label_count), "IDJ-{}".format(self.job_count), "IDP-{}".format(self.part_count)),                
                 ("dcname", "text", part_name),
                 ("name", "text", part_name),
-                ("wallname", "text", 'Island' if sn_utils.get_closet_bp(obj).get("IS_BP_ISLAND") else sn_utils.get_wall_bp(obj).snap.name_object),
+                ("wallname", "text", wall_name),
                 ("variablesection", "text", str(self.is_variable_section(assembly))),
                 ("x", "text", self.get_part_x_location(assembly.obj_bp,assembly.obj_bp.location.x)),
                 ("y", "text", self.get_part_y_location(assembly.obj_bp,assembly.obj_bp.location.y)),

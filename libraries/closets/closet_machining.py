@@ -58,6 +58,13 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         obj.snap.type_mesh = 'HARDWARE'
         obj.snap.name_object = name
         obj.parent = assembly.obj_bp
+
+        wall_bp = sn_utils.get_wall_bp(obj)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(obj, wall_coll)
+            sn_utils.remove_assembly_from_collection(obj, scene_coll)
         return obj
 
     def get_product_from_part(self,part):

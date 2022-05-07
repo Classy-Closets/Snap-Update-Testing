@@ -413,8 +413,8 @@ class VIEW_OT_generate_2d_views(Operator):
 
     def create_camera(self, scene):
         camera_data = bpy.data.cameras.new(scene.name)
-        camera_obj = bpy.data.objects.new(
-            name=scene.name, object_data=camera_data)
+        camera_obj = bpy.data.objects.new(name=scene.name, object_data=camera_data)
+        camera_obj["ID_PROMPT"] = "sn_object.camera_properties"
         scene.collection.objects.link(camera_obj)
         scene.camera = camera_obj
         camera_obj.data.type = 'PERSP'
@@ -488,22 +488,28 @@ class VIEW_OT_generate_2d_views(Operator):
             if "mesh" in child.name.lower():
                 return child
 
-    def door_has_style(self, obj):
+    def door_style_materials(self, obj):
         door_mesh = self.get_obj_mesh(obj)
         if door_mesh:
+            materials = []
             for slot in door_mesh.snap.material_slots:
                 if "Wood_Door_Surface" == slot.pointer_name:
-                    return True
+                    materials.append("wood")
                 elif "Door_Surface" == slot.pointer_name:
-                    return False
+                    pass
                 elif "Moderno_Door" == slot.pointer_name:
-                    return True
+                    materials.append("moderno")
+                elif "Glass" == slot.pointer_name:
+                    materials.append("glass")
+            return materials
 
-    def create_replaced_mesh(self, obj, styled=False):
+    def create_replaced_mesh(self, obj, materials=[]):
+        is_styled = len(materials) > 0
         thick = 2.25
         cover_dim_x, cover_dim_y, cover_dim_z, y_loc_offset = 0, 0, 0, 0
         skipped_name = f"skipped_{obj.name}"
         cover_mesh_name = f"skipped_{obj.name}_cover"
+        cover_mesh = None
         obj_assy = sn_types.Assembly(obj)
         obj_loc = obj.location
         dim_x = obj_assy.obj_x.location.x # actually Z
@@ -520,12 +526,22 @@ class VIEW_OT_generate_2d_views(Operator):
                                     (dim_x, dim_y, dim_z))
         utils.copy_world_loc(obj, skipped_mesh)
         utils.copy_world_rot(obj, skipped_mesh)
-        if styled:
+        if is_styled:
             cover_dims = (cover_dim_x, cover_dim_y, cover_dim_z)
             cover_location = (unit.inch(thick), y_loc_offset, abs(dim_z))
             cover_mesh = utils.create_cube_mesh(cover_mesh_name, cover_dims)
             utils.copy_world_loc(obj, cover_mesh, cover_location)
             utils.copy_world_rot(obj, cover_mesh)
+        if is_styled and "glass" in materials and cover_mesh:
+            glass_x, glass_y, glass_z = cover_mesh.dimensions
+            if dim_y < 0:
+                glass_y = glass_y * -1
+            glass_label = sn_types.Dimension()
+            utils.copy_world_loc(
+                cover_mesh, glass_label.anchor, (glass_x/2, glass_y/2, 0))
+            utils.copy_world_rot(cover_mesh, glass_label.anchor)
+            glass_label.set_label("Glass")
+            glass_label.anchor.rotation_euler[1] += math.radians(45)
 
     def group_children(self, grp, obj):
         not_cage = not bool(obj.get('IS_CAGE'))
@@ -549,8 +565,8 @@ class VIEW_OT_generate_2d_views(Operator):
                             cc.hide_render = False
                             grp.objects.link(cc)
                 elif skippable:
-                    has_style = self.door_has_style(child)
-                    self.create_replaced_mesh(child, has_style)
+                    style_materials = self.door_style_materials(child)
+                    self.create_replaced_mesh(child, style_materials)
                     continue
                 else:
                     self.group_children(grp, child)
@@ -600,8 +616,8 @@ class VIEW_OT_generate_2d_views(Operator):
         not_acc_cross_sec =  'left' not in grp.name and 'right' not in grp.name
         skippable = (is_door or is_hamper_door or is_drawer_door) and not_acc_cross_sec and shown
         if skippable:
-            has_style = self.door_has_style(obj)
-            self.create_replaced_mesh(obj, has_style)
+            style_materials = self.door_style_materials(obj)
+            self.create_replaced_mesh(obj, style_materials)
         if obj not in ignore and not_empty_group and obj not in group_list and not skippable:
             grp.objects.link(obj)
         if hasattr(obj, 'children'):
@@ -625,8 +641,8 @@ class VIEW_OT_generate_2d_views(Operator):
                     if c.type == 'MESH' and not c.hide_viewport])
         skippable = (is_door or is_hamper_door or is_drawer_door) and shown
         if skippable:
-            has_style = self.door_has_style(obj)
-            self.create_replaced_mesh(obj, has_style)
+            style_materials = self.door_style_materials(obj)
+            self.create_replaced_mesh(obj, style_materials)
         if obj not in ignore and not_empty_group and obj not in group_list and not skippable:
             grp.objects.link(obj)
         if hasattr(obj, 'children'):
@@ -869,37 +885,38 @@ class VIEW_OT_generate_2d_views(Operator):
         # Rotation mode for anchor needs to be changed to allow
         # Y-axis rotation in Plan View
         text.anchor.rotation_mode = 'YZX'
+        delta_y = self.get_tag_delta_y(wall_assembly, opening, loc_y)
         text.set_label(label)
-        delta_y = self.get_tag_delta_y(wall_assembly, opening)
-        utils.copy_world_loc(parent, text.anchor, (loc_x, loc_y - delta_y, loc_z))
+        utils.copy_world_loc(parent, text.anchor, (loc_x, delta_y, loc_z))
         utils.copy_world_rot(parent, text.anchor, text_rotation)
         return text.anchor
 
-    def get_tag_delta_y(self, wall_assembly, opening):
+    def get_tag_delta_y(self, wall_assembly, opening, loc_y):
         has_upper_above = False
         closet = opening.parent
         closet_assembly = sn_types.Assembly(obj_bp=closet)
         is_floor_mounted = self.is_closet_floor_mounted(closet)
         opng_data = self.query_openings_data(wall_assembly.obj_bp)
+        has_occlusion_opng = self.has_occluding_opening(opening, opng_data)
 
-        if is_floor_mounted:
-            product_above = self.has_occluding_opening(opening, opng_data)
-            if product_above:
-                has_upper_above = True
-
-        if not has_upper_above:
-            return 0
-
-        uppers_depth = self.get_uppers_depth(wall_assembly)
-        lowers_depth = self.get_lowers_depth(wall_assembly)
-        if uppers_depth == lowers_depth:
-            return lowers_depth
-        if uppers_depth < lowers_depth:
-            diff_a = lowers_depth - uppers_depth
-            diff_b = lowers_depth - diff_a
-            offset = diff_a + (diff_b / 2)
-            return lowers_depth - offset
-        return 0
+        if not has_occlusion_opng:
+            return loc_y
+        elif has_occlusion_opng:
+            uppers_depth = self.get_uppers_depth(wall_assembly)
+            lowers_depth = self.get_lowers_depth(wall_assembly)
+            if uppers_depth and lowers_depth:
+                if uppers_depth == lowers_depth and is_floor_mounted:
+                    delta = loc_y - (lowers_depth / 4)
+                    return delta
+                if uppers_depth == lowers_depth and not is_floor_mounted:
+                    delta = loc_y - (-lowers_depth / 4) 
+                    return delta
+                if uppers_depth < lowers_depth and is_floor_mounted:
+                    return (lowers_depth - uppers_depth) / 2
+                if uppers_depth < lowers_depth and not is_floor_mounted:
+                    return loc_y
+            return loc_y
+        return loc_y
 
     def get_uppers_depth(self, wall_assembly):
         wall_children = wall_assembly.obj_bp.children
@@ -908,8 +925,7 @@ class VIEW_OT_generate_2d_views(Operator):
                 is_wall_mounted = not self.is_closet_floor_mounted(child)
                 if is_wall_mounted:
                     closet = child
-                    break
-        return self.get_closet_depth(closet)
+                    return self.get_closet_depth(closet)
 
     def get_lowers_depth(self, wall_assembly):
         wall_children = wall_assembly.obj_bp.children
@@ -918,8 +934,7 @@ class VIEW_OT_generate_2d_views(Operator):
                 is_floor_mounted = self.is_closet_floor_mounted(child)
                 if is_floor_mounted:
                     closet = child
-                    break
-        return self.get_closet_depth(closet)
+                    return self.get_closet_depth(closet)
 
     def get_closet_depth(self, closet):
         closet_assembly = sn_types.Assembly(obj_bp=closet)
@@ -1040,6 +1055,16 @@ class VIEW_OT_generate_2d_views(Operator):
                      'Remove Bottom Shelf').get_value()
         return hasnt_bottom_shelf
 
+    def check_for_drawer_children_in_shelves(self, assembly):
+        name = assembly.name.lower()
+        drw_qty = 0
+        is_shelf = 'shelf' in name
+        not_sss = 'shoe' not in name and 'slanted' not in name
+        if is_shelf and not_sss:
+            drw_qty = len([c for c in assembly.children\
+                 if 'drawer' in c.name.lower()])
+        return drw_qty
+
     def get_assembly_tag(self, assemblies, opening):
         opening_assembly = sn_types.Assembly(opening)
         opening_assembly_height = opening_assembly.obj_z.location.z
@@ -1049,12 +1074,15 @@ class VIEW_OT_generate_2d_views(Operator):
         for assembly in assemblies:
             shelves_dict = {}
             name = assembly.name.lower()
+            dad_name = assembly.parent.name.lower()
             gloc_height = assembly.matrix_world.translation.z
             gloc_inches = self.to_inch(abs(gloc_height))
             # Hangs
             sss_name_one = 'shoe shelf stack' in name
             sss_name_two = 'slanted shoe shelves' in name
             sss_name_three = 'slanted shoe shelf' in name
+            not_sss = 'shoe' not in name and 'slanted' not in name
+            drw_ch_qty = self.check_for_drawer_children_in_shelves(assembly)
             if 'vertical' in name and 'splitters' in name:
                 shelf_count += self.shelf_count_vertical_splitters(assembly)
             if 'hang' in name and 'hanging rod' not in name:
@@ -1083,14 +1111,15 @@ class VIEW_OT_generate_2d_views(Operator):
                 qty = self.get_glass_shelves_count(assembly)
                 tag = qty + ' Glass Shlvs'
                 tags.append((tag, gloc_inches))
-            elif 'shelf' in name and 'shoe' not in name and 'slanted' not in name:
-                qty = self.get_shelf_stack_count(assembly)
-                rmvd_bottom_shelf = sn_types.Assembly(assembly).get_prompt(
-                    'Remove Bottom Shelf').get_value()
-                if rmvd_bottom_shelf:
-                    shelf_count += (qty - 1)
-                elif not rmvd_bottom_shelf:
-                    shelf_count += qty
+            elif 'shelf' in name and not_sss and drw_ch_qty == 0:
+                if not assembly.get("IS_BP_CLOSET_TOP"):
+                    qty = self.get_shelf_stack_count(assembly)
+                    rmvd_bottom_shelf = sn_types.Assembly(assembly).get_prompt('Remove Bottom Shelf')
+                    if rmvd_bottom_shelf:
+                        if rmvd_bottom_shelf.get_value():
+                            shelf_count += (qty - 1)
+                        elif not rmvd_bottom_shelf.get_value():
+                            shelf_count += qty
             elif sss_name_one or sss_name_two or sss_name_three:
                 qty = self.get_sss_count(assembly)
                 tag = qty + ' SSS'
@@ -1127,7 +1156,7 @@ class VIEW_OT_generate_2d_views(Operator):
                     tag = ('2 Doors', gloc_inches)
                 tags.append(tag)
             # Drawers
-            elif 'drawer' in name:
+            elif 'drawer' in name and 'shelf' not in dad_name and drw_ch_qty == 0:
                 hasnt_bottom_shf = self.check_sibling_shelf_stack_bottom_shelf(
                     assembly, assemblies)
                 top_kd = sn_types.Assembly(assembly).get_prompt(
@@ -1137,6 +1166,9 @@ class VIEW_OT_generate_2d_views(Operator):
                         shelf_count += 1
                 qty = self.get_drawer_count(assembly)
                 tag = qty + ' Drws.'
+                tags.append((tag, gloc_inches))
+            elif drw_ch_qty > 0:
+                tag = str(drw_ch_qty) + ' Drws.'
                 tags.append((tag, gloc_inches))
 
         tags.sort(key=lambda x: x[1], reverse=True)
@@ -1215,7 +1247,7 @@ class VIEW_OT_generate_2d_views(Operator):
         for item, value in enumerate(partition_keys):
             if left_offset <= value <= right_offset:
                 next_ptt = None
-                if opening_at == 'MIN':
+                if opening_at == 'MIN' and len(partitions) > item + 1:
                     next_ptt = partitions.get(partition_keys[item + 1])
                 elif opening_at == 'MAX':
                     next_ptt = partitions.get(partition_keys[item])
@@ -1396,7 +1428,8 @@ class VIEW_OT_generate_2d_views(Operator):
                 label = f'Corner|Shelves|{shelf_qty} Shlvs.'
         loc_x = assy.obj_x.location.x / 2
         loc_y = assy.obj_y.location.y / 2
-        label_offset = (abs(loc_y / 3) * 2) - unit.inch(1)
+        loc_offset = min([abs(loc_x), abs(loc_y)])
+        label_offset = ((loc_offset / 3) * 2) - unit.inch(1)
         parent_height = item.parent.location.z
         loc_z = -parent_height
         wall_rotation = round(math.degrees(item.parent.rotation_euler[2]))
@@ -5008,6 +5041,11 @@ class VIEW_OT_render_2d_views(Operator):
         return None
 
     def execute(self, context):
+        add_on_save_switched_on = []
+        for scene in bpy.data.scenes:
+            if scene.snap_closet_dimensions.auto_add_on_save:
+                add_on_save_switched_on.append(scene) 
+                scene.snap_closet_dimensions.auto_add_on_save = False
         self.create_pdf_xml(context)
         # file_path = bpy.app.tempdir if bpy.data.filepath == "" else os.path.dirname(
         #     bpy.data.filepath)
@@ -5051,6 +5089,8 @@ class VIEW_OT_render_2d_views(Operator):
                         'scene' :current_scene,
                         }
             bpy.ops.view3d.dolly(override, mx=1, my=1, delta=0, use_cursor_init=False)
+        for scene in add_on_save_switched_on:
+            scene.snap_closet_dimensions.auto_add_on_save = True
         return {'FINISHED'}
 
 class VIEW_OT_accordion_interface(Operator):

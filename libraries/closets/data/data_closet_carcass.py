@@ -812,7 +812,20 @@ class Closet_Carcass(sn_types.Assembly):
         #     dim.start_x('X_Loc+Left_Side_Wall_Filler',[X_Loc,Left_Side_Wall_Filler])
         # dim.end_x('Width',[Width])
         # dim.set_color('IF(Width>INCH(42),3,0)',[Width])
-    
+
+    def add_to_wall_collection(self, obj_bp):
+        wall_bp = sn_utils.get_wall_bp(self.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(obj_bp, wall_coll, recursive=True)
+            sn_utils.remove_assembly_from_collection(obj_bp, scene_coll, recursive=True)
+
+    def update_collections(self):
+        for opening in self.backing_parts.values():
+            for part in opening:
+                self.add_to_wall_collection(part.obj_bp)
+
     def add_backing_cleat(self, i, panel, top_cleat=True, cover_cleat=False):
         Hanging_Height = self.obj_z.snap.get_var('location.z', 'Hanging_Height')
         Height = self.get_prompt('Opening ' + str(i) + ' Height').get_var('Height')
@@ -1171,6 +1184,7 @@ class Closet_Carcass(sn_types.Assembly):
         Add_Hanging_Rail = self.get_prompt('Add Hanging Rail').get_var('Add_Hanging_Rail')
         self.update_cleats(i, [B_Cleat, Add_Hanging_Rail, TBT, BIB, BIG, BBT, CBT, B_Sections, TOP, CTR, BTM, IS_SB])
         self.update_backing_sections(i, backing)
+        self.update_collections()
 
     def add_hutch_backing(self):
         Add_Hutch_Backing = self.get_prompt("Add Hutch Backing").get_var()

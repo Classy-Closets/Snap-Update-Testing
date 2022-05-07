@@ -170,6 +170,7 @@ class PlaceClosetAsset():
     def create_drawing_plane(self, context):
         bpy.ops.mesh.primitive_plane_add()
         plane = context.active_object
+        plane['IS_DRAWING_PLANE'] = True
         plane.location = (0, 0, 0)
         self.drawing_plane = context.active_object
         self.drawing_plane.display_type = 'WIRE'
@@ -562,10 +563,12 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
 
         elif wall_bp:
             self.placement = 'WALL'
-            self.current_wall = sn_types.Assembly(wall_bp)
+            self.current_wall = sn_types.Wall(wall_bp)
             self.asset.obj_bp.rotation_euler = self.current_wall.obj_bp.rotation_euler
             self.asset.obj_bp.location.x = self.selected_point[0]
             self.asset.obj_bp.location.y = self.selected_point[1]
+            wall_mesh = self.current_wall.get_wall_mesh()
+            wall_mesh.select_set(True)
 
         else:
             self.asset.obj_bp.location.x = self.selected_point[0]
@@ -623,6 +626,20 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
         context.area.tag_redraw()
         return {'RUNNING_MODAL'}
 
+    def validate_placement(self, context):
+        valid_placement = True
+        floor = self.selected_obj.sn_roombuilder.is_floor
+        drawing_plane = 'IS_DRAWING_PLANE' in self.selected_obj
+
+        # Only validate if room has been created and file has been saved, allow free placement if no existing room
+        if bpy.data.is_saved:
+            # Check if current asset is a hang section
+            if self.asset.obj_bp['product_type'] == "Closet":
+                if floor or drawing_plane:
+                    valid_placement = False
+
+        return valid_placement
+
     def modal(self, context, event):
         self.run_asset_calculators()
         bpy.ops.object.select_all(action='DESELECT')
@@ -638,8 +655,9 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
         self.position_asset(context)
 
         if self.event_is_place_first_point(event):
-            self.confirm_placement(context)
-            return self.finish(context)
+            if self.validate_placement(context):
+                self.confirm_placement(context)
+                return self.finish(context)
 
         if self.event_is_cancel_command(event):
             return self.cancel_drop(context)

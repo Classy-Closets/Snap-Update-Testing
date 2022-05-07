@@ -197,6 +197,8 @@ class Doors(sn_types.Assembly):
         Thickness = self.get_prompt("Shelf Thickness").get_var('Thickness')
         Shelf_Backing_Setback = self.get_prompt("Shelf Backing Setback").get_var('Shelf_Backing_Setback')
         Individual_Shelf_Setbacks = self.get_prompt("Individual Shelf Setbacks").get_var()
+        Door_Type = self.get_prompt("Door Type").get_var()
+        Insert_Height = self.get_prompt("Insert Height").get_var()
 
         # Glass shelves
         Glass_Shelves = self.get_prompt("Glass Shelves").get_var('Glass_Shelves')
@@ -247,7 +249,9 @@ class Doors(sn_types.Assembly):
                         'Previous_Z_Loc-opening_{}_height-Thickness'.format(str(i)),
                         [Previous_Z_Loc, opening_height, Thickness])
             else:
-                shelf.loc_z('Height-opening_{}_height'.format(str(i)), [Height, opening_height])
+                shelf.loc_z(
+                    'IF(Door_Type==2,Height-opening_{}_height,Insert_Height-opening_{}_height)'.format(str(i), str(i)),
+                    [Height, opening_height, Door_Type, Insert_Height])
 
             shelf.dim_x(
                 'Width-IF(Is_Locked_Shelf,0,Adj_Shelf_Clip_Gap*2)',
@@ -500,6 +504,13 @@ class Doors(sn_types.Assembly):
 
         # LOCK
         door_lock = common_parts.add_lock(self)
+        wall_bp = sn_utils.get_wall_bp(door_lock.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(door_lock, wall_coll)
+            sn_utils.remove_assembly_from_collection(door_lock, scene_coll)      
+
         door_lock.loc_x('IF(OR(double_door,Width>DDAS),Width/2+ddl_offset,IF(left_swing,Width+IF(Lock_to_Panel,dt,-dt),IF(Lock_to_Panel,-dt,dt)))',
                         [Lock_to_Panel,left_swing,Width,double_door,dt,DDAS,ddl_offset])
         door_lock.loc_y('IF(OR(double_door,Width>DDAS),-Front_Thickness-Door_Gap,IF(Lock_to_Panel,Front_Thickness,-Front_Thickness-Door_Gap))',

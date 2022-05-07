@@ -110,8 +110,8 @@ class L_Shelves(sn_types.Assembly):
                 shelf.loc_z('Previous_Z_Loc-opening_{}_height-PT'.format(str(i)), [Previous_Z_Loc, opening_height, PT])
             else:
                 shelf.loc_z(
-                    'Panel_Height-PT*2-opening_{}_height+IF(Is_Hanging,0,Toe_Kick_Height)'.format(str(i)),
-                    [Panel_Height, opening_height, PT, Is_Hanging, Toe_Kick_Height])
+                    'Height-PT*2-opening_{}_height+IF(Is_Hanging,0,Toe_Kick_Height)'.format(str(i)),
+                    [Height, opening_height, PT, Is_Hanging, Toe_Kick_Height])
 
             shelf.dim_x('Width-IF(RRS,0,PT)-IF(Add_Backing,Backing_Thickness,0)', [Width, RRS, PT, Add_Backing, Backing_Thickness])
             shelf.dim_y('Depth+IF(RLS,0,PT)+IF(Add_Backing,Backing_Thickness,0)', [Depth, RLS, PT, Add_Backing, Backing_Thickness])
@@ -904,8 +904,8 @@ class Corner_Shelves(sn_types.Assembly):
                 shelf.loc_z('Previous_Z_Loc-opening_{}_height-PT'.format(str(i)), [Previous_Z_Loc, opening_height, PT])
             else:
                 shelf.loc_z(
-                    'Panel_Height-PT*2-opening_{}_height+IF(Is_Hanging,0,Toe_Kick_Height)'.format(str(i)),
-                    [Panel_Height, opening_height, PT, Is_Hanging, Toe_Kick_Height])
+                    'Height-PT*2-opening_{}_height+IF(Is_Hanging,0,Toe_Kick_Height)'.format(str(i)),
+                    [Height, opening_height, PT, Is_Hanging, Toe_Kick_Height])
 
             shelf.dim_x('Width-IF(RRS,0,PT)-IF(Add_Backing,Backing_Thickness,0)', [Width, RRS, PT, Add_Backing, Backing_Thickness])
             shelf.dim_y('Depth+IF(RLS,0,PT)+IF(Add_Backing,Backing_Thickness,0)', [Depth, RLS, PT, Add_Backing, Backing_Thickness])
