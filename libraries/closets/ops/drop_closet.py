@@ -630,11 +630,16 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
         valid_placement = True
         floor = self.selected_obj.sn_roombuilder.is_floor
         drawing_plane = 'IS_DRAWING_PLANE' in self.selected_obj
+        closet = None
+        island = sn_utils.get_island_bp(self.asset.obj_bp)
+
+        if hasattr(self.asset.obj_bp, 'product_type'):
+            closet = self.asset.obj_bp['product_type'] == "Closet"
 
         # Only validate if room has been created and file has been saved, allow free placement if no existing room
         if bpy.data.is_saved:
             # Check if current asset is a hang section
-            if self.asset.obj_bp['product_type'] == "Closet":
+            if closet and not island:
                 if floor or drawing_plane:
                     valid_placement = False
 

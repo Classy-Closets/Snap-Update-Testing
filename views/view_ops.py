@@ -1112,13 +1112,25 @@ class VIEW_OT_generate_2d_views(Operator):
                 tag = qty + ' Glass Shlvs'
                 tags.append((tag, gloc_inches))
             elif 'shelf' in name and not_sss and drw_ch_qty == 0:
-                if not assembly.get("IS_BP_CLOSET_TOP"):
+                if not assembly.get("IS_BP_CLOSET_TOP"): 
+                    opng_number = str(opening.sn_closets.opening_name)
+                    parent_assy = sn_types.Assembly(assembly.parent) 
+                    floor = parent_assy.get_prompt("Opening " + opng_number + " Floor Mounted")
+                    is_floor_mounted = False
+
+                    if floor:
+                        is_floor_mounted = floor.get_value()
+
                     qty = self.get_shelf_stack_count(assembly)
-                    rmvd_bottom_shelf = sn_types.Assembly(assembly).get_prompt('Remove Bottom Shelf')
+                    rmvd_bottom_shelf = sn_types.Assembly(
+                        assembly).get_prompt('Remove Bottom Shelf')
                     if rmvd_bottom_shelf:
-                        if rmvd_bottom_shelf.get_value():
+                        is_rmvd = rmvd_bottom_shelf.get_value()
+                        if is_rmvd and not is_floor_mounted:
                             shelf_count += (qty - 1)
-                        elif not rmvd_bottom_shelf.get_value():
+                        elif is_rmvd and is_floor_mounted:
+                            shelf_count += qty 
+                        elif not is_rmvd:
                             shelf_count += qty
             elif sss_name_one or sss_name_two or sss_name_three:
                 qty = self.get_sss_count(assembly)

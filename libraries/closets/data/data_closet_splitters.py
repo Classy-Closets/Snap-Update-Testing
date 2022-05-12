@@ -395,6 +395,8 @@ class Shoe_Shelf_Stack(Shelf_Stack):
             elif lip_type_ppt.get_value() == 3:
                 self.add_fence(shelf, lip_ppt_vars)
 
+        self.update_collections()
+
     def add_shoe_shelves(self, amt=4):
         self.shoe_shelves = []
         previous_shelf = None
