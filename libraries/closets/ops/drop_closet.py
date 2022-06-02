@@ -633,7 +633,7 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
         closet = None
         island = sn_utils.get_island_bp(self.asset.obj_bp)
 
-        if hasattr(self.asset.obj_bp, 'product_type'):
+        if self.asset.obj_bp.get("product_type"):
             closet = self.asset.obj_bp['product_type'] == "Closet"
 
         # Only validate if room has been created and file has been saved, allow free placement if no existing room

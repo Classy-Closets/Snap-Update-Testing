@@ -6,6 +6,7 @@ from snap.views import opengl_dim
 from snap.views.view_ops import hide_dim_handles
 from snap import sn_types, sn_unit, sn_utils
 from snap.libraries.closets.data import data_drawers
+from snap.libraries.closets.data import data_closet_carcass
 from bpy.app.handlers import persistent
 from bpy.utils import register_class, unregister_class
 from . import closet_props as props_closet
@@ -573,10 +574,16 @@ class SNAP_OT_Auto_Dimension(Operator):
                 assy_width = assy.obj_x.location.x
                 indv_shelf_setbacks = assy.get_prompt("Individual Shelf Setbacks")
                 adj_shelf_setback = assy.get_prompt("Adj Shelf Setback")
+                setback = 0
 
                 for i, shelf in enumerate(assy.splitters):
-                    setback = assy.get_prompt(f'Shelf {i+1} Setback').get_value()
+                    setback_ppt = assy.get_prompt(f'Shelf {i+1} Setback')
+
+                    if setback_ppt:
+                        setback = setback_ppt.get_value()
+
                     is_locked_shelf = shelf.get_prompt("Is Locked Shelf").get_value()
+
                     if indv_shelf_setbacks and adj_shelf_setback:
                         if not indv_shelf_setbacks.get_value():
                             setback = adj_shelf_setback.get_value()
@@ -1238,7 +1245,15 @@ class SNAP_OT_Auto_Dimension(Operator):
             return False
     
     def opening_absolute_start_end(self, opening):
-        opng_width = to_inch(sn_types.Assembly(opening).obj_x.location.x)
+        opening_number = opening.sn_closets.opening_name
+        bp = sn_utils.get_closet_bp(opening)
+        closet = data_closet_carcass.Closet_Carcass(bp)
+        calculator = closet.get_calculator('Opening Widths Calculator')
+        width_calc = eval(
+            "calculator.get_calculator_prompt('Opening {} Width')".format(
+                str(opening_number)))
+        width = width_calc.get_value()
+        opng_width = to_inch(width)
         opng_start = to_inch(opening.location[0])
         section_start = to_inch(opening.parent.location[0])
         actual_start = opng_start + section_start
@@ -1587,7 +1602,12 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim_exists = any([dim_name in c.name for c in wall_bp.children])
 
         if not dim_exists:
-            assy_height = assembly.obj_z.location.z
+            assy_height = 0
+            if assy_bp.get('IS_BP_TOE_KICK_INSERT'):
+                tk_height_pmpt = assembly.get_prompt("Toe Kick Height")
+                assy_height = tk_height_pmpt.get_value()
+            elif assy_bp.get('IS_BP_GARAGE_LEG'):
+                assy_height = assembly.obj_z.location.z
             label = self.to_inch_lbl(assy_height)
             dim = self.add_tagged_dimension(wall_bp)
             dim.anchor.name = dim_name

@@ -200,18 +200,21 @@ class Room(PropertyGroup, CollectionMixIn):
             wm.current_file_project = project.name
             wm.current_file_room = self.name
 
-            # write info to project file
-            tree = ET.parse(project.file_path)
-            root = tree.getroot()
+            self.update_project_xml(project)
 
-            for elm in root.findall("Rooms"):
-                # we want to save using relative path
-                rel_loc = os.path.join(*self.file_path.split(os.sep)[-2:])
-                elm_room = ET.Element("Room", {'name': self.name, 'path': rel_loc})
-                elm_room.text = self.name
-                elm.append(elm_room)
+    def update_project_xml(self, project):
+        # write info to project file
+        tree = ET.parse(project.file_path)
+        root = tree.getroot()
 
-            tree.write(project.file_path)
+        for elm in root.findall("Rooms"):
+            # we want to save using relative path
+            rel_loc = os.path.join(*self.file_path.split(os.sep)[-2:])
+            elm_room = ET.Element("Room", {'name': self.name, 'path': rel_loc})
+            elm_room.text = self.name
+            elm.append(elm_room)
+
+        tree.write(project.file_path)
 
     def set_filename(self):
         self.file_name = self.get_clean_name(self.name)
@@ -415,7 +418,7 @@ class Project(PropertyGroup, CollectionMixIn):
         active_room_path = self.rooms[self.room_index].file_path
         col = layout.column(align=True)
         col.template_list("SNAP_UL_Rooms", "", self, "rooms", self, "room_index", maxrows=5)
-        row = col.split(factor=0.5)
+        row = col.row(align=True)
         row.operator(
             "project_manager.open_room",
             text="Open Room",
@@ -426,6 +429,8 @@ class Project(PropertyGroup, CollectionMixIn):
             text="Copy Room",
             icon='PACKAGE').file_path = active_room_path
 
+        row.menu('SNAP_MT_Room_Tools', text="", icon='DOWNARROW_HLT')
+
     def draw_render_info(self, layout):
         box = layout.box()
         box.label(text="RENDERS HERE")
@@ -434,15 +439,20 @@ class Project(PropertyGroup, CollectionMixIn):
         if len(self.rooms) > 0:
             self.draw_room_info(layout)
         else:
-            layout.label(text="No rooms", icon='ERROR')
+            box = layout.box()
+            box.label(text="No rooms", icon='ERROR')
+            row = layout.row()
+            row.operator("project_manager.import_room", text="Import Room", icon='IMPORT')
 
-    def add_room(self, name, category, project_index=None):
+    def add_room(self, name, project_index=None):
         room = self.rooms.add()
         room.init(name, project_index=project_index)
+        return room
 
     def add_room_from_file(self, name, path, project_index=None):
         room = self.rooms.add()
         room.init(name, path, project_index=project_index)
+        return room
 
 
 class WM_PROPERTIES_Projects(PropertyGroup):

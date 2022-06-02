@@ -3,6 +3,7 @@ import re
 import bpy
 import xml.etree.ElementTree as ET
 from snap import sn_types, sn_utils, sn_unit
+from snap.project_manager import pm_utils
 from collections import Counter
 
 class Query_PDF_Form_Data:
@@ -22,9 +23,17 @@ class Query_PDF_Form_Data:
         self.trim_color = self.__write_trim_color()
         self.pulls = self.__get_pulls(page_walls_dict)
         self.hampers = self.__get_hampers(page_walls_dict)
+        self.room_name = self.__get_room_name(context)
         self.__dict_from_pages(page_walls_dict)
         self.__fill_pulls()
         self.__fill_garage_legs()
+
+
+    def __get_room_name(self, context):
+        pm_props = context.window_manager.sn_project
+        room_name = pm_props.current_file_room
+        clean_room_name = pm_utils.clean_name(room_name)
+        return clean_room_name
 
     def __get_garage_leg_qty(self, garage_leg):
         qty = 0
@@ -1055,4 +1064,5 @@ class Query_PDF_Form_Data:
         self.data_dict[page]["designer"] = self.job_info.get("designer", '')
         self.data_dict[page]["proj_notes"] = self.job_info.get("proj_notes", '')
         self.data_dict[page]["design_date"] = self.job_info.get("design_date", '')
+        self.data_dict[page]["room_name"] = self.room_name
             

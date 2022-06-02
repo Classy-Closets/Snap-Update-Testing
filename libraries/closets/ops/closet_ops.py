@@ -550,6 +550,14 @@ class SNAP_OT_copy_insert(Operator):
         assembly.obj_y.driver_remove('location', 1)
         assembly.obj_z.driver_remove('location', 2)
 
+    def mute_hide_drivers(self, obj, mute=True):
+        if obj.type == 'MESH':
+            if obj.animation_data:
+                driver = obj.animation_data.drivers.find("hide_viewport")
+
+                if driver:
+                    driver.mute = mute
+
     def execute(self, context):
         obj_bp = sn_utils.get_bp(context.object, 'INSERT')
         opening = obj_bp.sn_closets.opening_name
@@ -577,22 +585,34 @@ class SNAP_OT_copy_insert(Operator):
                 if obj.type == 'EMPTY':
                     obj.hide_select = False
                     obj.hide_viewport = False
+
+                self.mute_hide_drivers(obj)
                 obj.hide_set(False)
+                obj.hide_viewport = False
                 obj.select_set(True)
 
             bpy.ops.object.duplicate()
 
-            for obj in context.selected_objects:
+            obj_bp = sn_utils.get_bp(context.object, 'INSERT')
+            insert_children = sn_utils.get_child_objects(obj_bp, obj_list)
+
+            for obj in insert_children:
                 if obj.type == 'EMPTY':
                     obj.hide_set(True)
                     obj.hide_select = True
                     obj.hide_viewport = True
 
+                self.mute_hide_drivers(obj, mute=False)
+
             for obj in obj_list:
                 if obj.type == 'EMPTY':
                     obj.hide_set(True)
+                    obj.hide_select = True
+                    obj.hide_viewport = True
                 if obj.get('IS_BP_ASSEMBLY'):
                     obj.hide_set(True)
+                    obj.hide_select = True
+                    obj.hide_viewport = True
                 obj.location = obj.location
 
             bpy.ops.object.select_all(action='DESELECT')
@@ -1061,6 +1081,12 @@ class SNAP_OT_update_door_selection(Operator):
             if obj.parent:
                 return self.get_door_assembly(obj.parent)
 
+    def get_door_match(self, context, obj_bp):
+        insert_bp = sn_utils.get_bp(obj_bp, 'INSERT')
+        for child in insert_bp.children:
+            if child.get("IS_DOOR") and child != obj_bp:
+                return child
+
     def execute(self, context):
         door_bps = []
         props = bpy.context.scene.sn_closets.closet_options
@@ -1077,6 +1103,8 @@ class SNAP_OT_update_door_selection(Operator):
             door_bp = self.get_door_assembly(obj)
             if door_bp and door_bp not in door_bps:
                 door_bps.append(door_bp)
+                door_match_bp = self.get_door_match(context, door_bp)
+                door_bps.append(door_match_bp)
 
         for obj_bp in door_bps:
             door_assembly = sn_types.Assembly(obj_bp)
@@ -1138,10 +1166,12 @@ class SNAP_OT_update_door_selection(Operator):
             new_door.obj_bp["ID_PROMPT"] = id_prompt
 
             wall_bp = sn_utils.get_wall_bp(door_assembly.obj_bp)
-            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
-            scene_coll = context.scene.collection
-            sn_utils.add_assembly_to_collection(new_door.obj_bp, wall_coll)
-            sn_utils.remove_assembly_from_collection(new_door.obj_bp, scene_coll)
+
+            if wall_bp:
+                wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+                scene_coll = context.scene.collection
+                sn_utils.add_assembly_to_collection(new_door.obj_bp, wall_coll)
+                sn_utils.remove_assembly_from_collection(new_door.obj_bp, scene_coll)
 
             if obj_props.is_door_bp:
                 new_door.obj_bp['IS_DOOR'] = True

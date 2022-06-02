@@ -94,13 +94,20 @@ class New_Template_Builder(Pdf_Builder):
         Args:
             form_info (dict): A dictionary with labels, values and positions.
         """
+        bigger_fonts = ['customer_name', 'cphone', 'design_date', 'designer']
+        bigger_fonts += ['signature', 'install_date', 'job_number', 'sheet', 'room_name']
         self.c.setFont("Calibri", 8)
         form = self.c.acroForm
         for idx, field in enumerate(form_info):
             varname = field["varname"]
+            is_big = varname in bigger_fonts
             lbl, val = field["label"], field["value"]
             pos = field["position"][self.print_paper_size]
-            if lbl != "":
+            if lbl != "" and not is_big:
+                self.c.setFont("Calibri", 8)
+                self.c.drawString(pos[0], pos[1], f'{lbl} ')
+            elif lbl != "" and is_big:
+                self.c.setFont("Calibri-Bold", 9)
                 self.c.drawString(pos[0], pos[1], f'{lbl} ')
             form = self.c.acroForm
             if "line" in field.keys():
@@ -113,10 +120,15 @@ class New_Template_Builder(Pdf_Builder):
                 position = field["checkbox"]["position"][self.print_paper_size]
                 self._draw_check_box(position, val)
                 continue
-            if field.get("line"):
+            if field.get("line") and not is_big:
                 form.textfield(
                     x=posx, y=posy, width=length, height=10,
                     fontSize=6, fillColor=white, borderStyle='underlined',
+                    value=val)
+            if field.get("line") and is_big:
+                form.textfield(
+                    x=posx, y=posy, width=length, height=14,
+                    fontSize=9, fillColor=white, borderStyle='underlined',
                     value=val)
 
     def _draw_sections(self) -> None:

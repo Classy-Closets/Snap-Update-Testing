@@ -4973,7 +4973,8 @@ class OPS_Export_XML(Operator):
                 ('projectnotes', proj_notes),
                 ('designer', designer),
                 ('totalroomcount', total_room_count),
-                ('designdate', design_date)
+                ('designdate', design_date),
+                ('installdate', "")
         ]
 
         for f in info:

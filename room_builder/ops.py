@@ -146,7 +146,7 @@ class ROOM_BUILDER_OT_Collect_Walls(Operator):
                 ceiling.bp_name = obj.name
 
         if self.add_to_project:
-            bpy.ops.project_manager.add_room(room_name=self.room_name, room_category=props.room_category)
+            bpy.ops.project_manager.add_room(room_name=self.room_name)
 
         sn_utils.update_accordions_prompt()
         sn_utils.fetch_mainscene_walls()
@@ -1545,7 +1545,7 @@ class ROOM_BUILDER_OT_Build_Room(Operator):
         bpy.ops.sn_roombuilder.collect_walls(add_to_project=False)
 
         if self.add_to_project:
-            bpy.ops.project_manager.add_room(room_name=self.room_name, room_category=self.props.room_category)
+            bpy.ops.project_manager.add_room(room_name=self.room_name)
             bpy.context.scene.sn_roombuilder.room_name = self.room_name
 
     def cancel(self, context):

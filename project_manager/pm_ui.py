@@ -42,6 +42,14 @@ class SNAP_MT_Project_Tools(Menu):
                         icon='FILE_FOLDER').filepath = pm_utils.get_archive_dir()
 
 
+class SNAP_MT_Room_Tools(Menu):
+    bl_label = "Room Tools"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("project_manager.import_room", text="Import Room", icon='IMPORT')
+
+
 class SNAP_PT_Project_Popup_Menu(Panel):
     bl_label = "Project Popup"
     bl_space_type = 'PROPERTIES'
@@ -172,6 +180,7 @@ classes = (
     SNAP_PT_Projects,
     SNAP_PT_Project_Tools,
     SNAP_PT_Project_Info,
+    SNAP_MT_Room_Tools,
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

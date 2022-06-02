@@ -23,6 +23,7 @@ from PIL import ImageChops
 from snap.views.pdf_builder.pdf_director import PDF_Director
 from snap.views.pdf_builder.query_form_data import Query_PDF_Form_Data
 from snap.project_manager import pm_utils
+from snap.libraries.closets.common import common_lists
 
 """
 Spread a nested list into a single list
@@ -973,8 +974,10 @@ class OPERATOR_create_pdf(bpy.types.Operator):
 
         if not os.path.exists(project_dir):
             print("Projects Directory does not exist")
+            return None
         if not os.path.exists(xml_file):
             print("The 'snap_job.xml' file is not found. Please select desired rooms and perform an export.")   
+            return None
         else:
             return xml_file
 
@@ -1036,10 +1039,22 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         # Perform PDF data loading from XML and CC_Items
         pdf_xml_file = self.get_project_xml()
         cc_csv_file = self.get_franchise_csv()
-        etl_object = SnapXML_ETL(pdf_xml_file, cc_csv_file)
-        # Get PDF forms data
-        query = Query_PDF_Form_Data(context, etl_object, pages_number_dict)
-        query_result = query.process()
+        query_result = None
+        if pdf_xml_file:
+            etl_object = SnapXML_ETL(pdf_xml_file, cc_csv_file)
+            # Get PDF forms data
+            query = Query_PDF_Form_Data(context, etl_object, pages_number_dict)
+            query_result = query.process()
+        elif not pdf_xml_file:
+            # NOTE In the case the XML doesn't get exported, it fills the PDF
+            #      with all fields in blank, so the user still see the 2D's
+            query_result = {}
+            blank_pages_numbers = list(pages_number_dict.keys())
+            empty_fields = common_lists.EMPTY_PDF_FIELDS
+            for blank_page in blank_pages_numbers:
+                query_result[blank_page] = {}
+                for field in empty_fields.keys():
+                    query_result[blank_page][field] = ""
         # Create pdf file
         # only implemented templates "new" and "old"
         director.make("NEW", query_result)
@@ -1047,7 +1062,6 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         self._fix_file_path()
         # #FIX FILE PATH To remove all double backslashes
         # fixed_file_path = os.path.normpath(file_path)
-
         # if os.path.exists(os.path.join(fixed_file_path,file_name)):
         #     os.system('start "Title" /D "' + fixed_file_path + '" "' + file_name + '"')
         # else:
@@ -1055,6 +1069,9 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         for file in os.listdir(bpy.app.tempdir):
             full_path = os.path.join(bpy.app.tempdir, file)
             os.remove(full_path)
+        if not pdf_xml_file:
+            message = f"SNaP couldn't autofill the PDF legends"
+            return bpy.ops.snap.message_box('INVOKE_DEFAULT', message=message)
 
         return {'FINISHED'}
 

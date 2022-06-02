@@ -7,6 +7,7 @@ from distutils.dir_util import copy_tree
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 import subprocess
+from bpy_extras.io_utils import ImportHelper
 from bpy.types import Operator
 from bpy.props import (StringProperty,
                        BoolProperty,
@@ -25,6 +26,7 @@ class SNAP_OT_Copy_Room(Operator):
     file_path: StringProperty(name="File Path", description="Room File Path", subtype="FILE_PATH")
     new_room_name: StringProperty(name="Room Name", description="Room Name", default="")
     src_room = None
+    new_room = None
 
     def register_room_in_xml(self):
         project_root, room_file = os.path.split(self.file_path)
@@ -43,8 +45,8 @@ class SNAP_OT_Copy_Room(Operator):
                 break
 
         new_attrib = deepcopy(room_node.attrib)
-        new_attrib['name'] = self.new_room_name
-        new_attrib['path'] = os.path.join(project_name, new_attrib['name'] + '.blend')
+        new_attrib['name'] = self.new_room.file_name
+        new_attrib['path'] = os.path.join(project_name, self.new_room.file_name + '.blend')
         new_element = ET.Element('Room', attrib=new_attrib)
         new_element.text = new_attrib['name']
         rooms_node.insert(index + 1, new_element)
@@ -69,21 +71,24 @@ class SNAP_OT_Copy_Room(Operator):
         col.prop(self, "new_room_name", text="")
 
     def execute(self, context):
+        props = context.window_manager.sn_project
+
         # only really necessary when the user copies the current room
         if len(bpy.data.filepath) > 0:
             bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
 
-        self.register_room_in_xml()
-
-        new_filepath = os.path.join(os.path.dirname(self.file_path), self.new_room_name) + ".blend"
-        copyfile(self.file_path, new_filepath)
-        props = context.window_manager.sn_project
+        clean_room_name = pm_props.CollectionMixIn().get_clean_name(self.new_room_name)
+        new_filepath = os.path.join(os.path.dirname(self.file_path), clean_room_name) + ".blend"
 
         if len(props.projects) > 0:
             project = props.projects[props.project_index]
-            project.add_room_from_file(self.new_room_name, new_filepath)
+            self.new_room = project.add_room_from_file(self.new_room_name, new_filepath)
             project.main_tabs = 'ROOMS'
-        bpy.ops.wm.open_mainfile(filepath=new_filepath)
+
+        new_path = os.path.join(os.path.dirname(self.new_room.file_path), self.new_room.file_name + ".blend")
+        copyfile(self.file_path, new_path)
+        self.register_room_in_xml()
+        bpy.ops.wm.open_mainfile(filepath=new_path)
         return {'FINISHED'}
 
 
@@ -367,7 +372,7 @@ class SNAP_OT_Add_Room(Operator):
         props = context.window_manager.sn_project
         if len(props.projects) > 0:
             project = props.projects[props.project_index]
-            project.add_room(self.room_name, self.room_category)
+            project.add_room(self.room_name)
             project.main_tabs = 'ROOMS'
 
         return {'FINISHED'}
@@ -463,6 +468,41 @@ class SNAP_OT_Delete_Room(Operator):
         if proj.name == props.current_file_project:
             if self.room_name == props.current_file_room:
                 bpy.ops.wm.read_homefile()
+
+        return {'FINISHED'}
+
+
+class SNAP_OT_Import_Room(Operator, ImportHelper):
+    """ This will import a room into the currently selected project.
+    """
+    bl_idname = "project_manager.import_room"
+    bl_label = "Import Room"
+    bl_description = "Imports a room into the currently selected project"
+
+    filename: StringProperty(name="Project File Name", description="Project file name to import")
+    filepath: StringProperty(name="Project Path", description="Project path to import", subtype="FILE_PATH")
+    directory: StringProperty(name="Project File Directory Name", description="Project file directory name")
+    # ImportHelper mixin class uses this
+    filename_ext = ".blend"
+    filter_glob: StringProperty(default="*.blend", options={'HIDDEN'}, maxlen=255)
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        wm = context.window_manager
+        proj_wm = wm.sn_project
+        self.project = proj_wm.projects[proj_wm.project_index]
+
+        if pathlib.Path(self.filename).suffix == ".blend":
+            room = self.project.add_room(self.filename.replace(".blend", ""))
+            new_filepath = os.path.join(self.project.dir_path, room.name + ".blend")
+            copyfile(self.filepath, new_filepath)
+
+        else:
+            message = "This is not a valid file!: {}".format(self.filename)
+            bpy.ops.snap.message_box('INVOKE_DEFAULT', message=message, icon='ERROR')
 
         return {'FINISHED'}
 
@@ -582,6 +622,7 @@ classes = (
     SNAP_OT_Add_Room,
     SNAP_OT_Open_Room,
     SNAP_OT_Delete_Room,
+    SNAP_OT_Import_Room,
     SNAP_OT_Select_All_Rooms,
     SNAP_OT_Prepare_Project_XML,
     SNAP_OT_Copy_Room,

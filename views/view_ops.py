@@ -26,6 +26,7 @@ from . import freestyle_exclusion_types as fet
 from . import view_icons
 from snap.libraries.closets import closet_props
 from snap.libraries.closets.data import data_drawers
+from snap.libraries.closets.data import data_closet_carcass
 import numpy as np
 import re
 import xml.etree.ElementTree as ET
@@ -826,12 +827,24 @@ class VIEW_OT_generate_2d_views(Operator):
         return wall_dict
 
     def opening_absolute_start_end(self, opening):
-        opng_width = to_inch(sn_types.Assembly(opening).obj_x.location.x)
+        width = self.get_opening_width(opening)
+        opng_width = to_inch(width)
         opng_start = to_inch(opening.location[0])
         section_start = to_inch(opening.parent.location[0])
         actual_start = opng_start + section_start
         opng_end = actual_start + opng_width
         return (actual_start, opng_end)
+
+    def get_opening_width(self, opening):
+        opening_number = opening.sn_closets.opening_name
+        bp = sn_utils.get_closet_bp(opening)
+        closet = data_closet_carcass.Closet_Carcass(bp)
+        calculator = closet.get_calculator('Opening Widths Calculator')
+        width_calc = eval(
+            "calculator.get_calculator_prompt('Opening {} Width')".format(
+                str(opening_number)))
+        width = width_calc.get_value()
+        return width
 
     def has_occluding_opening(self, opening, opng_data):
         opngs_at_wall = []
@@ -868,7 +881,8 @@ class VIEW_OT_generate_2d_views(Operator):
         wall_angle = round(math.degrees(
             wall_assembly_bp.obj_bp.rotation_euler.z))
         opng_assembly = sn_types.Assembly(opening)
-        pos_x = opng_assembly.obj_x.location.x
+        opng_width = self.get_opening_width(opening)
+        pos_x = opng_width
         pos_y = opng_assembly.obj_y.location.y
         parent_height = parent.location.z
         lbl_lines = [tag[0] for tag in tags]
@@ -2905,7 +2919,7 @@ class VIEW_OT_generate_2d_views(Operator):
             slots["right"] = True
         elif end_curr is None and depth_next is None:
             slots["right"] = False
-        spaces = left_space, right_space
+        spaces = round(left_space, 2), round(right_space, 2)
         section_slots = (slots, spaces)
         return section_slots
 

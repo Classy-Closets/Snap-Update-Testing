@@ -189,7 +189,7 @@ def part_is_not_hidden(part):
 def scene_parts(context):
     ''' Generator that Returns a List of all of the assemblies in the Scene
     '''
-    for obj in bpy.context.scene.objects:
+    for obj in bpy.data.objects:
         if obj.get('IS_BP_ASSEMBLY'):
             part = sn_types.Part(obj)
             if part_is_not_hidden(part):

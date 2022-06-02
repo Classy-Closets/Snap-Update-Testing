@@ -41,17 +41,19 @@ class SN_OBJ_override_object_context_menu(Operator):
 
     def execute(self, context):
         obj = context.object
-        has_id_ppt = obj and "ID_PROMPT" in obj and obj["ID_PROMPT"] != ""
-        assy_obj_bp = sn_utils.get_assembly_bp(obj)
 
-        if has_id_ppt and assy_obj_bp:
-            bpy.ops.wm.call_menu(name="VIEW3D_MT_object_context_menu")
-        elif obj.type == "MESH" and not context.scene.snap.ui.use_default_blender_interface:
-            bpy.ops.wm.popup_props('INVOKE_DEFAULT')
-        elif has_id_ppt:
-            eval("bpy.ops.{}('INVOKE_DEFAULT')".format(obj["ID_PROMPT"]))
-        else:
-            bpy.ops.wm.call_menu(name="VIEW3D_MT_object_context_menu")
+        if obj:
+            has_id_ppt = obj and "ID_PROMPT" in obj and obj["ID_PROMPT"] != ""
+            assy_obj_bp = sn_utils.get_assembly_bp(obj)
+
+            if has_id_ppt and assy_obj_bp:
+                bpy.ops.wm.call_menu(name="VIEW3D_MT_object_context_menu")
+            elif obj.type == "MESH" and not context.scene.snap.ui.use_default_blender_interface:
+                bpy.ops.wm.popup_props('INVOKE_DEFAULT')
+            elif has_id_ppt:
+                eval("bpy.ops.{}('INVOKE_DEFAULT')".format(obj["ID_PROMPT"]))
+            else:
+                bpy.ops.wm.call_menu(name="VIEW3D_MT_object_context_menu")
 
         return {'FINISHED'}
 
