@@ -523,6 +523,18 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
                                     unit='LENGTH',
                                     precision=4)
 
+    show_accordions : BoolProperty(name="Show on Accordions",
+                                   description="Show this obstacle on accordions",
+                                   default=True)
+
+    show_elevations : BoolProperty(name="Show on Accordions",
+                                   description="Show this obstacle on accordions",
+                                   default=True)
+    
+    show_plan_view : BoolProperty(name="Show on Plan View",
+                                   description="Show this obstacle on accordions",
+                                   default=True)
+
     obstacle = None
     dim_x_loc = None
     dim_z_loc = None
@@ -534,7 +546,6 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
 
     def check(self, context):
         if self.obstacle and self.wall:
-
             self.obstacle.obj_z.location.z = self.obstacle_height
             self.obstacle.obj_x.location.x = self.obstacle_width
             self.obstacle.obj_y.location.y = -self.obstacle_depth
@@ -544,65 +555,69 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
                 self.obstacle.obj_bp.location.x = self.x_location
                 self.obstacle.obj_bp.location.z = self.wall.obj_z.location.z - self.z_location - self.obstacle_height
 
-                self.dim_x_loc.start_x(value=-self.obstacle.obj_bp.location.x)
-                self.dim_x_loc.end_x(value=self.obstacle.obj_bp.location.x)
-                self.dim_x_loc.start_z(value=(self.wall.obj_z.location.z
-                                              - self.obstacle.obj_bp.location.z
-                                              + self.dim_x_loc_offset))
+                # NOTE remove once the dimensions are fully implemented
+                # self.dim_x_loc.start_x(value=-self.obstacle.obj_bp.location.x)
+                # self.dim_x_loc.end_x(value=self.obstacle.obj_bp.location.x)
+                # self.dim_x_loc.start_z(value=(self.wall.obj_z.location.z
+                #                               - self.obstacle.obj_bp.location.z
+                #                               + self.dim_x_loc_offset))
 
-                self.dim_z_loc.start_x(value=-self.obstacle.obj_bp.location.x - self.dim_z_loc_offset)
-                self.dim_z_loc.start_z(value=self.wall.obj_z.location.z - self.obstacle.obj_bp.location.z)
-                self.dim_z_loc.end_z(value=-(self.wall.obj_z.location.z
-                                             - self.obstacle.obj_bp.location.z
-                                             - self.obstacle_height))
+                # self.dim_z_loc.start_x(value=-self.obstacle.obj_bp.location.x - self.dim_z_loc_offset)
+                # self.dim_z_loc.start_z(value=self.wall.obj_z.location.z - self.obstacle.obj_bp.location.z)
+                # self.dim_z_loc.end_z(value=-(self.wall.obj_z.location.z
+                #                              - self.obstacle.obj_bp.location.z
+                #                              - self.obstacle_height))
 
             if self.base_point == 'TOP_RIGHT':
                 self.obstacle.obj_bp.location.x = self.wall.obj_x.location.x - self.x_location - self.obstacle_width
                 self.obstacle.obj_bp.location.z = self.wall.obj_z.location.z - self.z_location - self.obstacle_height
 
-                self.dim_x_loc.start_x(value=self.obstacle_width)
-                self.dim_x_loc.end_x(value=self.wall.obj_x.location.x
-                                     - self.obstacle.obj_bp.location.x
-                                     - self.obstacle_width)
-                self.dim_x_loc.start_z(value=self.wall.obj_z.location.z
-                                       - self.obstacle.obj_bp.location.z
-                                       + self.dim_x_loc_offset)
+                # NOTE remove once the dimensions are fully implemented
+                # self.dim_x_loc.start_x(value=self.obstacle_width)
+                # self.dim_x_loc.end_x(value=self.wall.obj_x.location.x
+                #                      - self.obstacle.obj_bp.location.x
+                #                      - self.obstacle_width)
+                # self.dim_x_loc.start_z(value=self.wall.obj_z.location.z
+                #                        - self.obstacle.obj_bp.location.z
+                #                        + self.dim_x_loc_offset)
 
-                self.dim_z_loc.start_x(value=self.wall.obj_x.location.x
-                                       - self.obstacle.obj_bp.location.x
-                                       + self.dim_z_loc_offset)
-                self.dim_z_loc.start_z(value=self.wall.obj_z.location.z - self.obstacle.obj_bp.location.z)
-                self.dim_z_loc.end_z(value=-(self.wall.obj_z.location.z
-                                     - self.obstacle.obj_bp.location.z
-                                     - self.obstacle_height))
+                # self.dim_z_loc.start_x(value=self.wall.obj_x.location.x
+                #                        - self.obstacle.obj_bp.location.x
+                #                        + self.dim_z_loc_offset)
+                # self.dim_z_loc.start_z(value=self.wall.obj_z.location.z - self.obstacle.obj_bp.location.z)
+                # self.dim_z_loc.end_z(value=-(self.wall.obj_z.location.z
+                #                      - self.obstacle.obj_bp.location.z
+                #                      - self.obstacle_height))
 
             if self.base_point == 'BOTTOM_LEFT':
                 self.obstacle.obj_bp.location.x = self.x_location
                 self.obstacle.obj_bp.location.z = self.z_location
 
-                self.dim_x_loc.start_x(value=-self.obstacle.obj_bp.location.x)
-                self.dim_x_loc.end_x(value=self.obstacle.obj_bp.location.x)
-                self.dim_x_loc.start_z(value=-self.obstacle.obj_bp.location.z - self.dim_x_loc_offset)
+                # NOTE remove once the dimensions are fully implemented
+                # self.dim_x_loc.start_x(value=-self.obstacle.obj_bp.location.x)
+                # self.dim_x_loc.end_x(value=self.obstacle.obj_bp.location.x)
+                # self.dim_x_loc.start_z(value=-self.obstacle.obj_bp.location.z - self.dim_x_loc_offset)
 
-                self.dim_z_loc.start_x(value=-self.obstacle.obj_bp.location.x - self.dim_z_loc_offset)
-                self.dim_z_loc.start_z(value=0)
-                self.dim_z_loc.end_z(value=-self.obstacle.obj_bp.location.z)                
+                # self.dim_z_loc.start_x(value=-self.obstacle.obj_bp.location.x - self.dim_z_loc_offset)
+                # self.dim_z_loc.start_z(value=0)
+                # self.dim_z_loc.end_z(value=-self.obstacle.obj_bp.location.z)                
 
             if self.base_point == 'BOTTOM_RIGHT':
                 self.obstacle.obj_bp.location.x = self.wall.obj_x.location.x - self.x_location - self.obstacle_width
                 self.obstacle.obj_bp.location.z = self.z_location
 
-                self.dim_x_loc.start_x(value=self.obstacle_width)
-                self.dim_x_loc.end_x(value=self.wall.obj_x.location.x
-                                     - self.obstacle.obj_bp.location.x
-                                     - self.obstacle_width)
-                self.dim_x_loc.start_z(value=-self.obstacle.obj_bp.location.z - self.dim_x_loc_offset)
+                # NOTE remove once the dimensions are fully implemented
+                # self.dim_x_loc.start_x(value=self.obstacle_width)
+                # self.dim_x_loc.end_x(value=self.wall.obj_x.location.x
+                #                      - self.obstacle.obj_bp.location.x
+                #                      - self.obstacle_width)
+                # self.dim_x_loc.start_z(value=-self.obstacle.obj_bp.location.z - self.dim_x_loc_offset)
 
-                self.dim_z_loc.start_x(value=self.wall.obj_x.location.x
-                                       - self.obstacle.obj_bp.location.x
-                                       + self.dim_z_loc_offset)
-                self.dim_z_loc.start_z(value=0)
-                self.dim_z_loc.end_z(value=-self.obstacle.obj_bp.location.z)
+                # self.dim_z_loc.start_x(value=self.wall.obj_x.location.x
+                #                        - self.obstacle.obj_bp.location.x
+                #                        + self.dim_z_loc_offset)
+                # self.dim_z_loc.start_z(value=0)
+                # self.dim_z_loc.end_z(value=-self.obstacle.obj_bp.location.z)
 
         return True
 
@@ -663,6 +678,9 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
                         self.obstacle_name = obstacle.name
 
                 obj_bp = context.scene.view_layers[0].objects[self.obstacle_bp_name]
+                self.show_accordions = obj_bp.get('SHOW_ON_ACCORDIONS', True)
+                self.show_elevations = obj_bp.get('SHOW_ON_ELEVATIONS', True)
+                self.show_plan_view = obj_bp.get('SHOW_ON_PLANVIEW', True)
                 self.obstacle = sn_types.Assembly(obj_bp=obj_bp)
                 self.obstacle_height = self.obstacle.obj_z.location.z
                 self.obstacle_width = self.obstacle.obj_x.location.x
@@ -706,17 +724,18 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
 
         Width = self.obstacle.obj_x.snap.get_var('location.x', 'Width')
 
-        self.dim_label = sn_types.Dimension()
-        self.dim_label.parent(self.obstacle.obj_bp)
-        self.dim_label.start_z(value=sn_unit.inch(.5))
-        self.dim_label.start_x('Width/2', [Width])
-        self.dim_label.set_label(self.obstacle_name)
+        # NOTE remove once the dimensions are fully implemented
+        # self.dim_label = sn_types.Dimension()
+        # self.dim_label.parent(self.obstacle.obj_bp)
+        # self.dim_label.start_z(value=sn_unit.inch(.5))
+        # self.dim_label.start_x('Width/2', [Width])
+        # self.dim_label.set_label(self.obstacle_name)
 
-        self.dim_x_loc = sn_types.Dimension()
-        self.dim_x_loc.parent(self.obstacle.obj_bp)
+        # self.dim_x_loc = sn_types.Dimension()
+        # self.dim_x_loc.parent(self.obstacle.obj_bp)
 
-        self.dim_z_loc = sn_types.Dimension()
-        self.dim_z_loc.parent(self.obstacle.obj_bp)
+        # self.dim_z_loc = sn_types.Dimension()
+        # self.dim_z_loc.parent(self.obstacle.obj_bp)
 
         if self.modify_existing:
             self.obstacle.obj_bp.name = self.obstacle_bp_name
@@ -727,19 +746,16 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
 
     def execute(self, context):
         self.click_ok = True
-        self.dim_label.set_label(self.obstacle_name)
+        # self.dim_label.set_label(self.obstacle_name)
 
         if not self.modify_existing:
             self.obstacle.obj_bp.snap.name_object = self.obstacle_name
             str_obstacle_index = str(len(self.wall_item.obstacles))
             obj_type = sn_utils.get_class_type(self.obstacle.obj_bp)
-
             self.obstacle.obj_bp.name = "{}.{}.{}".format(obj_type,
                                                           str_obstacle_index,
                                                           self.obstacle_name)
-
             self.wall_item.add_obstacle(self.obstacle, self.base_point)
-
         else:
             for obstacle in self.wall_item.obstacles:
                 if obstacle.bp_name == self.obstacle_bp_name:
@@ -749,6 +765,9 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
                     self.obstacle.obj_bp.name = new_name
                     obstacle.bp_name = self.obstacle.obj_bp.name
                     obstacle.base_point = self.base_point
+                    self.obstacle.obj_bp['SHOW_ON_ACCORDIONS'] = self.show_accordions
+                    self.obstacle.obj_bp['SHOW_ON_ELEVATIONS'] = self.show_elevations
+                    self.obstacle.obj_bp['SHOW_ON_PLANVIEW'] = self.show_plan_view
 
         self.obstacle_name = "New Obstacle"
         self.obstacle_bp_name = ""
@@ -792,6 +811,18 @@ class ROOM_BUILDER_OT_Add_Obstacle(Operator):
         row = col.row()
         row.label(text="Obstacle Z Location:")
         row.prop(self, "z_location", text="")
+        
+        box = layout.box()
+        col = box.column(align=False)
+        row = col.row()
+        row.label(text="Show obstacle on:")
+        row = col.row()
+        row.label(text="Accordions")
+        row.prop(self, "show_accordions", text="")
+        row.label(text="Elevations")
+        row.prop(self, "show_elevations", text="")
+        row.label(text="Plan View")
+        row.prop(self, "show_plan_view", text="")
 
 
 class ROOM_BUILDER_OT_Add_Floor_Obstacle(Operator):
@@ -995,15 +1026,11 @@ class ROOM_BUILDER_OT_Add_Floor_Obstacle(Operator):
             self.obstacle.obj_bp.snap.name_object = self.obstacle_name
             str_obstacle_index = str(len(self.wall_item.obstacles))
             obj_type = sn_utils.get_class_type(self.obstacle.obj_bp)
-
             self.obstacle.obj_bp.name = "{}.{}.{}".format(obj_type,
                                                           str_obstacle_index,
                                                           self.obstacle_name)
-
             self.wall_item.add_obstacle(self.obstacle, self.base_point)
-
         else:
-
             for obstacle in self.wall_item.obstacles:
                 if obstacle.bp_name == self.obstacle_bp_name:
                     obstacle.name = self.obstacle_name
@@ -1408,7 +1435,7 @@ class ROOM_BUILDER_OT_Build_Room(Operator):
 
         bpy.ops.sn_object.add_material_slot(object_name=obj_curve.name)
         bpy.ops.sn_material.sync_material_slots(object_name=obj_curve.name)
-        obj_curve.snap.material_slots[0].pointer_name = "Molding"
+        obj_curve.snap.material_slots[0].pointer_name = "Room_Molding"
         obj_curve.data.dimensions = '2D'
         sn_utils.assign_materials_from_pointers(obj_curve)
 
@@ -1522,6 +1549,16 @@ class ROOM_BUILDER_OT_Build_Room(Operator):
 
     def finished(self):
         # Do not create room if room category not selected
+
+        if re.compile("[@_!#$'%^&*()<>?/\|}{~:]").search(self.room_name):
+            bpy.ops.sn_roombuilder.delete_room()
+            return bpy.ops.snap.message_box(
+                "INVOKE_DEFAULT",
+                message="Room Name Error\n"
+                        "Room Name CANNOT contain: [@_!#$'%^&*()<>?/\|}{~:]",
+                icon="ERROR",
+                width=400)
+
         if self.props.room_category == 'Please Select':
             bpy.ops.sn_roombuilder.delete_room()
             message = "Room not created: Category not Selected"
@@ -1696,6 +1733,8 @@ class ROOM_BUILDER_OT_Delete_Room(Operator):
 
     def execute(self, context):
         collections = bpy.data.collections
+        global last_wall_idx
+        last_wall_idx = 1
 
         if self.delete_room_file and bpy.data.is_saved:
             bpy.ops.project_manager.delete_room("EXEC_DEFAULT")

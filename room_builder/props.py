@@ -46,6 +46,9 @@ class Wall(PropertyGroup):
         obst.bp_name = obstacle.obj_bp.name
         obst.base_point = base_point
         obst["IS_OBSTACLE"] = True
+        obst['SHOW_ON_ACCORDIONS'] = True
+        obst['SHOW_ON_ELEVATIONS'] = True
+        obst['SHOW_ON_PLANVIEW'] = True
 
 
 class Scene_Props(PropertyGroup):

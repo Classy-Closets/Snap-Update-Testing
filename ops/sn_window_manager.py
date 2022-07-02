@@ -15,19 +15,22 @@ class SN_WM_OT_message_box(bpy.types.Operator):
     bl_label = "System Info"
 
     message: StringProperty(name="Message", description="Message to Display")
+    message2: bpy.props.StringProperty(name="Message_2", default="")
     icon: StringProperty(name="Icon", description="Icon name", default='NONE')
+    width: bpy.props.IntProperty(name="Width", default=300)
 
     def check(self, context):
         return True
 
     def invoke(self, context, event):
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=350)
+        return wm.invoke_props_dialog(self, width=self.width)
 
     def draw(self, context):
         layout = self.layout
+        box = layout.box()
         for line in self.message.split('\n'):
-            layout.label(text=line, icon=self.icon)
+            box.label(text=line, icon=self.icon)
 
     def execute(self, context):
         return {'FINISHED'}

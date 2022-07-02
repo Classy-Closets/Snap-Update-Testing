@@ -1,5 +1,6 @@
 import bpy
 import os
+import re
 import shutil
 from snap import sn_utils
 import pathlib
@@ -123,15 +124,23 @@ class SNAP_OT_Create_Project(Operator):
         if self.project_name == "":
             return {'FINISHED'}
 
-        proj = wm.projects.add()
-        proj.init(self.project_name.strip())
-        pm_utils.reload_projects()
+        if re.compile("[@_!#$'%^&*()<>?/\|}{~:]").search(self.project_name) == None:
+            proj = wm.projects.add()
+            proj.init(self.project_name.strip())
 
-        for index, project in enumerate(wm.projects):
-            if project.name == self.project_name:
-                wm.project_index = index
-        pm_props.create_project_flag = False
-        return {'FINISHED'}
+            for index, project in enumerate(wm.projects):
+                if project.name == self.project_name:
+                    wm.project_index = index
+            pm_props.create_project_flag = False
+            return {'FINISHED'}
+        else:
+            bpy.ops.snap.log_window(
+                "INVOKE_DEFAULT",
+                message="Project Name Error",
+                message2="Project Name CANNOT contain: [@_!#$'%^&*()<>?/\|}{~:]",
+                icon="ERROR",
+                width=400)
+            return {'FINISHED'}
 
 
 class SNAP_OT_Copy_Project(Operator):
@@ -370,12 +379,21 @@ class SNAP_OT_Add_Room(Operator):
 
     def execute(self, context):
         props = context.window_manager.sn_project
-        if len(props.projects) > 0:
-            project = props.projects[props.project_index]
-            project.add_room(self.room_name)
-            project.main_tabs = 'ROOMS'
 
-        return {'FINISHED'}
+        if re.compile("[@_!#$'%^&*()<>?/\|}{~:]").search(self.room_name) == None:
+            if len(props.projects) > 0:
+                project = props.projects[props.project_index]
+                project.add_room(self.room_name)
+                project.main_tabs = 'ROOMS'
+            return {'FINISHED'}
+        else:
+            bpy.ops.snap.log_window(
+                "INVOKE_DEFAULT",
+                message="Room Name Error",
+                message2="Room Name CANNOT contain: [@_!#$'%^&*()<>?/\|}{~:]",
+                icon="ERROR",
+                width=400)
+            return {'FINISHED'}
 
 
 class SNAP_OT_Open_Room(Operator):

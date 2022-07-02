@@ -1368,7 +1368,7 @@ class OPS_Export_XML(Operator):
             door_style_ppt = assembly.get_prompt("Door Style")
             if door_style_ppt:
                 door_style = door_style_ppt.get_value()
-                if door_style != "Slab Door":
+                if (door_style != "Slab Door") and ("Traviso" not in door_style):
                     # print("Current Door Style: ", door_style)
                     assembly_number = "None"
                     material_number = "None"
@@ -3856,7 +3856,7 @@ class OPS_Export_XML(Operator):
         if(obj_props.is_door_bp or obj_props.is_drawer_front_bp or obj_props.is_hamper_front_bp or obj.get('IS_DOOR') or obj.get('IS_BP_DRAWER_FRONT')):
             if(assembly.get_prompt("Door Style")):
                 door_style = assembly.get_prompt("Door Style").get_value()
-                if (door_style != "Slab Door") and (door_style != "Melamine Glass Door"):
+                if (door_style != "Slab Door") and (door_style != "Melamine Glass Door") and ("Traviso" not in door_style):
                     return True
         for cur_mat in wooden_materials:
             if cur_mat in mat_inventory_name:
@@ -3983,6 +3983,8 @@ class OPS_Export_XML(Operator):
                 if ppt_dogear.get_value():
                    part_name = "Dogeared Partition"
 
+            if isinstance(mat_inventory_name, str):
+                mat_inventory_name = mat_inventory_name.replace("Δ ", "")
             mat_id = self.write_material(mat_inventory_name, mat_sku)
 
             elm_part = self.xml.add_element(
@@ -4076,7 +4078,7 @@ class OPS_Export_XML(Operator):
                 door_style_ppt = assembly.get_prompt("Door Style")
                 if door_style_ppt:
                     door_style = door_style_ppt.get_value()
-                if door_style == "Slab Door":
+                if (door_style == "Slab Door"):
                     if(abs(assembly.obj_x.location.x)<abs(assembly.obj_y.location.y)):
                         edge_1 = "L1"
                         edge_2 = "S1"
@@ -4777,7 +4779,28 @@ class OPS_Export_XML(Operator):
                 if ppt_dogear.get_value():
                     dogear_lbl = [("DogEaredDepth", "text", self.distance(ppt_dogear_depth.get_value()))]
                     lbl.extend(dogear_lbl)
-            
+
+            if assembly.obj_bp.get("IS_BP_L_SHELF") or assembly.obj_bp.get("IS_BP_ANGLE_SHELF"):
+                left_depth = assembly.get_prompt("Left Depth")
+                right_depth = assembly.get_prompt("Right Depth")
+                if left_depth and right_depth:
+                    corner_shelf_lbl = [
+                        ("leftdepth", "text", str(sn_unit.meter_to_inch(left_depth.get_value()))),
+                        ("rightdepth", "text", str(sn_unit.meter_to_inch(right_depth.get_value())))
+                    ]
+                    lbl.extend(corner_shelf_lbl)
+
+            if isinstance(primary_edge_color_name, str):
+                primary_edge_color_name = primary_edge_color_name.replace("Δ ", "")
+            if isinstance(edge_1_color_name, str):
+                edge_1_color_name = edge_1_color_name.replace("Δ ", "")
+            if isinstance(edge_2_color_name, str):
+                edge_2_color_name = edge_2_color_name.replace("Δ ", "")
+            if isinstance(edge_3_color_name, str):
+                edge_3_color_name = edge_3_color_name.replace("Δ ", "")
+            if isinstance(edge_4_color_name, str):
+                edge_4_color_name = edge_4_color_name.replace("Δ ", "")
+
             second_lbl = [
                 ("sku", "text", mat_sku),
                 ("cncmirror", "text", ""),#Str literal OKAY

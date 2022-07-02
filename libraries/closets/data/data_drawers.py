@@ -1662,7 +1662,7 @@ class PROMPTS_Drawer_Prompts(sn_types.Prompts_Interface):
                 if file_rail_type:
                     self.update_file_rail_type(i)
                 if file_rail_direction:
-                    exec(f"file_rail_type.set_value(int(self.file_rail_type_{str(i)}))")
+                    exec(f"file_rail_direction.set_value(int(self.file_rail_direction_{str(i)}))")
                 if has_jewelry_insert:
                     exec(f"has_jewelry_insert.set_value(self.has_jewelry_insert_{str(i)})")
                 if has_sliding_insert:

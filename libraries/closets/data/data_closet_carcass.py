@@ -345,7 +345,12 @@ class Closet_Carcass(sn_types.Assembly):
         left_side.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
         left_side.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])
         left_side.get_prompt("Exposed Bottom").set_formula("Exposed_Bottom_1", [Exposed_Bottom_1])
-        left_side.get_prompt("Is Dogeared Panel").set_formula("Dog_Ear_Active", [Dog_Ear_Active])
+        left_side.get_prompt("Is Dogeared Panel").set_formula(
+            'IF(Dog_Ear_Active,'
+            'IF(Front_Angle_Depth_All<Depth_1,'
+            'True,False),'
+            'False)',
+            [Dog_Ear_Active, Front_Angle_Depth_All, Depth_1])
 
         # Add_Backing = self.get_prompt('Opening ' + str(self.opening_qty) + ' Add Backing').get_var('Add_Backing')
 
@@ -447,7 +452,12 @@ class Closet_Carcass(sn_types.Assembly):
         right_side.get_prompt("Corbel Height").set_formula("IF(Corbel_Partitions,Corbel_Height_All,0)", [Corbel_Partitions, Corbel_Height_All])
         right_side.get_prompt("Corbel Partition").set_formula("IF(Corbel_Partitions,True,False)", [Corbel_Partitions])
         right_side.get_prompt("Exposed Bottom").set_formula("Last_Exposed_Bottom", [Last_Exposed_Bottom])
-        right_side.get_prompt("Is Dogeared Panel").set_formula("Dog_Ear_Active", [Dog_Ear_Active])
+        right_side.get_prompt("Is Dogeared Panel").set_formula(
+            'IF(Dog_Ear_Active,'
+            'IF(Front_Angle_Depth_All<Last_Depth,'
+            'True,False),'
+            'False)',
+            [Dog_Ear_Active, Front_Angle_Depth_All, Last_Depth])
 
     def add_panel(self, index, previous_panel):
         PH = self.obj_z.snap.get_var('location.z', 'PH')
@@ -535,7 +545,12 @@ class Closet_Carcass(sn_types.Assembly):
         catnum = panel.get_prompt("CatNum")
         catnum.set_formula('IF(Front_Angle_Height>INCH(0),32,31)', [Front_Angle_Height])
         panel.get_prompt("Exposed Bottom").set_formula('EB', [EB])
-        panel.get_prompt("Is Dogeared Panel").set_formula("Dog_Ear_Active", [Dog_Ear_Active])
+        panel.get_prompt("Is Dogeared Panel").set_formula(
+            'IF(Dog_Ear_Active,'
+            'IF(Front_Angle_Depth_All<max(Depth,Next_Depth),'
+            'True,False),'
+            'False)',
+            [Dog_Ear_Active, Front_Angle_Depth_All, Depth, Next_Depth])
 
         return panel
 
@@ -870,7 +885,7 @@ class Closet_Carcass(sn_types.Assembly):
 
         return cleat
 
-    def add_backing(self,i,panel):
+    def add_backing(self, i, panel, init=False):
         parts = []
         calculator = self.get_calculator(self.calculator_name)
         PH = self.obj_z.snap.get_var('location.z', 'PH')
@@ -940,6 +955,9 @@ class Closet_Carcass(sn_types.Assembly):
         self.add_prompt("Top Insert Backing",'DISTANCE', 0, prompt_obj=ppt_obj_insert_backing)
         self.add_prompt("Bottom Insert Backing", 'DISTANCE', 0, prompt_obj=ppt_obj_insert_backing)
 
+        center_ppt = backing.get_prompt("Center Section Backing")
+        single_back_ppt = backing.get_prompt("Single Back")
+
         BTO = backing_top_offset.get_var('BTO')
         BBO = backing_bottom_offset.get_var('BBO')
         BZ1 = section_1_backing_z.get_var('BZ1')
@@ -953,9 +971,9 @@ class Closet_Carcass(sn_types.Assembly):
         BX3 = section_3_backing_x.get_var('BX3')
         IS_SB = is_single_back.get_var('IS_SB')
         TOP = backing.get_prompt("Top Section Backing").get_var('TOP')
-        CTR = backing.get_prompt("Center Section Backing").get_var('CTR')
+        CTR = center_ppt.get_var('CTR')
         BTM = backing.get_prompt("Bottom Section Backing").get_var('BTM')
-        SB = backing.get_prompt("Single Back").get_var('SB')
+        SB = single_back_ppt.get_var('SB')
         TIB = backing.get_prompt("Top Insert Backing").get_var('TIB')
         BIB = backing.get_prompt("Bottom Insert Backing").get_var('BIB')
         TIG = backing.get_prompt("Top Insert Gap").get_var('TIG')
@@ -963,6 +981,18 @@ class Closet_Carcass(sn_types.Assembly):
         BIA = backing.get_prompt("Backing Inset Amount").get_var('BIA')
         BC3 = backing.get_prompt("3 Section Backing Config").get_var('BC3')
         OB = backing.get_prompt("Opening Bottom").get_var('OB')
+
+        if init:
+            thickness_ppt = self.get_prompt('Opening ' + str(i) + ' Center Backing Thickness')
+            add_backing_ppt = self.get_prompt("Add Full Back " + str(i))
+            add_backing_ppt.set_value(True)
+            center_ppt.set_value(True)
+            single_back_ppt.set_value(True)
+
+            if self.defaults.backing_thickness == "1/4":
+                thickness_ppt.set_value(0)
+            else:
+                thickness_ppt.set_value(1)        
 
         backing_sections.set_formula('IF(AND(TIB>0,BIB>0),3,IF(OR(TIB>0,BIB>0),2,1))', [TIB, BIB])
         opening_bottom = backing.get_prompt('Opening Bottom')
@@ -1180,7 +1210,7 @@ class Closet_Carcass(sn_types.Assembly):
         prompt.set_formula('IF(BIB>0,False,True)', [BIB])
 
         self.backing_parts[str(i)] = parts
-
+        
         Add_Hanging_Rail = self.get_prompt('Add Hanging Rail').get_var('Add_Hanging_Rail')
         self.update_cleats(i, [B_Cleat, Add_Hanging_Rail, TBT, BIB, BIG, BBT, CBT, B_Sections, TOP, CTR, BTM, IS_SB])
         self.update_backing_sections(i, backing)
@@ -1577,7 +1607,6 @@ class Closet_Carcass(sn_types.Assembly):
         panel = None
         self.add_shelf(1, panel, is_top=True)
         self.add_shelf(1, panel, is_top=False)
-        # self.add_backing(1, panel)
         self.add_closet_opening(1, panel)
         self.add_hutch_backing()
         # if self.defaults.show_panel_drilling:
@@ -1586,6 +1615,8 @@ class Closet_Carcass(sn_types.Assembly):
             self.add_top_cleat(1, panel)
         if self.defaults.add_bottom_cleat:
             self.add_bottom_cleat(1, panel)
+        if self.defaults.add_backing:
+            self.add_backing(1, panel, init=True)
         
         # Add partitions
         for i in range(2, self.opening_qty + 1):
@@ -1593,7 +1624,6 @@ class Closet_Carcass(sn_types.Assembly):
             panel.obj_bp['PARTITION_NUMBER'] = (i - 1)
             self.add_shelf(i,panel,is_top=True)
             self.add_shelf(i,panel,is_top=False)
-            # self.add_backing(i,panel)
             self.add_closet_opening(i,panel)
             # if self.defaults.show_panel_drilling:
             #     self.add_system_holes(i, panel)
@@ -1601,6 +1631,8 @@ class Closet_Carcass(sn_types.Assembly):
                 self.add_top_cleat(i, panel)
             if self.defaults.add_bottom_cleat:
                 self.add_bottom_cleat(i, panel)
+            if self.defaults.add_backing:
+                self.add_backing(i, panel, init=True)
 
         self.add_blind_corners()
 

@@ -28,97 +28,143 @@ def make_new_name(path, new_name):
 
 def rename_room(self, context):
     props = bpy.context.window_manager.sn_project
-    
-    if props.projects_loaded:
-        if self.file_path:
-            curr_opnd_file = bpy.data.filepath
-            new_room_name = self.name
-            ccp_file = ""
-            old_bl_path = str(self.file_path)
-            new_bl_path = ""
-            proj = props.projects[props.project_index]
+    empty_name = self.name == ""
 
-            for room in proj.rooms:
-                ccp_file = str(proj.file_path)
-                if room.file_path == self.file_path and ccp_file != "":
-                    xml_tree = ET.parse(ccp_file)
-                    xml_root = xml_tree.getroot()
-                    for element in xml_root.findall('Rooms'):
-                        for element_room in list(element):
-                            rel_path = os.path.join(*old_bl_path.split(os.sep)[-2:])
-                            if element_room.attrib["path"] == rel_path:
-                                old_room = element_room.attrib["name"]
-                                renaming = old_room != new_room_name
-                                is_opnd_room = old_room in curr_opnd_file
-                                if renaming:
-                                    print("Room name changed to:", self.name)
-                                    element_room.attrib["name"] = new_room_name
-                                    element_room.text = new_room_name
-                                    new_bl_path = make_new_name(proj.dir_path, new_room_name)
-                                    new_rel_bl_path = os.path.join(*new_bl_path.split(os.sep)[-2:])
-                                    element_room.attrib["path"] = new_rel_bl_path
-                                    xml_tree.write(ccp_file)
-                                    copyfile(old_bl_path, new_bl_path)
-                                    if is_opnd_room:
-                                        bpy.ops.project_manager.open_room(file_path=new_bl_path)
-                                    else:
-                                        room.file_path = new_rel_bl_path
-                                    os.remove(old_bl_path)
-                                    return
+    if props.projects_loaded:
+        if empty_name:
+            self.name = self.og_name
+            bpy.ops.snap.log_window(
+                "INVOKE_DEFAULT",
+                message="Room Name Error",
+                message2="Please provide a room name.",
+                icon="ERROR",
+                width=400)
+
+        if re.compile("[@_!#$'%^&*()<>?/\|}{~:]").search(self.name) == None:
+            if self.file_path:
+                curr_opnd_file = bpy.data.filepath
+                new_room_name = self.name
+                ccp_file = ""
+                old_bl_path = str(self.file_path)
+                new_bl_path = ""
+                proj = props.projects[props.project_index]
+
+                for room in proj.rooms:
+                    ccp_file = str(proj.file_path)
+                    if room.file_path == self.file_path and ccp_file != "":
+                        xml_tree = ET.parse(ccp_file)
+                        xml_root = xml_tree.getroot()
+                        for element in xml_root.findall('Rooms'):
+                            for element_room in list(element):
+                                rel_path = os.path.join(*old_bl_path.split(os.sep)[-2:])
+                                if element_room.attrib["path"] == rel_path:
+                                    old_room = element_room.attrib["name"]
+                                    renaming = old_room != new_room_name
+                                    is_opnd_room = old_room in curr_opnd_file
+                                    if renaming:
+                                        print("Room name changed to:", self.name)
+                                        element_room.attrib["name"] = new_room_name
+                                        element_room.text = new_room_name
+                                        new_bl_path = make_new_name(proj.dir_path, new_room_name)
+                                        new_rel_bl_path = os.path.join(*new_bl_path.split(os.sep)[-2:])
+                                        element_room.attrib["path"] = new_rel_bl_path
+                                        xml_tree.write(ccp_file)
+                                        copyfile(old_bl_path, new_bl_path)
+                                        if is_opnd_room:
+                                            bpy.ops.project_manager.open_room(file_path=new_bl_path)
+                                        else:
+                                            room.file_path = new_rel_bl_path
+                                        os.remove(old_bl_path)
+                                        break
+
+            self.og_name = self.name
+            return
+        else:
+            self.name = self.og_name
+            bpy.ops.snap.log_window(
+                "INVOKE_DEFAULT",
+                message="Room Name Error",
+                message2="Room Name CANNOT contain: [@_!#$'%^&*()<>?/\|}{~:]",
+                icon="ERROR",
+                width=400)
+            return
 
 
 def rename_project(self, context):
     props = bpy.context.window_manager.sn_project
     proj = props.projects[props.project_index]
+    empty_name = self.name == ""
 
     if create_project_flag:
         return
 
     if props.projects_loaded:
-        # Rename Project Directory
-        new_project_dir = os.path.join(pm_utils.get_project_dir(), self.name)
-        if os.path.exists(proj.dir_path):
-            os.rename(proj.dir_path, new_project_dir)
-            proj.dir_path = new_project_dir
-            print("Project name changed to:", self.name)
+        if props.projects_loaded:
+            if empty_name:
+                self.name = self.og_name
+                bpy.ops.snap.log_window(
+                    "INVOKE_DEFAULT",
+                    message="Room Name Error",
+                    message2="Please provide a room name.",
+                    icon="ERROR",
+                    width=400)
+                return
 
-        """Update .ccp"""
-        old_ccp_path = pathlib.PurePath(proj.file_path)
-        ccp_path = os.path.join(new_project_dir, ".snap", old_ccp_path.name)
-        new_ccp_path = os.path.join(new_project_dir, ".snap", self.name + ".ccp")
+        if re.compile("[@_!#$'%^&*()<>?/\|}{~:]").search(self.name) is None and not empty_name:
+            # Rename Project Directory
+            new_project_dir = os.path.join(pm_utils.get_project_dir(), self.name)
+            if os.path.exists(proj.dir_path):
+                os.rename(proj.dir_path, new_project_dir)
+                proj.dir_path = new_project_dir
+                print("Project name changed to:", self.name)
 
-        # Rename copied .ccp
-        if os.path.exists(ccp_path):
-            os.rename(ccp_path, new_ccp_path)
-            proj.file_path = new_ccp_path
+            """Update .ccp"""
+            old_ccp_path = pathlib.PurePath(proj.file_path)
+            ccp_path = os.path.join(new_project_dir, ".snap", old_ccp_path.name)
+            new_ccp_path = os.path.join(new_project_dir, ".snap", self.name + ".ccp")
 
-        # Update name in .ccp
-        if os.path.exists(new_ccp_path):
-            tree = ET.parse(new_ccp_path)
-            root = tree.getroot()
+            # Rename copied .ccp
+            if os.path.exists(ccp_path):
+                os.rename(ccp_path, new_ccp_path)
+                proj.file_path = new_ccp_path
 
-            for elm in root.findall("ProjectInfo"):
-                items = list(elm)
+            # Update name in .ccp
+            if os.path.exists(new_ccp_path):
+                tree = ET.parse(new_ccp_path)
+                root = tree.getroot()
 
-                for item in items:
-                    if item.tag == 'name':
-                        item.text = self.name
+                for elm in root.findall("ProjectInfo"):
+                    items = list(elm)
 
-            # Update room filepaths
-            for elm in root.findall("Rooms"):
-                items = list(elm)
+                    for item in items:
+                        if item.tag == 'name':
+                            item.text = self.name
 
-                for item in items:
-                    bfile_path = pathlib.Path(item.attrib['path'])
-                    new_path = os.path.join(self.name, bfile_path.parts[-1])
-                    item.attrib['path'] = new_path
+                # Update room filepaths
+                for elm in root.findall("Rooms"):
+                    items = list(elm)
 
-                for room in proj.rooms:
-                    old_room_path = pathlib.PurePath(room.file_path)
-                    room.file_path = os.path.join(new_project_dir, old_room_path.name)
+                    for item in items:
+                        bfile_path = pathlib.Path(item.attrib['path'])
+                        new_path = os.path.join(self.name, bfile_path.parts[-1])
+                        item.attrib['path'] = new_path
 
-            tree.write(new_ccp_path)
-    return
+                    for room in proj.rooms:
+                        old_room_path = pathlib.PurePath(room.file_path)
+                        room.file_path = os.path.join(new_project_dir, old_room_path.name)
+
+                tree.write(new_ccp_path)
+            self.og_name = self.name
+            return
+        else:
+            self.name = self.og_name
+            bpy.ops.snap.log_window(
+                "INVOKE_DEFAULT",
+                message="Project Name Error",
+                message2="Project Name CANNOT contain: [@_!#$'%^&*()<>?/\|}{~:]",
+                icon="ERROR",
+                width=400)
+            return
 
 
 class CollectionMixIn:
@@ -172,6 +218,7 @@ class CollectionMixIn:
 
 class Room(PropertyGroup, CollectionMixIn):
     name: StringProperty(name="Room Name", default="", update=rename_room)
+    og_name: StringProperty(name="Starting Room Name", default="")
     file_path: StringProperty(name="Room Filepath", default="", subtype='FILE_PATH')
     selected: BoolProperty(name="Room Selected", default=False)
     version: StringProperty(name="Version", default="")
@@ -181,6 +228,7 @@ class Room(PropertyGroup, CollectionMixIn):
         # On initial load, project index won't work.
         col = wm.projects[project_index or wm.project_index].rooms
         super().init(col, name=name)
+        self.og_name = self.name
         self.version = sn_utils.get_version_str()
 
         # Set file name
@@ -227,6 +275,7 @@ class Room(PropertyGroup, CollectionMixIn):
 
 class Project(PropertyGroup, CollectionMixIn):
     name: StringProperty(name="Project Name", default="", update=rename_project)
+    og_name: StringProperty(name="Starting Room Name", default="")
     file_path: StringProperty(name="Project File Path", default="", subtype='FILE_PATH')
     rooms: CollectionProperty(name="Rooms", type=Room)
     room_index: IntProperty(name="Room Index")
@@ -260,6 +309,7 @@ class Project(PropertyGroup, CollectionMixIn):
     def init(self, name, path=None):
         col = bpy.context.window_manager.sn_project.projects
         super().init(col, name=name)
+        self.og_name = self.name
 
         self.create_dir()
         self.set_filename()

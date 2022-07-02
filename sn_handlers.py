@@ -146,6 +146,13 @@ def default_settings(scene=None):
     if not bpy.data.is_saved:
         scene.closet_materials.set_defaults()
     else:
+        mat = scene.closet_materials.materials.get_mat_color().name
+        edge = scene.closet_materials.edges.get_edge_color().name
+        custom_colors = scene.closet_materials.use_custom_color_scheme
+
+        if mat != edge and not custom_colors:
+            scene.closet_materials.set_defaults()
+
         scene.closet_materials.defaults_set = True
 
 @persistent
@@ -179,7 +186,14 @@ def check_for_update(scene=None):
 @persistent
 def create_wall_collections(scene=None):
     bg_mode = bpy.app.background
-    if bpy.data.is_saved and not bg_mode:
+    existing_walls = []
+
+    for obj in bpy.data.objects:
+        if obj.get("IS_BP_WALL"):
+            existing_walls.append(obj)
+            break
+
+    if bpy.data.is_saved and existing_walls and not bg_mode:
         collections = bpy.data.collections
         wall_coll = {}
 

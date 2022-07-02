@@ -480,6 +480,44 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
                 elif display_name not in self.missing_render_mats:
                     self.missing_render_mats.append(display_name)
 
+    def create_five_piece_melamine_door_color_collection(self):
+        props = bpy.context.scene.closet_materials
+        props.five_piece_melamine_door_colors.clear()
+
+        rows = sn_db.query_db(
+            "SELECT\
+                SKU,\
+                DisplayName,\
+                Description\
+            FROM\
+                {CCItems}\
+            WHERE\
+                ProductType = 'PM' AND\
+                TypeCode IN (15200, 15150) AND\
+                Thickness = 0.75 AND\
+                DisplayName IN {Five_Piece_Melamine_Door_Color_List}\
+                \
+            ORDER BY\
+                DisplayName ASC\
+                    ;\
+            ".format(CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location, Five_Piece_Melamine_Door_Color_List=sn_db.FIVE_PIECE_DOOR_COLORS_TABLE_NAME)
+        )
+
+        for row in rows:
+            sku = row[0]
+            display_name = row[1]
+            description = row[2]
+            print(display_name)
+            if display_name not in props.five_piece_melamine_door_colors:
+                if self.render_material_exists(display_name):
+                    color = props.five_piece_melamine_door_colors.add()
+                    color.name = display_name.strip()
+                    color.sku = sku
+                    color.description = description
+
+                elif display_name not in self.missing_render_mats:
+                    self.missing_render_mats.append(display_name)
+
     def create_glaze_color_collection(self):
         props = bpy.context.scene.closet_materials
         props.glaze_colors.clear()
@@ -659,6 +697,7 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
         self.create_mat_type_collection()
         self.create_coutertop_collection()
         self.create_stain_color_collection()
+        self.create_five_piece_melamine_door_color_collection()
         self.create_glaze_color_collection()
         self.create_glaze_style_collection()
         self.create_door_color_collection()
@@ -870,6 +909,43 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
         conn.commit()
         conn.close()
 
+    def create_five_piece_door_colors_table(self):
+        # READ TYPE CODE DISPLAY NAMES FROM CSV
+        colors_names = []
+
+        with open(sn_paths.FIVE_PIECE_DOOR_COLORS_CSV_PATH) as colors_file:
+            reader = csv.reader(colors_file, delimiter=',')
+            next(reader)
+
+            for row in reader:
+                colors_names.append(row[0])
+
+        conn = sn_db.connect_db()
+        cur = conn.cursor()
+
+        # Create material type table
+        cur.execute("DROP TABLE IF EXISTS {};".format(
+            sn_db.FIVE_PIECE_DOOR_COLORS_TABLE_NAME))
+
+        cur.execute("CREATE TABLE {}\
+                    (\
+                    Name\
+                    );".format(sn_db.FIVE_PIECE_DOOR_COLORS_TABLE_NAME))
+
+        for color_name in colors_names:
+            cur.execute("INSERT INTO {table} (\
+                            Name\
+                            )\
+                        VALUES (\
+                            '{name}'\
+                            );".format(table=sn_db.FIVE_PIECE_DOOR_COLORS_TABLE_NAME,
+                                       name=color_name,
+                                       )
+                        )
+
+        conn.commit()
+        conn.close()
+
     def import_items_csv(self):
         if pathlib.Path(self.filename).suffix == ".csv":
             conn = sn_db.connect_db()
@@ -900,6 +976,7 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
         self.create_edge_type_table()
         self.create_material_type_table()
         self.create_slide_type_table()
+        self.create_five_piece_door_colors_table()
 
     def execute(self, context):
         self.props = bpy.context.scene.closet_materials

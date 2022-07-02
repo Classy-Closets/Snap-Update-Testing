@@ -540,19 +540,86 @@ class Assembly:
         **Returns:** Bool
         """
 
-        if self.obj_bp.matrix_world[2][3] > self.obj_z.matrix_world[2][3]:
-            grp1_z_1 = self.obj_z.matrix_world[2][3]
-            grp1_z_2 = self.obj_bp.matrix_world[2][3]
-        else:
-            grp1_z_1 = self.obj_bp.matrix_world[2][3]
-            grp1_z_2 = self.obj_z.matrix_world[2][3]
+        # Need to calculate z1 and z2 for Hanging openings because their self.obj_z.matrix_world[2][3] is their location rather than their dimension point
+        # and self.obj_bp.matrix_world[2][3] is always 0, causing height collision to always calculate to true
 
-        if assembly.obj_bp.matrix_world[2][3] > assembly.obj_z.matrix_world[2][3]:
-            grp2_z_1 = assembly.obj_z.matrix_world[2][3]
-            grp2_z_2 = assembly.obj_bp.matrix_world[2][3]
+        if self.obj_bp.get("IS_BP_CLOSET"):
+            # If it is a haning opening, calculate the height and greatest opening height, then z1 is going to be the height and z2 is the height minus
+            # The greatest opening height
+            opening_qty = self.get_prompt("Opening Quantity")
+            opening_height = self.get_prompt("Opening " + str(1) + " Height")
+            grp1_z_dim = 0
+            tk_height = self.get_prompt("Toe Kick Height")
+            floored_openings = 0
+            for i in range(1, opening_qty.get_value() + 1):
+                is_floored = self.get_prompt("Opening " + str(i) + " Floor Mounted")
+                if is_floored:
+                    if is_floored.get_value():
+                        floored_openings += 1
+            if opening_qty and opening_height:
+                for i in range(1, opening_qty.get_value() + 1):
+                    opening_height = self.get_prompt("Opening " + str(i) + " Height")
+                    if opening_height:
+                        if opening_height.distance_value > grp1_z_dim:
+                            grp1_z_dim = opening_height.distance_value
+                if floored_openings == opening_qty.get_value():
+                    grp1_z_loc = tk_height.get_value()
+                else:
+                    grp1_z_loc = self.obj_z.matrix_world[2][3]
+                    grp1_z_dim = grp1_z_loc - grp1_z_dim
+            else:
+                grp1_z_loc = self.obj_bp.matrix_world[2][3]
+                grp1_z_dim = self.obj_z.matrix_world[2][3]
         else:
-            grp2_z_1 = assembly.obj_bp.matrix_world[2][3]
-            grp2_z_2 = assembly.obj_z.matrix_world[2][3]
+            # Everything else we get z1 and z2 as normal
+            grp1_z_loc = self.obj_bp.matrix_world[2][3]
+            grp1_z_dim = self.obj_z.matrix_world[2][3]
+
+        if assembly.obj_bp.get("IS_BP_CLOSET"):
+            # If it is a haning opening, calculate the height and greatest opening height, then z1 is going to be the height and z2 is the height minus
+            # The greatest opening height
+            opening_qty = assembly.get_prompt("Opening Quantity")
+            opening_height = assembly.get_prompt("Opening " + str(1) + " Height")
+            grp2_z_dim = 0
+            tk_height = assembly.get_prompt("Toe Kick Height")
+            floored_openings = 0
+            for i in range(1, opening_qty.get_value() + 1):
+                is_floored = assembly.get_prompt("Opening " + str(i) + " Floor Mounted")
+                if is_floored:
+                    if is_floored.get_value():
+                        floored_openings += 1
+            if opening_qty and opening_height:
+                for i in range(1, opening_qty.get_value() + 1):
+                    opening_height = assembly.get_prompt("Opening " + str(i) + " Height")
+                    if opening_height:
+                        if opening_height.distance_value > grp2_z_dim:
+                            grp2_z_dim = opening_height.distance_value
+                if floored_openings == opening_qty.get_value():
+                    grp2_z_loc = tk_height.get_value()
+                else:
+                    grp2_z_loc = assembly.obj_z.matrix_world[2][3]
+                    grp2_z_dim = grp2_z_loc - grp2_z_dim
+            else:
+                grp2_z_loc = assembly.obj_bp.matrix_world[2][3]
+                grp2_z_dim = assembly.obj_z.matrix_world[2][3]
+        else:
+            # Everything else we get z1 and z2 as normal
+            grp2_z_loc = assembly.obj_bp.matrix_world[2][3]
+            grp2_z_dim = assembly.obj_z.matrix_world[2][3]
+
+        if grp1_z_loc > grp1_z_dim:
+            grp1_z_1 = grp1_z_dim
+            grp1_z_2 = grp1_z_loc
+        else:
+            grp1_z_1 = grp1_z_loc
+            grp1_z_2 = grp1_z_dim
+
+        if grp2_z_loc > grp2_z_dim:
+            grp2_z_1 = grp2_z_dim
+            grp2_z_2 = grp2_z_loc
+        else:
+            grp2_z_1 = grp2_z_loc
+            grp2_z_2 = grp2_z_dim
 
         if grp1_z_1 >= grp2_z_1 and grp1_z_1 <= grp2_z_2:
             return True

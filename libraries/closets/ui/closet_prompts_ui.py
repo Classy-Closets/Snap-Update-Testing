@@ -103,6 +103,15 @@ def get_panel_heights(self, context):
         return panel_heights
 
 
+def update_overall_width(self, context):
+    if hasattr(self, "default_width"):
+        if not self.placement_on_wall == 'FILL':
+            self.width = self.default_width
+            self.closet.obj_x.location.x = self.width
+        else:
+            self.width = self.closet.obj_x.location.x
+
+
 class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     bl_idname = "sn_closets.openings"
     bl_label = "Partition Prompt"
@@ -130,7 +139,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             ('CENTER', "Center", ""),
             ('RIGHT', "Right", ""),
             ('FILL_RIGHT', "Fill Right", "")],
-        default='SELECTED_POINT')
+        default='SELECTED_POINT',
+        update=update_overall_width)
 
     quantity: IntProperty(name="Quantity", default=1)
     current_location: FloatProperty(name="Current Location", default=0, subtype='DISTANCE', precision=4)
@@ -937,6 +947,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         left_x = self.closet.get_collision_location('LEFT')
         right_x = self.closet.get_collision_location('RIGHT')
         offsets = self.left_offset + self.right_offset
+
         if self.placement_on_wall == 'SELECTED_POINT':
             self.closet.obj_bp.location.x = self.current_location
         if self.placement_on_wall == 'FILL':
@@ -944,16 +955,14 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             self.closet.obj_x.location.x = (right_x - left_x - offsets) / self.quantity
         if self.placement_on_wall == 'LEFT':
             self.closet.obj_bp.location.x = left_x + self.left_offset
-            self.closet.obj_x.location.x = self.width
         if self.placement_on_wall == 'CENTER':
-            self.closet.obj_x.location.x = self.width
             x_loc = left_x + (right_x - left_x) / 2 - ((self.closet.calc_width() / 2) * self.quantity)
             self.closet.obj_bp.location.x = x_loc
         if self.placement_on_wall == 'RIGHT':
             if self.closet.obj_bp.snap.placement_type == 'CORNER':
                 self.closet.obj_bp.rotation_euler.z = math.radians(-90)
-            self.closet.obj_x.location.x = self.width
             self.closet.obj_bp.location.x = (right_x - self.closet.calc_width()) - self.right_offset
+
         self.run_calculators(self.closet.obj_bp)
 
     def update_hang_height(self):
@@ -1137,7 +1146,6 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 self.depth = opening_1_depth.get_value()
                 self.height = self.convert_to_height(opening_1_height.get_value(),context)
 
-
             #----------Initial setting of self.Height_Left_Side
             #Get Height Left Side value from selected product and convert to rounded int for setting Height_Left_Side
             #height_left_side = self.closet.get_prompt("Height Left Side")
@@ -1192,6 +1200,11 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         row = col.row(align=True)
         if self.object_has_driver(self.closet.obj_x):
             row.label(text='Width: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.closet.obj_x.location.x))))
+        elif self.placement_on_wall == 'FILL':
+            width = round(sn_unit.meter_to_inch(self.closet.obj_x.location.x), 2)
+            label = str(width).replace(".0", "") + '"'
+            row.label(text="Overall Width:")
+            row.label(text=label)
         else:
             row.label(text='Overall Width:')
             row.prop(self,'width',text="")
@@ -1468,7 +1481,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             if bottom_back_thickness:
                 bottom_back_thickness_prompts.append(bottom_back_thickness)
 
-        row = layout.row()
+        box = layout.box()
+        row = box.row()
 
         for i in range(self.closet.opening_qty):
             col = row.column(align=True)

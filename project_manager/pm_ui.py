@@ -159,7 +159,7 @@ class SNAP_PT_Project_Info(Panel):
         box = layout.box()
         col = box.column()
         col.prop(proj_props, 'customer_name')
-        col.prop(proj_props, 'client_id')
+        col.prop(proj_props, 'client_id', text="Lead #")
         col.prop(proj_props, 'project_address')
         col.prop(proj_props, 'city')
         col.prop(proj_props, 'state')

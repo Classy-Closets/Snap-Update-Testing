@@ -395,9 +395,21 @@ class OPS_Hamper_Drop(Operator, PlaceClosetInsert):
                 if child.sn_closets.opening_name == opening_name:
                     back_assembly = sn_types.Assembly(child)
                     bottom_insert_backing = back_assembly.get_prompt('Bottom Insert Backing')
+                    top_ppt = back_assembly.get_prompt("Top Section Backing")
+                    center_ppt = back_assembly.get_prompt("Center Section Backing")
+                    bottom_ppt = back_assembly.get_prompt("Bottom Section Backing")
+                    single_back_ppt = back_assembly.get_prompt("Single Back")
+                    use_center = center_ppt.get_value()
+                    use_single_back = single_back_ppt.get_value()                    
 
                     if bottom_insert_backing:
                         bottom_insert_backing.set_formula('Hamper_Backing_Gap', [Hamper_Backing_Gap])
+
+                    if use_single_back:
+                        top_ppt.set_value(use_center)
+                        center_ppt.set_value(use_center)
+                        bottom_ppt.set_value(use_center)
+                        single_back_ppt.set_value(use_single_back)                        
     
     def set_bottom_KD(self, insert_bp, selected_opening):
         opening_name = selected_opening.obj_bp.sn_closets.opening_name

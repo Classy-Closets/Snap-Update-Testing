@@ -381,6 +381,8 @@ class Query_PDF_Form_Data:
         for slot in door_mesh.snap.material_slots:
             if "Wood_Door_Surface" == slot.pointer_name:
                 return "wood"
+            elif "Five_Piece_Melamine_Door_Surface" == slot.pointer_name:
+                return "slab"
             elif "Door_Surface" == slot.pointer_name:
                 return "slab"
             elif "Moderno_Door" == slot.pointer_name:
@@ -425,7 +427,9 @@ class Query_PDF_Form_Data:
         root = tree.getroot()
         elm_pinfo = root.find("ProjectInfo")
         customer_name = elm_pinfo.find("customer_name").text
+        lead_id = elm_pinfo.find("client_id").text
         job_dict["customer_name"] = customer_name
+        job_dict["lead_id"] = lead_id
         cphone_1 = elm_pinfo.find("customer_phone_1").text
         cphone_2 = elm_pinfo.find("customer_phone_2").text
         if cphone_1 and cphone_2 and cphone_1 != "None" and cphone_2 != "None":
@@ -835,6 +839,8 @@ class Query_PDF_Form_Data:
                                 if s.item_name != 'Glass'][:1][0]
                         if "Wood_Door_Surface" == slot.pointer_name:
                             mat_type = "Wood"
+                        elif "Five_Piece_Melamine_Door_Surface" == slot.pointer_name:
+                            mat_type = "Five_Piece_Melamine"
                         elif "Door_Surface" == slot.pointer_name:
                             mat_type = "Slab"
                         elif "Moderno_Door" == slot.pointer_name:
@@ -1064,5 +1070,6 @@ class Query_PDF_Form_Data:
         self.data_dict[page]["designer"] = self.job_info.get("designer", '')
         self.data_dict[page]["proj_notes"] = self.job_info.get("proj_notes", '')
         self.data_dict[page]["design_date"] = self.job_info.get("design_date", '')
+        self.data_dict[page]["leadid"] = self.job_info.get("lead_id", '')
         self.data_dict[page]["room_name"] = self.room_name
             

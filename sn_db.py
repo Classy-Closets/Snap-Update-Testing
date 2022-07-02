@@ -6,6 +6,7 @@ from snap import sn_paths
 ITEMS_TABLE_NAME = "CCItems"
 EDGE_TYPE_TABLE_NAME = "EdgeTypes"
 MAT_TYPE_TABLE_NAME = "MaterialTypes"
+FIVE_PIECE_DOOR_COLORS_TABLE_NAME = "FivePieceDoorColors"
 SLIDE_TYPE_TABLE_NAME = "SlideTypes"
 
 

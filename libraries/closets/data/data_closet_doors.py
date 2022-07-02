@@ -94,7 +94,7 @@ class Doors(sn_types.Assembly):
         self.add_prompt("Left Blind Corner Depth", 'DISTANCE', 0)
         self.add_prompt("Right Blind Corner Depth", 'DISTANCE', 0)
 
-        self.add_prompt("Is Slab Door", 'CHECKBOX', True)
+        self.add_prompt("Is Melamine Door", 'CHECKBOX', True)
         self.add_prompt("Has Center Rail", 'CHECKBOX', False)
         self.add_prompt("Center Rail Distance From Center", 'DISTANCE', 0)
 
@@ -767,15 +767,15 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
                 if not child.visible_get:
                     door_assembly = sn_types.Assembly(child)
                     door_style = door_assembly.get_prompt("Door Style")
-                    is_slab_door = self.assembly.get_prompt("Is Slab Door")
+                    is_melamine_door = self.assembly.get_prompt("Is Melamine Door")
                     has_center_rail = self.assembly.get_prompt("Has Center Rail")
-                    prompts = [door_style,is_slab_door,has_center_rail]
+                    prompts = [door_style,is_melamine_door,has_center_rail]
                     if all(prompts):
-                        if(door_style.get_value() == "Slab Door"):
-                            is_slab_door.set_value(True)
+                        if(door_style.get_value() == "Slab Door") or ("Traviso" in (door_style.get_value())):
+                            is_melamine_door.set_value(True)
                             has_center_rail.set_value(False)
                         else:
-                            is_slab_door.set_value(False)
+                            is_melamine_door.set_value(False)
 
     def set_properties_from_prompts(self):
         insert_height = self.assembly.get_prompt("Insert Height")
@@ -1016,15 +1016,15 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
                 if not child.visible_get():
                     door_assembly = sn_types.Assembly(child)
                     door_style = door_assembly.get_prompt("Door Style")
-                    is_slab_door = self.assembly.get_prompt("Is Slab Door")
+                    is_melamine_door = self.assembly.get_prompt("Is Melamine Door")
                     has_center_rail = self.assembly.get_prompt("Has Center Rail")
-                    prompts = [door_style,is_slab_door,has_center_rail]
+                    prompts = [door_style,is_melamine_door,has_center_rail]
                     if all(prompts):
-                        if(door_style.get_value() == "Slab Door"):
-                            is_slab_door.set_value(True)
+                        if(door_style.get_value() == "Slab Door") or ("Traviso" in (door_style.get_value())):
+                            is_melamine_door.set_value(True)
                             has_center_rail.set_value(False)
                         else:
-                            is_slab_door.set_value(False)
+                            is_melamine_door.set_value(False)
                 
         wm = context.window_manager
         return wm.invoke_props_dialog(self, width=375)
@@ -1128,7 +1128,7 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
                 top_KD = self.assembly.get_prompt("Top KD")
                 bottom_KD = self.assembly.get_prompt("Bottom KD")
                 placed_in_invalid_opening = self.assembly.get_prompt("Placed In Invalid Opening")       
-                is_slab_door = self.assembly.get_prompt("Is Slab Door")
+                is_melamine_door = self.assembly.get_prompt("Is Melamine Door")
                 has_center_rail = self.assembly.get_prompt("Has Center Rail")        
                 center_rail_distance_from_center = self.assembly.get_prompt("Center Rail Distance From Center")
                 shelf_quantity = self.assembly.get_prompt("Shelf Quantity")   
@@ -1187,8 +1187,8 @@ class PROMPTS_Door_Prompts(sn_types.Prompts_Interface):
                     row.label(text="Open Door")
                     row.prop(open_prompt, 'factor_value', slider=True, text="")
 
-                    if has_center_rail and is_slab_door and center_rail_distance_from_center:
-                        if not is_slab_door.get_value():
+                    if has_center_rail and is_melamine_door and center_rail_distance_from_center:
+                        if not is_melamine_door.get_value():
                             row = box.row()
                             row.label(text="Center Rail")
                             row.prop(has_center_rail, 'checkbox_value', text="")
@@ -1390,9 +1390,21 @@ class OPS_Doors_Drop(Operator, PlaceClosetInsert):
                 if child.sn_closets.opening_name == opening_name:
                     back_assembly = sn_types.Assembly(child)
                     top_insert_backing = back_assembly.get_prompt('Top Insert Backing')
+                    top_ppt = back_assembly.get_prompt("Top Section Backing")
+                    center_ppt = back_assembly.get_prompt("Center Section Backing")
+                    bottom_ppt = back_assembly.get_prompt("Bottom Section Backing")
+                    single_back_ppt = back_assembly.get_prompt("Single Back")
+                    use_center = center_ppt.get_value()
+                    use_single_back = single_back_ppt.get_value()
+
                     if top_insert_backing:
                         top_insert_backing.set_formula('Doors_Backing_Gap', [Doors_Backing_Gap])
 
+                    if use_single_back:
+                        top_ppt.set_value(use_center)
+                        center_ppt.set_value(use_center)
+                        bottom_ppt.set_value(use_center)
+                        single_back_ppt.set_value(use_single_back)
 
 bpy.utils.register_class(PROMPTS_Door_Prompts)
 bpy.utils.register_class(OPS_Doors_Drop)

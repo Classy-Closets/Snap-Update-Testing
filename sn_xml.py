@@ -59,20 +59,21 @@ class Snap_XML():
             self.existing_items.append(item)
 
             for part in item.findall("Part"):
-                self.existing_parts.append(part)
+                _ , part_num = part.attrib.get('ID').split('-')
+                self.existing_parts.append(int(part_num))
 
             for assembly in item.findall("Assembly"):
                 self.existing_assemblies.append(assembly)
 
                 for part in assembly.findall("Part"):
-                    self.existing_parts.append(part)
-
+                    _ , part_num = part.attrib.get('ID').split('-')
+                    self.existing_parts.append(int(part_num))
                 for assembly in assembly.findall("Assembly"):
                     self.existing_assemblies.append(assembly)
 
                     for part in assembly.findall("Part"):
-                        self.existing_parts.append(part)
-
+                        _ , part_num = part.attrib.get('ID').split('-')
+                        self.existing_parts.append(int(part_num))
         mfg = self.root.find("Manufacturing")
 
         for orientation in mfg.findall("Orientation"):
@@ -108,15 +109,8 @@ class Snap_XML():
             elif int_num == self.assembly_count:
                 self.assembly_count = int_num + 1                
 
-        for part in self.existing_parts:
-            part_num = part.attrib.get('ID')
-            _ , num = part_num.split('-')
-            int_num = int(num)
-
-            if int_num > self.part_count:
-                self.part_count = int_num
-            elif int_num == self.part_count:
-                self.part_count = int_num + 1                
+        self.existing_parts.sort()
+        self.part_count = self.existing_parts[-1] + 1
 
         for label in self.existing_labels:
             label_num = label.attrib.get('ID')

@@ -63,6 +63,9 @@ def update_material_and_edgeband_colors(self, context):
         else:
             self.stain_color_index = self.stain_colors.find("Oxford White")
     elif mat_type.name == 'Textured Melamine':
+        if mat_color_name in stain_colors and mat_color_name == "TL Opto Printatre":
+            self.stain_color_index = self.stain_colors.find(mat_color_name)
+            return
         if mat_color_name in moderno_colors:
             self.moderno_color_index = self.moderno_colors.find(mat_color_name)
             return
@@ -195,6 +198,9 @@ class SnapMaterialSceneProps(PropertyGroup):
 
     stain_colors: CollectionProperty(type=property_groups.StainColor)
     stain_color_index: IntProperty(name="Stain Color List Index", default=15, update=update_render_materials)
+
+    five_piece_melamine_door_colors: CollectionProperty(type=property_groups.FivePieceMelamineDoorColor)
+    five_piece_melamine_door_mat_color_index: IntProperty(name="Five Piece Melamine Door Color List Index", default=6, update=update_render_materials)
 
     glaze_colors: CollectionProperty(type=property_groups.GlazeColor)
     glaze_color_index: IntProperty(name="Glaze Color List Index", default=0, update=update_render_materials)
@@ -499,7 +505,10 @@ class SnapMaterialSceneProps(PropertyGroup):
             if any(door_drawer_parts):
                 door_style = assembly.get_prompt("Door Style")
                 if door_style:
-                    if door_style.get_value() != "Slab Door":
+                    if "Traviso" in door_style.get_value():
+                        if self.get_five_piece_melamine_door_color().name != 'None':
+                            return self.get_five_piece_melamine_door_color().sku
+                    elif door_style.get_value() != "Slab Door":
                         if self.get_stain_color().name != 'None':
                             return self.get_stain_color().sku
                 mat_type = self.door_drawer_materials.get_mat_type()
@@ -863,6 +872,12 @@ class SnapMaterialSceneProps(PropertyGroup):
     def get_stain_colors(self):
         return [color.name for color in self.stain_colors]
 
+    def get_five_piece_melamine_door_color(self):
+        return self.five_piece_melamine_door_colors[self.five_piece_melamine_door_mat_color_index]
+
+    def get_five_piece_melamine_door_colors(self):
+        return [color.name for color in self.five_piece_melamine_door_colors]
+
     def get_moderno_colors(self):
         return [color.name for color in self.moderno_colors]
 
@@ -908,6 +923,8 @@ class SnapMaterialSceneProps(PropertyGroup):
         self.door_drawer_mat_type_index = self.door_drawer_materials.mat_types.find(material_type.name)
         door_drawer_mat_type = self.door_drawer_materials.get_mat_type()
         self.door_drawer_mat_color_index = door_drawer_mat_type.colors.find(material_color.name)
+        if self.five_piece_melamine_door_colors.find(material_color.name) != -1:
+            self.five_piece_melamine_door_mat_color_index = self.five_piece_melamine_door_colors.find(material_color.name)
         self.set_all_edge_colors(material_color)
 
     def set_defaults(self):
@@ -936,8 +953,10 @@ class SnapMaterialSceneProps(PropertyGroup):
         self.door_drawer_edge_type_index = self.door_drawer_edges.edge_types.find(self.default_edge_type)
 
     def set_default_material_color(self):
+        color_idx = None
         mat_type = self.materials.get_mat_type()
-        color_idx = mat_type.colors.find(self.default_color)
+        if mat_type.name == self.default_mat_type:
+            color_idx = mat_type.colors.find(self.default_color)
 
         if color_idx:
             self.mat_color_index = color_idx
@@ -1036,6 +1055,18 @@ class SnapMaterialSceneProps(PropertyGroup):
                 else:
                     row = box.row()
                     row.label(text="None", icon='ERROR')
+
+                box = c_box.box()
+                box.label(text="Five Piece Melamine Door Color Selection:")
+
+                if len(self.five_piece_melamine_door_colors) > 0:
+                    active_five_piece_melamine_door_color = self.get_five_piece_melamine_door_color()
+                    row = box.row(align=True)
+                    split = row.split(factor=0.25)
+                    split.label(text="Color:")
+                    split.menu(
+                        'SNAP_MATERIAL_MT_Five_Piece_Melamine_Door_Colors',
+                        text=active_five_piece_melamine_door_color.name, icon='RADIOBUT_ON')
 
                 box = c_box.box()
                 box.label(text="Moderno Door Color Selection:")

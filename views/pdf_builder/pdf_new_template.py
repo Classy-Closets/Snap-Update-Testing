@@ -95,7 +95,8 @@ class New_Template_Builder(Pdf_Builder):
             form_info (dict): A dictionary with labels, values and positions.
         """
         bigger_fonts = ['customer_name', 'cphone', 'design_date', 'designer']
-        bigger_fonts += ['signature', 'install_date', 'job_number', 'sheet', 'room_name']
+        bigger_fonts += ['signature', 'install_date', 'job_number', 'sheet']
+        bigger_fonts += ['room_name', 'leadid']
         self.c.setFont("Calibri", 8)
         form = self.c.acroForm
         for idx, field in enumerate(form_info):

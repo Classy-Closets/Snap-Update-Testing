@@ -170,6 +170,7 @@ class SN_MAT_OT_Assign_Materials(Operator):
             molding_pointer = spec_group.materials["Molding"]
             drawer_surface = spec_group.materials["Drawer_Box_Surface"]
             wood_door_pointer = spec_group.materials["Wood_Door_Surface"]
+            five_piece_melamine_door_pointer = spec_group.materials["Five_Piece_Melamine_Door_Surface"]
             moderno_door_pointer = spec_group.materials["Moderno_Door"]
             glass_panel_pointer = spec_group.materials["Glass"]
             countertop_pointer = spec_group.materials["Countertop_Surface"]
@@ -224,6 +225,9 @@ class SN_MAT_OT_Assign_Materials(Operator):
 
             wood_door_pointer.category_name = "Closet Materials"
             wood_door_pointer.item_name = mat_props.stain_colors[mat_props.stain_color_index].name
+
+            five_piece_melamine_door_pointer.category_name = "Closet Materials"
+            five_piece_melamine_door_pointer.item_name = mat_props.five_piece_melamine_door_colors[mat_props.five_piece_melamine_door_mat_color_index].name
 
             moderno_door_pointer.category_name = "Closet Materials"
             moderno_door_pointer.item_name = mat_props.moderno_colors[

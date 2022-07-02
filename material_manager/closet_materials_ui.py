@@ -467,6 +467,48 @@ class OPS_Change_Active_Stain_Color(Operator):
         return {'FINISHED'}
 
 
+class SNAP_MATERIAL_MT_Five_Piece_Melamine_Door_Colors(bpy.types.Menu):
+    bl_label = "Five Piece Melamine Door Colors"
+
+    def draw(self, context):
+        cab_mat_props = context.scene.closet_materials
+        colors = cab_mat_props.five_piece_melamine_door_colors
+        layout = self.layout
+        row = layout.row()
+
+        for index, five_piece_melamine_door_color in enumerate(colors):
+
+            if index % MAX_COL_LEN == 0:
+                col = row.column()
+
+            if index == cab_mat_props.five_piece_melamine_door_mat_color_index:
+                props = col.operator('closet_materials.change_active_five_piece_melamine_door_color', text=five_piece_melamine_door_color.name, icon='RADIOBUT_ON')
+                props.five_piece_melamine_door_color_name = five_piece_melamine_door_color.name
+
+            else:
+                props = col.operator('closet_materials.change_active_five_piece_melamine_door_color', text=five_piece_melamine_door_color.name, icon='RADIOBUT_OFF')
+                props.five_piece_melamine_door_color_name = five_piece_melamine_door_color.name
+
+
+class OPS_Change_Active_Five_Piece_Melamine_Door_Color(Operator):
+    bl_idname = "closet_materials.change_active_five_piece_melamine_door_color"
+    bl_label = "Change Five Piece Melamine Door Color"
+    bl_description = "This changes the active five piece melamine door color"
+    bl_options = {'UNDO'}
+
+    five_piece_melamine_door_color_name: StringProperty(name="Five Piece Melamine Door Color Name")
+
+    def execute(self, context):
+        props = context.scene.closet_materials
+        colors = props.five_piece_melamine_door_colors
+
+        for index, color in enumerate(colors):
+            if color.name == self.five_piece_melamine_door_color_name:
+                context.scene.closet_materials.five_piece_melamine_door_mat_color_index = index
+
+        return {'FINISHED'}
+
+
 class SNAP_MATERIAL_MT_Glaze_Colors(bpy.types.Menu):
     bl_label = "Glaze Colors"
 
@@ -692,12 +734,14 @@ classes = (
     SNAP_MATERIAL_MT_Countertop_Mfgs,
     SNAP_MATERIAL_MT_Countertop_Colors,
     SNAP_MATERIAL_MT_Stain_Colors,
+    SNAP_MATERIAL_MT_Five_Piece_Melamine_Door_Colors,
     SNAP_MATERIAL_MT_Glaze_Colors,
     SNAP_MATERIAL_MT_Glaze_Styles,
     SNAP_MATERIAL_MT_Door_Colors,
     SNAP_MATERIAL_MT_Glass_Colors,
     SNAP_MATERIAL_MT_Drawer_Slides,
     OPS_Change_Active_Stain_Color,
+    OPS_Change_Active_Five_Piece_Melamine_Door_Color,
     OPS_Change_Active_Glaze_Color,
     OPS_Change_Active_Glaze_Style,
     OPS_Change_Active_Door_Color,

@@ -482,9 +482,16 @@ class Closet_Defaults(PropertyGroup):
                        default = 'SIZE')
 
     export_subassemblies: BoolProperty(name="Export Subassemblies",description="Export Subassemblies",default=True)   
-    
-    add_backing: BoolProperty(name="Add Backing",description="Add Backing",default=False)      
-    
+
+    add_backing: BoolProperty(name="Add Backing", description="Add Backing", default=False)
+
+    backing_thickness: EnumProperty(
+        name="Backing Thickness",
+        items=(
+            ('1/4', '1/4"', '1/4"'),
+            ('3/4', '3/4"', '3/4"')),
+        default='1/4')
+
     dog_ear_active: BoolProperty(name="Dog Ear Active",description="Active Dog Ear Partition",default=False)
 
     add_hanging_rail: BoolProperty(name="Add Hanging Rail",description="Add Hanging Rail",default=False)   
@@ -713,10 +720,14 @@ class Closet_Defaults(PropertyGroup):
         box = main_col.box()
         box.label(text="Section Options:", icon='MODIFIER')
         row = box.row()
-        row.label(text="Add Backing:")
+        row.label(text="Add Backing Throughout:")
         row.prop(self, 'add_backing', text="")
-        props = row.operator(
-            'sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
+        # props = row.operator('sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
+
+        row = box.row()
+        row.label(text="Backing Thickness:")
+        row.prop(self, 'backing_thickness', text="")
+        # props = row.operator('sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
         props.prompt_name = 'Add Backing'
         props.prompt_type = 'CHECKBOX'
         props.bool_value = self.add_backing

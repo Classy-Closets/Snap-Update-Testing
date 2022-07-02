@@ -1,4 +1,3 @@
-
 import bpy
 from bpy.types import Panel
 from bpy.types import Operator
@@ -269,7 +268,7 @@ def generate_retail_pricing_summary(parts_file):
         pricing_sheet["A" + str(row_start + 2)] = "Special Order Items Count"
         pricing_sheet["A" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["B" + str(row_start + 2)] = "See Special Order tab for details"
-        pricing_sheet["C" + str(row_start + 2)] = str(R_ROOM_PRICING_LIST[i][7])
+        pricing_sheet["C" + str(row_start + 2)] = R_ROOM_PRICING_LIST[i][7]
         pricing_sheet["A" + str(row_start + 3)] = "Material Price"
         pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["C" + str(row_start + 3)] = R_ROOM_PRICING_LIST[i][3]
@@ -310,12 +309,16 @@ def generate_retail_pricing_summary(parts_file):
         pricing_sheet["E" + str(row_start + 6)] = "=D" + str(row_start + 6) + "*C" + str(row_start + 6)
         pricing_sheet["E" + str(row_start + 6)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         pricing_sheet["E" + str(row_start + 6)].font = openpyxl.styles.Font(color="00339966")
-        pricing_sheet["A" + str(row_start + 7)] = "Room Total Price"
+        pricing_sheet["A" + str(row_start + 7)] = "Special Order Price"
         pricing_sheet["A" + str(row_start + 7)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["C" + str(row_start + 7)] = R_ROOM_PRICING_LIST[i][9]
+        pricing_sheet["C" + str(row_start + 7)] = "=SUMIF('Special Order'!A:A," + "C" + str(row_start + 1) +  ",'Special Order'!O:O)"
         pricing_sheet["C" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["F" + str(row_start + 7)] = "=C" + str(row_start + 7) + "-SUM(E" + str(row_start + 3) + ":E" + str(row_start + 6) + ")"
-        pricing_sheet["F" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 8)] = "Room Total Price"
+        pricing_sheet["A" + str(row_start + 8)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 8)] = "=SUM(C" + str(row_start + 3) + ":C" + str(row_start + 7) + ")"
+        pricing_sheet["C" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["F" + str(row_start + 8)] = "=C" + str(row_start + 8) + "-SUM(E" + str(row_start + 3) + ":E" + str(row_start + 7) + ")"
+        pricing_sheet["F" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
         erp_sheet["A" + str(erp_row + 2)] = R_ROOM_PRICING_LIST[i][0]
         erp_sheet["A" + str(erp_row + 2)].font = openpyxl.styles.Font(bold=True)
@@ -333,19 +336,19 @@ def generate_retail_pricing_summary(parts_file):
         erp_row = erp_sheet.max_row
 
 
-    pricing_sheet["B" + str(row_start + 2)] = "Special Order Items"
+    pricing_sheet["B" + str(row_start + 2)] = "Other Special Order Items"
     pricing_sheet["B" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["A" + str(row_start + 3)] = "Special Order Price"
+    pricing_sheet["A" + str(row_start + 3)] = "Other Special Order Price"
     pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["B" + str(row_start + 3)] = "See Special Order tab for details"
-    pricing_sheet["C" + str(row_start + 3)] = "=SUM('Special Order'!O:O)"
+    pricing_sheet["C" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["C" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
     pricing_sheet["B" + str(row_start + 6)] = "Project Totals"
     pricing_sheet["B" + str(row_start + 6)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["A" + str(row_start + 7)] = "Room Count"
     pricing_sheet["A" + str(row_start + 7)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 7)] = str(len(R_ROOM_PRICING_LIST))
+    pricing_sheet["C" + str(row_start + 7)] = len(R_ROOM_PRICING_LIST)
     pricing_sheet["A" + str(row_start + 8)] = "Special Order Items Count"
     pricing_sheet["A" + str(row_start + 8)].font = openpyxl.styles.Font(bold=True)
     # pricing_sheet["B" + str(row_start + 8)] = "See Special Order tab for details"
@@ -366,35 +369,39 @@ def generate_retail_pricing_summary(parts_file):
     pricing_sheet["A" + str(row_start + 12)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["C" + str(row_start + 12)] = "=SUMIF('Wood Panel'!P:P," + '"' + ">0" + '"' + ")"
     pricing_sheet["C" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 13)] = "Project Subtotal"
+    pricing_sheet["A" + str(row_start + 13)] = "Special Order Price"
     pricing_sheet["A" + str(row_start + 13)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 13)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10) + "+C" + str(row_start + 11) + "+C" + str(row_start + 12) + "+C" + str(row_start + 3)
+    pricing_sheet["C" + str(row_start + 13)] = "=SUMIF('Special Order'!O:O," + '"' + ">0" + '"' + ")"
     pricing_sheet["C" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 14)] = "Delivery Charge (10%)"
+    pricing_sheet["A" + str(row_start + 14)] = "Project Subtotal"
     pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 14)] = "=(" + str((sum(map(float, R_PROJECT_TOTAL_MATERIAL)) + sum(map(float, R_PROJECT_TOTAL_HARDWARE)) + sum(map(float, R_PROJECT_TOTAL_ACCESSORIES)) + sum(map(float, R_PROJECT_TOTAL_WOOD_PANEL)))) + ")*.10"
+    pricing_sheet["C" + str(row_start + 14)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10) + "+C" + str(row_start + 11) + "+C" + str(row_start + 12) + "+C" + str(row_start + 13)
     pricing_sheet["C" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 15)] = "Adjusted Project Subtotal"
+    pricing_sheet["A" + str(row_start + 15)] = "Delivery Charge (17.5%)"
     pricing_sheet["A" + str(row_start + 15)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 15)] = "=" + "C" + str(row_start + 13) + "+C" + str(row_start + 14)
+    pricing_sheet["C" + str(row_start + 15)] = "=(" + str((sum(map(float, R_PROJECT_TOTAL_MATERIAL)) + sum(map(float, R_PROJECT_TOTAL_HARDWARE)) + sum(map(float, R_PROJECT_TOTAL_ACCESSORIES)) + sum(map(float, R_PROJECT_TOTAL_WOOD_PANEL)))) + ")*.175"
     pricing_sheet["C" + str(row_start + 15)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 16)] = "O.D.C Price"
+    pricing_sheet["A" + str(row_start + 16)] = "Adjusted Project Subtotal"
     pricing_sheet["A" + str(row_start + 16)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 16)] = 0
+    pricing_sheet["C" + str(row_start + 16)] = "=" + "C" + str(row_start + 14) + "+C" + str(row_start + 15)
     pricing_sheet["C" + str(row_start + 16)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 17)] = "Tear Out Price"
+    pricing_sheet["A" + str(row_start + 17)] = "O.D.C Price"
     pricing_sheet["A" + str(row_start + 17)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["C" + str(row_start + 17)] = 0
     pricing_sheet["C" + str(row_start + 17)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 18)] = "Discounts"
+    pricing_sheet["A" + str(row_start + 18)] = "Tear Out Price"
     pricing_sheet["A" + str(row_start + 18)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 18)] = "=SUM(E:E)"
+    pricing_sheet["C" + str(row_start + 18)] = 0
     pricing_sheet["C" + str(row_start + 18)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["C" + str(row_start + 18)].font = openpyxl.styles.Font(color="00339966")
-    pricing_sheet["A" + str(row_start + 19)] = "Grand Total"
+    pricing_sheet["A" + str(row_start + 19)] = "Discounts"
     pricing_sheet["A" + str(row_start + 19)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 19)] = "=" + "C" + str(row_start + 15) + "+C" + str(row_start + 16) + "+C" + str(row_start + 17) + "-C" + str(row_start + 18)
+    pricing_sheet["C" + str(row_start + 19)] = "=SUM(E:E)"
     pricing_sheet["C" + str(row_start + 19)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+    pricing_sheet["C" + str(row_start + 19)].font = openpyxl.styles.Font(color="00339966")
+    pricing_sheet["A" + str(row_start + 20)] = "Grand Total"
+    pricing_sheet["A" + str(row_start + 20)].font = openpyxl.styles.Font(bold=True)
+    pricing_sheet["C" + str(row_start + 20)] = "=" + "C" + str(row_start + 16) + "+C" + str(row_start + 17) + "+C" + str(row_start + 18) + "-C" + str(row_start + 19)
+    pricing_sheet["C" + str(row_start + 20)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
     set_column_width(pricing_sheet)
     set_column_width(erp_sheet)
@@ -428,17 +435,19 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["A" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["C" + str(row_start + 1)] = F_ROOM_PRICING_LIST[i][0] + " (Franchise)"
         pricing_sheet["C" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["D" + str(row_start + 1)] = R_ROOM_PRICING_LIST[i][0] + " (Retail)"
+        pricing_sheet["D" + str(row_start + 1)] = R_ROOM_PRICING_LIST[i][0]
         pricing_sheet["D" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["E" + str(row_start + 1)] = "Discount %"
         pricing_sheet["E" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["F" + str(row_start + 1)] = "Discount Value"
         pricing_sheet["F" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["G" + str(row_start + 1)] = "Adjusted Retail Total"
+        pricing_sheet["G" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["A" + str(row_start + 2)] = "Special Order Items Count"
         pricing_sheet["A" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["B" + str(row_start + 2)] = "See Special Order tab for details"
-        pricing_sheet["C" + str(row_start + 2)] = str(F_ROOM_PRICING_LIST[i][7])
-        pricing_sheet["D" + str(row_start + 2)] = str(R_ROOM_PRICING_LIST[i][7])
+        pricing_sheet["C" + str(row_start + 2)] = F_ROOM_PRICING_LIST[i][7]
+        pricing_sheet["D" + str(row_start + 2)] = R_ROOM_PRICING_LIST[i][7]
         pricing_sheet["A" + str(row_start + 3)] = "Material Price"
         pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["C" + str(row_start + 3)] = F_ROOM_PRICING_LIST[i][3]
@@ -448,7 +457,7 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["E" + str(row_start + 3)] = 0
         pricing_sheet["E" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_PERCENTAGE
         pricing_sheet["E" + str(row_start + 3)].font = openpyxl.styles.Font(color="00339966")
-        pricing_sheet["F" + str(row_start + 3)] = "=E" + str(row_start + 3) + "*C" + str(row_start + 3)
+        pricing_sheet["F" + str(row_start + 3)] = "=E" + str(row_start + 3) + "*D" + str(row_start + 3)
         pricing_sheet["F" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         pricing_sheet["F" + str(row_start + 3)].font = openpyxl.styles.Font(color="00339966")
         pricing_sheet["A" + str(row_start + 4)] = "Hardware Price"
@@ -460,7 +469,7 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["E" + str(row_start + 4)] = 0
         pricing_sheet["E" + str(row_start + 4)].number_format = openpyxl.styles.numbers.FORMAT_PERCENTAGE
         pricing_sheet["E" + str(row_start + 4)].font = openpyxl.styles.Font(color="00339966")
-        pricing_sheet["F" + str(row_start + 4)] = "=E" + str(row_start + 4) + "*C" + str(row_start + 4)
+        pricing_sheet["F" + str(row_start + 4)] = "=E" + str(row_start + 4) + "*D" + str(row_start + 4)
         pricing_sheet["F" + str(row_start + 4)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         pricing_sheet["F" + str(row_start + 4)].font = openpyxl.styles.Font(color="00339966")
         pricing_sheet["A" + str(row_start + 5)] = "Accessories Price"
@@ -472,7 +481,7 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["E" + str(row_start + 5)] = 0
         pricing_sheet["E" + str(row_start + 5)].number_format = openpyxl.styles.numbers.FORMAT_PERCENTAGE
         pricing_sheet["E" + str(row_start + 5)].font = openpyxl.styles.Font(color="00339966")
-        pricing_sheet["F" + str(row_start + 5)] = "=E" + str(row_start + 5) + "*C" + str(row_start + 5)
+        pricing_sheet["F" + str(row_start + 5)] = "=E" + str(row_start + 5) + "*D" + str(row_start + 5)
         pricing_sheet["F" + str(row_start + 5)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         pricing_sheet["F" + str(row_start + 5)].font = openpyxl.styles.Font(color="00339966")
         pricing_sheet["A" + str(row_start + 6)] = "Wood Panel Price"
@@ -484,27 +493,36 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["E" + str(row_start + 6)] = 0
         pricing_sheet["E" + str(row_start + 6)].number_format = openpyxl.styles.numbers.FORMAT_PERCENTAGE
         pricing_sheet["E" + str(row_start + 6)].font = openpyxl.styles.Font(color="00339966")
-        pricing_sheet["F" + str(row_start + 6)] = "=E" + str(row_start + 6) + "*C" + str(row_start + 6)
+        pricing_sheet["F" + str(row_start + 6)] = "=E" + str(row_start + 6) + "*D" + str(row_start + 6)
         pricing_sheet["F" + str(row_start + 6)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         pricing_sheet["F" + str(row_start + 6)].font = openpyxl.styles.Font(color="00339966")
-        pricing_sheet["A" + str(row_start + 7)] = "Room Total Price"
+        pricing_sheet["A" + str(row_start + 7)] = "Special Order Price"
         pricing_sheet["A" + str(row_start + 7)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["C" + str(row_start + 7)] = F_ROOM_PRICING_LIST[i][9]
+        pricing_sheet["C" + str(row_start + 7)] = "=SUMIF('Special Order'!A:A," + "D" + str(row_start + 1) +  ",'Special Order'!O:O)"
         pricing_sheet["C" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["D" + str(row_start + 7)] = R_ROOM_PRICING_LIST[i][9]
+        pricing_sheet["D" + str(row_start + 7)] = "=SUMIF('Special Order'!A:A," + "D" + str(row_start + 1) +  ",'Special Order'!O:O)"
         pricing_sheet["D" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 8)] = "Room Total Price"
+        pricing_sheet["A" + str(row_start + 8)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 8)] = "=SUM(C" + str(row_start + 3) + ":C" + str(row_start + 7) + ")"
+        pricing_sheet["C" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 8)] = "=SUM(D" + str(row_start + 3) + ":D" + str(row_start + 7) + ")"
+        pricing_sheet["D" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["G" + str(row_start + 8)] = "=D" + str(row_start + 8) + "-SUM(F" + str(row_start + 3) + ":F" + str(row_start + 7) + ")"
+        pricing_sheet["G" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+
 
         pricing_sheet["A" + str(row_start + 9)] = ""
         row_start = pricing_sheet.max_row
 
-    pricing_sheet["B" + str(row_start + 2)] = "Special Order Items (Not Calculated in Project Total)"
+    pricing_sheet["B" + str(row_start + 2)] = "Other Special Order Items"
     pricing_sheet["B" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["A" + str(row_start + 3)] = "Special Order Price"
+    pricing_sheet["A" + str(row_start + 3)] = "Other Special Order Price"
     pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["B" + str(row_start + 3)] = "See Special Order tab for details"
-    pricing_sheet["C" + str(row_start + 3)] = "=SUM('Special Order'!O:O)"
+    pricing_sheet["C" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["C" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["D" + str(row_start + 3)] = "=SUM('Special Order'!O:O)"
+    pricing_sheet["D" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["D" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
     pricing_sheet["B" + str(row_start + 6)] = "Project Totals"
@@ -515,8 +533,8 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet["D" + str(row_start + 6)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["A" + str(row_start + 7)] = "Room Count"
     pricing_sheet["A" + str(row_start + 7)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 7)] = str(len(F_ROOM_PRICING_LIST))
-    pricing_sheet["D" + str(row_start + 7)] = str(len(R_ROOM_PRICING_LIST))
+    pricing_sheet["C" + str(row_start + 7)] = len(F_ROOM_PRICING_LIST)
+    pricing_sheet["D" + str(row_start + 7)] = len(R_ROOM_PRICING_LIST)
     pricing_sheet["A" + str(row_start + 8)] = "Special Order Items Count"
     pricing_sheet["A" + str(row_start + 8)].font = openpyxl.styles.Font(bold=True)
     # pricing_sheet["B" + str(row_start + 8)] = "See Special Order tab for details"
@@ -546,43 +564,53 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet["C" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["D" + str(row_start + 12)] = sum(map(float, R_PROJECT_TOTAL_WOOD_PANEL))
     pricing_sheet["D" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 13)] = "Project Subtotal"
+
+    pricing_sheet["A" + str(row_start + 13)] = "Special Order Price"
     pricing_sheet["A" + str(row_start + 13)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 13)] = sum(map(float, F_PROJECT_TOTAL_PRICE)) + "+C" + str(row_start + 3)
+    pricing_sheet["C" + str(row_start + 13)] = "=SUMIF('Special Order'!O:O," + '"' + ">0" + '"' + ")"
     pricing_sheet["C" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["D" + str(row_start + 13)] = sum(map(float, R_PROJECT_TOTAL_PRICE)) + "+D" + str(row_start + 3)
+    pricing_sheet["D" + str(row_start + 13)] = "=SUMIF('Special Order'!O:O," + '"' + ">0" + '"' + ")"
     pricing_sheet["D" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 14)] = "Delivery Charge (10%)"
+
+    pricing_sheet["A" + str(row_start + 14)] = "Project Subtotal"
     pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 14)] = 0
+    # pricing_sheet["C" + str(row_start + 14)] = sum(map(float, F_PROJECT_TOTAL_PRICE)) + "+C" + str(row_start + 3)
+    pricing_sheet["C" + str(row_start + 14)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10) + "+C" + str(row_start + 11) + "+C" + str(row_start + 12) + "+C" + str(row_start + 13)
     pricing_sheet["C" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["D" + str(row_start + 14)] = "=(" + str((sum(map(float, R_PROJECT_TOTAL_MATERIAL)) + sum(map(float, R_PROJECT_TOTAL_HARDWARE)) + sum(map(float, R_PROJECT_TOTAL_ACCESSORIES)) + sum(map(float, R_PROJECT_TOTAL_WOOD_PANEL)))) + ")*.10"
+    # pricing_sheet["D" + str(row_start + 14)] = sum(map(float, R_PROJECT_TOTAL_PRICE)) + "+D" + str(row_start + 3)
+    pricing_sheet["D" + str(row_start + 14)] = "=" + "D" + str(row_start + 9) + "+D" + str(row_start + 10) + "+D" + str(row_start + 11) + "+D" + str(row_start + 12) + "+D" + str(row_start + 13)
     pricing_sheet["D" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 15)] = "Adjusted Project Subtotal"
+    pricing_sheet["A" + str(row_start + 15)] = "Delivery Charge (17.5%)"
     pricing_sheet["A" + str(row_start + 15)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 15)] = "=" + str(sum(map(float, F_PROJECT_TOTAL_PRICE)))
+    pricing_sheet["C" + str(row_start + 15)] = 0
     pricing_sheet["C" + str(row_start + 15)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["D" + str(row_start + 15)] = "=" + str(sum(map(float, R_PROJECT_TOTAL_PRICE))) + "+D" + str(row_start + 14)
+    pricing_sheet["D" + str(row_start + 15)] = "=(" + str((sum(map(float, R_PROJECT_TOTAL_MATERIAL)) + sum(map(float, R_PROJECT_TOTAL_HARDWARE)) + sum(map(float, R_PROJECT_TOTAL_ACCESSORIES)) + sum(map(float, R_PROJECT_TOTAL_WOOD_PANEL)))) + ")*.175"
     pricing_sheet["D" + str(row_start + 15)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 16)] = "O.D.C Price"
+    pricing_sheet["A" + str(row_start + 16)] = "Adjusted Project Subtotal"
     pricing_sheet["A" + str(row_start + 16)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 16)] = 0
+    pricing_sheet["C" + str(row_start + 16)] = "=" + str(sum(map(float, F_PROJECT_TOTAL_PRICE)))
     pricing_sheet["C" + str(row_start + 16)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 17)] = "Tear Out Price"
+    pricing_sheet["D" + str(row_start + 16)] = "=" + str(sum(map(float, R_PROJECT_TOTAL_PRICE))) + "+D" + str(row_start + 15)
+    pricing_sheet["D" + str(row_start + 16)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+    pricing_sheet["A" + str(row_start + 17)] = "O.D.C Price"
     pricing_sheet["A" + str(row_start + 17)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["C" + str(row_start + 17)] = 0
     pricing_sheet["C" + str(row_start + 17)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["A" + str(row_start + 18)] = "Discounts"
+    pricing_sheet["A" + str(row_start + 18)] = "Tear Out Price"
     pricing_sheet["A" + str(row_start + 18)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 18)] = "=SUM(E:E)"
+    pricing_sheet["C" + str(row_start + 18)] = 0
     pricing_sheet["C" + str(row_start + 18)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["C" + str(row_start + 18)].font = openpyxl.styles.Font(color="00339966")
-    pricing_sheet["A" + str(row_start + 19)] = "Grand Total"
+    pricing_sheet["A" + str(row_start + 19)] = "Discounts"
     pricing_sheet["A" + str(row_start + 19)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["C" + str(row_start + 19)] = "=" + "C" + str(row_start + 15) + "+C" + str(row_start + 16) + "+C" + str(row_start + 17) + "-C" + str(row_start + 18)
+    pricing_sheet["C" + str(row_start + 19)] = "=SUM(E:E)"
     pricing_sheet["C" + str(row_start + 19)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet["D" + str(row_start + 19)] = "=" + "D" + str(row_start + 15) + "+D" + str(row_start + 16) + "+D" + str(row_start + 17) + "-D" + str(row_start + 18)
-    pricing_sheet["D" + str(row_start + 19)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+    pricing_sheet["C" + str(row_start + 19)].font = openpyxl.styles.Font(color="00339966")
+    pricing_sheet["A" + str(row_start + 20)] = "Grand Total"
+    pricing_sheet["A" + str(row_start + 20)].font = openpyxl.styles.Font(bold=True)
+    pricing_sheet["C" + str(row_start + 20)] = "=" + "C" + str(row_start + 16) + "+C" + str(row_start + 17) + "+C" + str(row_start + 18) + "-C" + str(row_start + 19)
+    pricing_sheet["C" + str(row_start + 20)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+    pricing_sheet["D" + str(row_start + 20)] = "=" + "D" + str(row_start + 16) + "+D" + str(row_start + 17) + "+D" + str(row_start + 18) + "-D" + str(row_start + 19)
+    pricing_sheet["D" + str(row_start + 20)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
     set_column_width(pricing_sheet)
     try:
@@ -603,12 +631,12 @@ def generate_parts_summary(parts_file, materials_sheet, hardware_sheet, accessor
     with pandas.ExcelWriter(parts_file, mode='a') as writer:
         if materials_sheet is not None:
             df_materials = pandas.read_excel(parts_file, sheet_name='Materials').query('"GL" <= SKU_NUMBER <= "PM~" \
-                                                                                        and SKU_NUMBER != "BB" \
-                                                                                        and SKU_NUMBER != "EB" \
-                                                                                        and PART_NAME != "Drawer Sub Front" \
-                                                                                        and PART_NAME != "Drawer Bottom" \
-                                                                                        and PART_NAME != "Drawer Side" \
-                                                                                        and PART_NAME != "Drawer Back"')
+                                                                                        and SKU_NUMBER.str.contains("BB")==False \
+                                                                                        and SKU_NUMBER.str.contains("EB")==False \
+                                                                                        and PART_NAME.str.contains("Drawer Sub Front")==False \
+                                                                                        and PART_NAME.str.contains("Drawer Bottom")==False \
+                                                                                        and PART_NAME.str.contains("Drawer Side")==False \
+                                                                                        and PART_NAME.str.contains("Drawer Back")==False', engine='python')
 
             materials_summary = pandas.pivot_table(df_materials, index=['ROOM_NAME', 'WALL_NAME', 'MATERIAL', 'PART_NAME', 'PART_DIMENSIONS', 'THICKNESS', 'EDGEBANDING'], values=['QUANTITY'], aggfunc=numpy.sum)
             materials_summary.to_excel(writer, sheet_name='Materials Summary')
@@ -617,10 +645,10 @@ def generate_parts_summary(parts_file, materials_sheet, hardware_sheet, accessor
             writer.sheets['Materials Summary'].HeaderFooter.oddHeader.right.text = "Project Name: {}\nDesign Date: {}".format(PROJECT_NAME, DESIGN_DATE)
             set_column_width(writer.sheets['Materials Summary'])
 
-            df_drawers = pandas.read_excel(parts_file, sheet_name='Materials').query('PART_NAME == "Drawer Sub Front" \
-                                                                                    or PART_NAME == "Drawer Bottom" \
-                                                                                    or PART_NAME == "Drawer Side" \
-                                                                                    or PART_NAME == "Drawer Back"')
+            df_drawers = pandas.read_excel(parts_file, sheet_name='Materials').query(' (PART_NAME == "Drawer Side" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                    or (PART_NAME == "Drawer Sub Front" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                    or (PART_NAME == "Drawer Back" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                    or (PART_NAME == "Drawer Bottom")', engine='python')
 
             if not df_drawers.empty:
                 drawers_summary = pandas.pivot_table(df_drawers, index=['ROOM_NAME', 'WALL_NAME', 'MATERIAL', 'PART_NAME', 'PART_DIMENSIONS', 'THICKNESS', 'EDGEBANDING'], values=['QUANTITY'], aggfunc=numpy.sum)
@@ -681,11 +709,15 @@ def generate_retail_parts_list():
     selected_project = os.path.join(project_dir, cleaned_name)
     parts_file = os.path.join(selected_project, "Retail_Pricing_Parts_List" + "(" + str(cleaned_name) + ").xlsx")
 
-    print("Creating Retail Pricing Summary...")
-    generate_retail_pricing_summary(parts_file)
-
     if not os.path.exists(project_dir):
         print("Projects Directory does not exist")
+
+    if COS_FLAG:
+        if not os.path.exists(selected_project):
+            os.makedirs(selected_project)
+
+    print("Creating Retail Pricing Summary...")
+    generate_retail_pricing_summary(parts_file)
     
     # Start by opening the spreadsheet and selecting the main sheet
     try:
@@ -716,9 +748,9 @@ def generate_retail_parts_list():
             sheet1["E" + str((i + 1) + 1)] = MATERIAL_PARTS_LIST[i][3]                                          #VENDOR_ITEM
             sheet1["F" + str((i + 1) + 1)] = MATERIAL_PARTS_LIST[i][4]                                          #PART LABELID
             # Check to see if the next LabelID matches the current.
-            # Add EB name within Melamine material name if the EB name is different
+            # Add EB name within Melamine and dovetail material name if the EB name is different
             if MATERIAL_PARTS_LIST[i][4] == MATERIAL_PARTS_LIST[(i+1)%len(MATERIAL_PARTS_LIST)][4]:
-                if 'PM' in MATERIAL_PARTS_LIST[i][1][:2] and MATERIAL_PARTS_LIST[i][5] not in MATERIAL_PARTS_LIST[(i+1)%len(MATERIAL_PARTS_LIST)][5]:
+                if 'PM' in MATERIAL_PARTS_LIST[i][1][:2] or 'BB' in MATERIAL_PARTS_LIST[i][1][:2] and MATERIAL_PARTS_LIST[i][5] not in MATERIAL_PARTS_LIST[(i+1)%len(MATERIAL_PARTS_LIST)][5]:
                     sheet1["G" + str((i + 1) + 1)] = MATERIAL_PARTS_LIST[i][5] + " (" + MATERIAL_PARTS_LIST[(i+1)%len(MATERIAL_PARTS_LIST)][5] + ")"
                 else:
                     sheet1["G" + str((i + 1) + 1)] = MATERIAL_PARTS_LIST[i][5]                                  #MATERIAL
@@ -751,7 +783,17 @@ def generate_retail_parts_list():
                         eb_length = get_eb_measurements(MATERIAL_PARTS_LIST[i][14], float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
                     sheet1["M" + str((i + 1) + 1)] = str(get_linear_footage(eb_length)) + " (" + str(MATERIAL_PARTS_LIST[i][14]) + ")"
                     sheet1["P" + str((i + 1) + 1)] = (float(MATERIAL_PARTS_LIST[i][11]) * int(MATERIAL_PARTS_LIST[i][7])) * get_linear_footage(eb_length)   #CALCULATED_PRICE
-            
+                    if len(EDGEBANDING) > 0 and i < len(EDGEBANDING):
+                        for index, sublist in enumerate(EDGEBANDING):
+                            if sublist[0] == MATERIAL_PARTS_LIST[i][4]:
+                                if EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 0:
+                                    sheet1["Q" + str((i + 1) + 1)] = "--"
+                                elif EDGEBANDING[index][1] == 0:
+                                    sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][2]) + "L"
+                                elif EDGEBANDING[index][2] == 0:
+                                    sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S"
+                                else:
+                                    sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S_" + str(EDGEBANDING[index][2]) + "L"
             sheet1["N" + str((i + 1) + 1)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
             sheet1["O" + str((i + 1) + 1)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
             sheet1["P" + str((i + 1) + 1)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
@@ -1518,10 +1560,27 @@ def get_pricing_info(sku_num, qty, length_inches=0.0, width_inches=0.0, style_na
             r_labor_price = labor[0]
             f_labor_price = labor[1]
     if 'SF' in uom or 'SQFT' in uom and not sku_num[:2] in hardware_types and not sku_num[:2] in accessory_types:
-        R_MATERIAL_PRICES.append((((get_square_footage(length_inches, width_inches)) * retail_price) + r_labor_price) * int(qty))
-        R_MATERIAL_SQUARE_FOOTAGE.append(get_square_footage(length_inches, width_inches))
-        F_MATERIAL_PRICES.append((((get_square_footage(length_inches, width_inches)) * franchise_price) + f_labor_price) * int(qty))
-        F_MATERIAL_SQUARE_FOOTAGE.append(get_square_footage(length_inches, width_inches))
+        # 5PC Melamine Door pricing
+        if style_name is not None:
+            door_labor_price = get_price_by_sku('LB-0000013')
+            R_LABOR_PRICES.append(door_labor_price[0] * int(qty))
+            F_LABOR_PRICES.append(door_labor_price[1] * int(qty))
+            if 'Glass' in style_name:
+                sf_door_glass = get_square_footage(length_inches-4, width_inches-4)
+                R_WOOD_PANEL_PRICES.append((((get_square_footage(length_inches, width_inches) - sf_door_glass) * retail_price) + door_labor_price[0]) * int(qty))
+                F_WOOD_PANEL_PRICES.append((((get_square_footage(length_inches, width_inches) - sf_door_glass) * franchise_price) + door_labor_price[1]) * int(qty))
+                retail_price = ((get_square_footage(length_inches, width_inches) - sf_door_glass) * retail_price) + door_labor_price[0]
+                franchise_price = ((get_square_footage(length_inches, width_inches) - sf_door_glass) * franchise_price) + door_labor_price[1]
+            else:
+                R_WOOD_PANEL_PRICES.append((((get_square_footage(length_inches, width_inches)) * retail_price) + door_labor_price[0]) * int(qty))
+                F_WOOD_PANEL_PRICES.append((((get_square_footage(length_inches, width_inches)) * franchise_price) + door_labor_price[1]) * int(qty))
+                retail_price = (get_square_footage(length_inches, width_inches) * retail_price) + door_labor_price[0]
+                franchise_price = (get_square_footage(length_inches, width_inches) * franchise_price) + door_labor_price[1]
+        else:
+            R_MATERIAL_PRICES.append((((get_square_footage(length_inches, width_inches)) * retail_price) + r_labor_price) * int(qty))
+            R_MATERIAL_SQUARE_FOOTAGE.append(get_square_footage(length_inches, width_inches))
+            F_MATERIAL_PRICES.append((((get_square_footage(length_inches, width_inches)) * franchise_price) + f_labor_price) * int(qty))
+            F_MATERIAL_SQUARE_FOOTAGE.append(get_square_footage(length_inches, width_inches))
     if 'LF' in uom and not sku_num[:2] in hardware_types and not sku_num[:2] in accessory_types:
         if eb_orientation is not None:
             eb_length = get_eb_measurements(eb_orientation, length_inches, width_inches)
@@ -1607,25 +1666,12 @@ def get_pricing_info(sku_num, qty, length_inches=0.0, width_inches=0.0, style_na
                             r_door_total = (lf_molding * molding_price[0]) + (lf_molding * ap_molding_price[0]) + (sf_center_panel * quarter_mdf_price[0]) + wood_labor_price[0]
                             f_door_total = (lf_molding * molding_price[1]) + (lf_molding * ap_molding_price[1]) + (sf_center_panel * quarter_mdf_price[1]) + wood_labor_price[1]
 
-
                     R_LABOR_PRICES.append(wood_labor_price[0] * int(qty))
                     F_LABOR_PRICES.append(wood_labor_price[1] * int(qty))
                     R_WOOD_PANEL_PRICES.append((r_door_total + r_stain_total) * int(qty))
                     F_WOOD_PANEL_PRICES.append((f_door_total + f_stain_total) * int(qty))
                     retail_price = r_door_total + r_stain_total
                     franchise_price = f_door_total + f_stain_total
-            # if 'Melamine' in style_name:
-            #     retail_price = retail_price + glaze_price
-            #     franchise_price = franchise_price + glaze_price
-            #     r_rpd_price = get_square_footage(length_inches, width_inches) * retail_price
-            #     f_rpd_price = get_square_footage(length_inches, width_inches) * franchise_price
-            #     labor = get_labor_costs('5PC MEL DOOR & DRWR FACE')
-            #     r_labor_price = labor[0]
-            #     f_labor_price = labor[1]
-            #     R_LABOR_PRICES.append(r_labor_price * int(qty))
-            #     R_WOOD_PANEL_PRICES.append((r_rpd_price + r_labor_price) * int(qty))
-            #     F_LABOR_PRICES.append(f_labor_price * int(qty))
-            #     F_WOOD_PANEL_PRICES.append((f_rpd_price + f_labor_price) * int(qty))
     if sku_num[:2] in hardware_types:
         R_HARDWARE_PRICES.append(retail_price * int(qty))
         F_HARDWARE_PRICES.append(franchise_price * int(qty))
@@ -1651,10 +1697,15 @@ def calculate_project_price(xml_file, cos_flag = False):
     global COS_FLAG
     COS_FLAG = cos_flag
 
+    if COS_FLAG:
+        global PROJECT_NAME
+        PROJECT_NAME = 'COS_Pricing_Project'
+
     if os.path.exists(xml_file):
         tree = ET.parse(xml_file)
         root = tree.getroot().find("Job")
     else:
+        print("XML filepath does not exist")
         attrib = dict([ (k, v) for k, v in ns.items() ])
         root = ET.Element('Batch', attrib)
         tree = ET.ElementTree(root)
@@ -1800,13 +1851,13 @@ def calculate_project_price(xml_file, cos_flag = False):
                                             PART_NAME = PART_NAME + " (" + style_name + ")"
                                     WOOD_PANEL_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                                     #Added for user to price the Glass within the Wood panel parts separately
-                                    if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None or "None" not in glass_color:
+                                    if 'Glass' in PART_NAME or 'Glass' in style_name:
                                         SKU_NUMBER = 'SO-0000001'
                                         PART_NAME = style_name + "(" + glass_color + ")"
                                         pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, style_name, is_glaze, glaze_style, glaze_color, PART_NAME)
                                         SPECIAL_ORDER_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                                 else:
-                                    if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None and "None" not in glass_color:
+                                    if 'Glass' in PART_NAME or 'Glass' in style_name:
                                         PART_NAME = PART_NAME + " (" + glass_color + ")"
                                     pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME, eb_orientation)
                                     MATERIAL_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[8], eb_orientation, pricing_info[7], pricing_info[1], wall_name])
@@ -1829,7 +1880,7 @@ def calculate_project_price(xml_file, cos_flag = False):
                                     PART_NAME = pricing_info[2]
                                 ACCESSORY_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, PART_NAME, LENGTH, QUANTITY, pricing_info[0], pricing_info[1]])
                             if sku_value[:2] in special_order_types:
-                                if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None and "None" not in glass_color:
+                                if 'Glass' in PART_NAME or 'Glass' in style_name:
                                     PART_NAME = PART_NAME + " (" + glass_color + ")"
                                 SKU_NUMBER = sku_value
                                 pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME)
@@ -1978,13 +2029,13 @@ def calculate_project_price(xml_file, cos_flag = False):
                                                 PART_NAME = PART_NAME + " (" + style_name + ")"
                                         WOOD_PANEL_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                                         #Added for user to price the Glass within the Wood panel parts separately
-                                        if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None or "None" not in glass_color:
+                                        if 'Glass' in PART_NAME or 'Glass' in style_name:
                                             SKU_NUMBER = 'SO-0000001'
                                             PART_NAME = style_name + "(" + glass_color + ")"
                                             pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, style_name, is_glaze, glaze_style, glaze_color, PART_NAME)
                                             SPECIAL_ORDER_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                                     else:
-                                        if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None and "None" not in glass_color:
+                                        if 'Glass' in PART_NAME or 'Glass' in style_name:
                                             PART_NAME = PART_NAME + " (" + glass_color + ")"
                                         pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME, eb_orientation)
                                         MATERIAL_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[8], eb_orientation, pricing_info[7], pricing_info[1], wall_name])
@@ -2007,7 +2058,7 @@ def calculate_project_price(xml_file, cos_flag = False):
                                         PART_NAME = pricing_info[2]
                                     ACCESSORY_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, PART_NAME, LENGTH, QUANTITY, pricing_info[0], pricing_info[1]])
                                 if sku_value[:2] in special_order_types:
-                                    if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None and "None" not in glass_color:
+                                    if 'Glass' in PART_NAME or 'Glass' in style_name:
                                         PART_NAME = PART_NAME + " (" + glass_color + ")"
                                     SKU_NUMBER = sku_value
                                     pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME)
@@ -2155,13 +2206,13 @@ def calculate_project_price(xml_file, cos_flag = False):
                                                     PART_NAME = PART_NAME + " (" + style_name + ")"
                                             WOOD_PANEL_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                                             #Added for user to price the Glass within the Wood panel parts separately
-                                            if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None or "None" not in glass_color:
+                                            if 'Glass' in PART_NAME or 'Glass' in style_name:
                                                 SKU_NUMBER = 'SO-0000001'
                                                 PART_NAME = style_name + "(" + glass_color + ")"
                                                 pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, style_name, is_glaze, glaze_style, glaze_color, PART_NAME)
                                                 SPECIAL_ORDER_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[7], pricing_info[1]])
                                         else:
-                                            if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None and "None" not in glass_color:
+                                            if 'Glass' in PART_NAME or 'Glass' in style_name:
                                                 PART_NAME = PART_NAME + " (" + glass_color + ")"
                                             pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME, eb_orientation)
                                             MATERIAL_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, pricing_info[2], PART_NAME, QUANTITY, LENGTH, WIDTH, THICKNESS, pricing_info[0], pricing_info[6], pricing_info[8], eb_orientation, pricing_info[7], pricing_info[1], wall_name])
@@ -2184,7 +2235,7 @@ def calculate_project_price(xml_file, cos_flag = False):
                                             PART_NAME = pricing_info[2]
                                         ACCESSORY_PARTS_LIST.append([DESCRIPTION, SKU_NUMBER, pricing_info[3], pricing_info[4], PART_LABEL_ID, PART_NAME, LENGTH, QUANTITY, pricing_info[0], pricing_info[1]])
                                     if sku_value[:2] in special_order_types:
-                                        if 'Glass' in PART_NAME or 'Glass' in style_name and glass_color is not None and "None" not in glass_color:
+                                        if 'Glass' in PART_NAME or 'Glass' in style_name:
                                             PART_NAME = PART_NAME + " (" + glass_color + ")"
                                         SKU_NUMBER = sku_value
                                         pricing_info = get_pricing_info(SKU_NUMBER, QUANTITY, LENGTH, WIDTH, None, False, None, None, PART_NAME)

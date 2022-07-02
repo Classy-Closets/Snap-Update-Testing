@@ -39,6 +39,7 @@ class Material_Pointers():
     Custom_Door_Surface = sn_types.Material_Pointer(EXPOSED_MATERIAL)
     Custom_Door_Edge = sn_types.Material_Pointer(EXPOSED_MATERIAL)
     Wood_Door_Surface = sn_types.Material_Pointer(EXPOSED_MATERIAL)
+    Five_Piece_Melamine_Door_Surface = sn_types.Material_Pointer(EXPOSED_MATERIAL)
     Moderno_Door = sn_types.Material_Pointer(MODERNO_DOOR)
     Door_Edge = sn_types.Material_Pointer(EXPOSED_MATERIAL)
     Countertop_Surface = sn_types.Material_Pointer(COUNTER_TOP_MATERIAL)
@@ -61,6 +62,7 @@ class Material_Pointers():
     Core = sn_types.Material_Pointer(CORE)
     Entry_Door_Surface = sn_types.Material_Pointer(WHITE)
     Window_Frame_Surface = sn_types.Material_Pointer(WHITE)
+    Room_Molding = sn_types.Material_Pointer(WHITE)
 
     # Garage pointers
     Garage_Interior_Surface = sn_types.Material_Pointer(EXPOSED_INTERIOR_MATERIAL)

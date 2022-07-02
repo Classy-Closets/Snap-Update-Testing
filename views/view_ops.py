@@ -1,4 +1,5 @@
 from re import T
+from typing import List
 from numpy.core.fromnumeric import cumsum
 import psutil
 import time
@@ -444,9 +445,10 @@ class VIEW_OT_generate_2d_views(Operator):
     def link_tagged_dims_to_scene(self, scene, obj_bp):
         for child in obj_bp.children:
             comment = self.has_render_comment(child)
+            obstacle = child.get('IS_OBSTACLE')
             if 'hashmark' in child.name.lower():
                 scene.collection.objects.link(child)
-            if child not in self.ignore_obj_list or comment:
+            if (child not in self.ignore_obj_list or comment) and not obstacle:
                 if child.get('IS_VISDIM_A'):
                     obj_parent = child.parent
                     if 'hanging' not in obj_parent.name.lower():
@@ -491,18 +493,20 @@ class VIEW_OT_generate_2d_views(Operator):
 
     def door_style_materials(self, obj):
         door_mesh = self.get_obj_mesh(obj)
+        materials = []
         if door_mesh:
-            materials = []
             for slot in door_mesh.snap.material_slots:
                 if "Wood_Door_Surface" == slot.pointer_name:
                     materials.append("wood")
                 elif "Door_Surface" == slot.pointer_name:
                     pass
+                elif "Five_Piece_Melamine_Door_Surface" == slot.pointer_name:
+                    materials.append("five_piece_melamine")
                 elif "Moderno_Door" == slot.pointer_name:
                     materials.append("moderno")
                 elif "Glass" == slot.pointer_name:
                     materials.append("glass")
-            return materials
+        return materials
 
     def create_replaced_mesh(self, obj, materials=[]):
         is_styled = len(materials) > 0
@@ -560,7 +564,7 @@ class VIEW_OT_generate_2d_views(Operator):
             is_drawer_door = child.sn_closets.is_drawer_front_bp
             skippable = (is_door or is_hamper_door or is_drawer_door) and shown
             if len(child.children) > 0:
-                if child.get('IS_OBSTACLE'):
+                if child.get('IS_OBSTACLE') and child.get('SHOW_ON_ELEVATIONS', True):
                     for cc in child.children: 
                         if cc.get('IS_CAGE'):
                             cc.hide_render = False
@@ -1719,6 +1723,7 @@ class VIEW_OT_generate_2d_views(Operator):
         return [(p1_x, p1_y), (p2_x, p2_y), (p3_x, p3_y), (p4_x, p4_y)]
 
     def pv_wall_labels(self, wall):
+        x_loc = self.wall_largest_part_xloc(wall)
         wall_width = wall.obj_x.location.x
         wall_depth = wall.obj_y.location.y
         wall_height = wall.obj_z.location.z
@@ -1746,7 +1751,10 @@ class VIEW_OT_generate_2d_views(Operator):
         # Y-axis rotation in Plan View
         wall_label.anchor.rotation_mode = 'YZX'
         wall_label.parent(wall.obj_bp)
-        wall_label.start_x(value=wall_width / 2)
+        if not x_loc:
+            wall_label.start_x(value=wall_width / 2)
+        elif x_loc:
+            wall_label.start_x(value=x_loc)
         wall_label.start_y(value=wall_depth / 2)
         wall_label.start_z(value=wall_height)
         lbl_rot_x = math.radians(-90)
@@ -1756,6 +1764,44 @@ class VIEW_OT_generate_2d_views(Operator):
             lbl_rot_y = math.radians(-wall_angle)
         wall_label.anchor.rotation_euler = (lbl_rot_x, lbl_rot_y, 0)
         wall_label.set_label(wall.obj_bp.snap.name_object)
+
+    def wall_largest_part_xloc(self, wall):
+        wall_ch = wall.obj_bp.children
+        wall_start, wall_end = 0, round(wall.obj_x.location.x, 2)
+        entries_data = []
+        wall_segments = []
+        entries = [c for c in wall_ch if c.get('IS_BP_ENTRY_DOOR')]
+        if len(entries) == 0:
+            return None
+        for entry in entries:
+            entry_assy = sn_types.Assembly(entry)
+            if entry_assy:
+                door_width = entry_assy.obj_x.location.x
+                door_start = entry.location[0]
+                door_end = door_start + door_width
+                door_start, door_end = round(door_start, 2), round(door_end, 2) 
+                entries_data.append((door_start, door_end))
+        entries_data = sorted(entries_data, key=lambda tup: tup[0])
+        if len(entries_data) == 0:
+            return None
+        for i, datum in enumerate(entries_data):
+            entry_start, entry_end = datum
+            if len(wall_segments) == 0:
+                wall_segments.append((wall_start, entry_start))
+            if len(wall_segments) > 0 and i < len(entries_data) - 1:
+                next_entry_start, _ = entries_data[i+1]
+                wall_segments.append((entry_end, next_entry_start))
+            if len(wall_segments) > 0 and i == len(entries_data) - 1:
+                wall_segments.append((entry_end, wall_end))
+        largest_space = 0
+        x_loc = 0
+        for segment in wall_segments:
+            start, end = segment
+            segment_space = end - start
+            if segment_space > largest_space:
+                largest_space = segment_space
+                x_loc = round(((end - start) / 2) + start, 2)
+        return x_loc
 
     def add_plan_view_cages(self, wall, obj_bp):
         pv_parts = []
@@ -1920,7 +1966,7 @@ class VIEW_OT_generate_2d_views(Operator):
         walls = []
         for obj in self.main_scene.objects:
             # Add Floor and Ceiling Obstacles to Plan View
-            if obj.get('IS_OBSTACLE'):
+            if obj.get('IS_OBSTACLE') and obj.get('SHOW_ON_PLANVIEW', True):
                 pv_scene.collection.objects.link(obj)
                 for child in obj.children:
                     pv_scene.collection.objects.link(child)
@@ -2036,9 +2082,11 @@ class VIEW_OT_generate_2d_views(Operator):
         bpy.ops.view3d.camera_to_view_selected()
         camera.data.type = 'ORTHO'
         camera.data.ortho_scale += self.pv_pad
+        custom_wide = room_type == 'CUSTOM' and wide_room
+        square_tall = room_type == 'SQUARE' and floor_height > floor_length 
         if room_type == 'USHAPE':
             camera.data.ortho_scale += 1
-        elif room_type == 'CUSTOM' and wide_room:
+        elif custom_wide or square_tall:
             width_ratio = 1
             wider_measure = max([x_axis_len, y_axis_len])
             if wider_measure == y_axis_len:
@@ -2108,16 +2156,24 @@ class VIEW_OT_generate_2d_views(Operator):
         if len(joints) == 0:
             return None
 
-    def get_wall_assemblies(self, wall):
+    def get_lsh_csh_assemblies(self, wall):
         assemblies = []
         for candidate in wall.children:
-            if 'section' in candidate.name.lower():
-                assemblies.append(candidate)
             if 'corner shelves' in candidate.name.lower():
                 assemblies.append(candidate)
             if 'triangle shelves' in candidate.name.lower():
                 assemblies.append(candidate)
             if 'l shelves' in candidate.name.lower():
+                assemblies.append(candidate)
+        if len(assemblies) > 0:
+            return assemblies
+        if len(assemblies) == 0:
+            return None
+
+    def get_wall_sections_assemblies(self, wall):
+        assemblies = []
+        for candidate in wall.children:
+            if 'section' in candidate.name.lower():
                 assemblies.append(candidate)
         if len(assemblies) > 0:
             return assemblies
@@ -2202,9 +2258,9 @@ class VIEW_OT_generate_2d_views(Operator):
         if opening_at not in ('MIN', 'MAX'):
             return
         section = 'section' in assembly.name.lower()
-        corner_shelves = 'corner shelves' in assembly.name.lower()
-        l_shelves = 'l shelves' in assembly.name.lower()
-        triangular_shelves = 'corner shelves' in assembly.name.lower()
+        # corner_shelves = 'corner shelves' in assembly.name.lower()
+        # l_shelves = 'l shelves' in assembly.name.lower()
+        # triangular_shelves = 'corner shelves' in assembly.name.lower()
         if section:
             opng_parts = self.get_opening_parts(assembly,
                                                 opening_at,
@@ -2250,8 +2306,8 @@ class VIEW_OT_generate_2d_views(Operator):
                 result_parts = spread(opng_parts)
                 parts.append(result_parts)
                 virtual_parts.append(spread(virtual_partitions))
-        if corner_shelves or l_shelves or triangular_shelves:
-            parts.append(assembly)
+        # if corner_shelves or l_shelves or triangular_shelves:
+        #     parts.append(assembly)
         result = parts, virtual_parts
         return result
 
@@ -2262,14 +2318,14 @@ class VIEW_OT_generate_2d_views(Operator):
                 ptt_assy = sn_types.Assembly(part)
                 ptt_depth = abs(ptt_assy.obj_y.location.y)
                 depths.append((ptt_depth, part))
-            if 'corner shelves' in part.name.lower():
-                csh_assy = sn_types.Assembly(part)
-                csh_depth = abs(csh_assy.obj_y.location.y)
-                depths.append((csh_depth, part))
-            if 'l shelves' in part.name.lower():
-                lsh_assy = sn_types.Assembly(part)
-                lsh_depth = abs(lsh_assy.obj_y.location.y)
-                depths.append((lsh_depth, part))
+            # if 'corner shelves' in part.name.lower():
+            #     csh_assy = sn_types.Assembly(part)
+            #     csh_depth = abs(csh_assy.obj_y.location.y)
+            #     depths.append((csh_depth, part))
+            # if 'l shelves' in part.name.lower():
+            #     lsh_assy = sn_types.Assembly(part)
+            #     lsh_depth = abs(lsh_assy.obj_y.location.y)
+            #     depths.append((lsh_depth, part))
         if len(depths) > 0:
             result = sorted(depths, key=lambda tup: tup[0])
             deepest_partition = self.to_inch(result[-1][0])
@@ -2339,7 +2395,7 @@ class VIEW_OT_generate_2d_views(Operator):
             real_wall_name = wall_name.replace("CSwall-", "")
             if real_wall_name in bpy.data.objects:
                 wall_obj = bpy.data.objects[real_wall_name]
-                wall_assemblies = self.get_wall_assemblies(wall_obj)
+                wall_assemblies = self.get_wall_sections_assemblies(wall_obj)
                 wall_width = sn_types.Assembly(wall_obj).obj_x.location.x
                 min_assy, max_assy = self.get_assy_min_max_loc(wall_assemblies)
                 assemblies[wall_obj] = {}
@@ -2401,18 +2457,11 @@ class VIEW_OT_generate_2d_views(Operator):
                 grp = bpy.data.collections.new(joint_name)
                 for part in parts:
                     self.group_every_children_elv_cross_sections(grp, part)
-                    # NOTE For some reason I have to expicitly add the
-                    # partition at the right of the corner shelf assy
-                    # It's not needed for the Left Panel
-                    if 'corner shelves' in part.name.lower():
-                        for csh_children in part.children:
-                            if csh_children.sn_closets.is_panel_bp:
-                                self.group_every_children_elv_cross_sections(
-                                    grp, csh_children)
                 for item in grp.objects:
-                    csh_msh = 'csh_msh' in item.name.lower()
+                    csh_msh = 'csh_mesh' in item.name.lower()
                     lsh_msh = 'lsh_msh' in item.name.lower()
-                    if csh_msh or lsh_msh:
+                    tsh_mesh = 'tsh_mesh' in item.name.lower()
+                    if csh_msh or lsh_msh or tsh_mesh:
                         grp.objects.unlink(item)
                 target_scene = bpy.data.scenes[f"CSwall-{target_name}"]
                 target_parent = bpy.data.objects[parent_name]
@@ -2521,18 +2570,22 @@ class VIEW_OT_generate_2d_views(Operator):
     
     def add_remaining_space_dims(self, assemblies_dict, wall_groups):
         for wall, assemblies_data in assemblies_dict.items():
+            wall_left_corner, wall_right_corner = None, None
+            right_wall = sn_types.Wall(wall).get_connected_wall('RIGHT')
+            wall_left_corner = self.get_lsh_csh_assemblies(wall)
+            wall_right_corner = self.get_lsh_csh_assemblies(right_wall.obj_bp)
             wall_length = self.to_inch(
                 sn_types.Assembly(wall).obj_x.location.x)
             start_data = assemblies_data.get('min_loc_data')
             end_data = assemblies_data.get('max_loc_data')
-            if start_data:
+            if start_data and not wall_left_corner:
                 assys_start = start_data.get('start', 0)
                 if assys_start > 0:
                     wall_grp = wall_groups[wall.name]
                     dim = self.add_remaining_space_lbl_elv(
                         wall_grp, wall, assys_start, "left")
                     wall_grp.objects.link(dim.anchor)
-            if end_data:
+            if end_data and not wall_right_corner:
                 assys_end = end_data.get('end', wall_length)
                 rem_space = wall_length - assys_end
                 if rem_space > 0:
@@ -2544,7 +2597,10 @@ class VIEW_OT_generate_2d_views(Operator):
     def add_cross_sections(self, walls, wall_groups):
         joints = self.get_walls_joints(walls)
         joints_result = []
+        corner = {}
+        corner_ends = {}
         joint_parts_dict = {}
+        corner_starts = {}
         if joints is not None:
             assemblies_dict = self.get_walls_assys_arrangement(wall_groups)
             virtual_parts = self.get_virtual_parts_dict(assemblies_dict)
@@ -2555,17 +2611,96 @@ class VIEW_OT_generate_2d_views(Operator):
                     joint_parts = self.get_joint_parts(current_wall,
                                                        left_wall,
                                                        assemblies_dict)
-                    if joint_parts is not None:
-                        joints_result.append(joint_parts)
-                if len(joints_result) > 0:
+                    corner_result = self.get_lsh_csh_assemblies(current_wall)
+                    if corner_result:
+                        for each in corner_result:
+                            if wall_groups.get(left_wall.name):
+                                collection = wall_groups[left_wall.name]
+                                left_wall_assy = sn_types.Assembly(left_wall)
+                                width = left_wall_assy.obj_x.location.x
+                                width_inches = self.to_inch(width)
+                                corner[collection] = (width_inches,
+                                                      corner_result)
+                    # Before apply the cross-sections we need to take note
+                    # if section parts won't appear when not expected due
+                    # 2 steps cross section parts applying
+                    for key, value in corner.items():
+                        cn_position, cn_parts = value
+                        cn_assys = [sn_types.Assembly(a) for a in cn_parts]
+                        cn_starts = [a.obj_x.location.x for a in cn_assys]
+                        corner_starts[key] = round(max(cn_starts), 2)
                     for each in joints_result:
                         wall, position, parts = each
                         if wall.name in wall_groups.keys():
+                            parnt_x = min([p.parent.location.x for p in parts])
                             collection = wall_groups[wall.name]
-                            if joint_parts_dict.get(collection) is not None:
+                            joint_res = joint_parts_dict.get(collection)
+                    
+                    if joint_parts is not None:
+                        joints_result.append(joint_parts)
+                if len(joints_result) > 0:
+                    # Adding the cross-section parts
+                    # 1st pass - L-shelves/Corner Shelves
+                    for key, value in corner.items():
+                        cn_position, cn_parts = value
+                        if joint_parts_dict.get(key) is not None:
+                            joint_parts_dict[key].append(
+                                (cn_position, cn_parts))
+                        if joint_parts_dict.get(key) is None:
+                            joint_parts_dict[key] = []
+                            joint_parts_dict[key].append(
+                                (cn_position, cn_parts))
+                    # 2nd pass - other assemblies
+                    for each in joints_result:
+                        wall, position, parts = each
+                        parts_wall = None
+                        parts_ending = {}
+                        has_ending = False
+                        parts_wall_list = list(
+                            set([sn_utils.get_wall_bp(p) for p in parts]))
+                        wall_width = sn_types.Assembly(
+                                wall).obj_x.location.x
+                        wall_width_inches = round(
+                            unit.meter_to_inch(wall_width), 2)
+                        parts_ending = wall_width_inches
+                        if len(parts_wall_list) > 0:
+                            parts_wall = parts_wall_list[0]
+                            wall_assys = assemblies_dict.get(parts_wall)
+                            if wall_assys:
+                                max_data = wall_assys.get('max_loc_data')
+                                if max_data:
+                                    parts_ending = max_data.get('end')
+                        has_ending = parts_ending != wall_width_inches
+                        if wall.name in wall_groups.keys():
+                            parts_after, parts_before = False, False
+                            max_curr_end = 0
+                            parnt_x = min([p.parent.location.x for p in parts])
+                            collection = wall_groups[wall.name]
+                            joint_res = joint_parts_dict.get(collection)
+                            equiv_corner = corner_starts.get(collection)
+                            curr_corner = self.get_lsh_csh_assemblies(wall)
+                            wall_assys = assemblies_dict.get(wall)
+                            if curr_corner:
+                                cn_assys = [sn_types.Assembly(p) \
+                                    for p in curr_corner]
+                                cn_ends = [round(abs(a.obj_y.location.y), 2) \
+                                    for a in cn_assys]
+                                max_curr_end = max(cn_ends)
+                                max_curr_end = round(
+                                    unit.meter_to_inch(max_curr_end), 2)
+                            has_cn_end = max_curr_end != 0
+                            if has_ending and has_cn_end:
+                                parts_cn_sum = (parts_ending + max_curr_end)
+                                diff = abs(wall_width_inches - parts_cn_sum)
+                                parts_before = diff < unit.inch(2)
+                            if equiv_corner:
+                                parts_diff = abs(equiv_corner - parnt_x)
+                                parts_after = parts_diff < unit.inch(1.5)
+                            will_skip = any([parts_after, parts_before])
+                            if joint_res is not None and not will_skip:
                                 joint_parts_dict[collection].append((position,
                                                                      parts))
-                            if joint_parts_dict.get(collection) is None:
+                            if joint_res is None and not will_skip:
                                 joint_parts_dict[collection] = []
                                 joint_parts_dict[collection].append((position,
                                                                      parts))
@@ -3001,6 +3136,47 @@ class VIEW_OT_generate_2d_views(Operator):
                     right_instance.location = (offset, (offset * -1), 0)
                 right_instance.rotation_euler = (0, 0, math.radians(-90))
             targets[curr_wall_key] = (left_instance, right_instance)
+        # NOTE to work properly, the cross-sections for L-shelves/Corner Shelves
+        #      for accordions are added after the ones for sections
+        for wall in walls:
+            corner_result = self.get_lsh_csh_assemblies(wall)
+            if corner_result:
+                previous_wall = walls[walls.index(wall) - 1]
+                previous_wall_name = previous_wall.name
+                right_name = f'{previous_wall_name}_right_grp'
+                all_collections = bpy.data.collections
+                present_collections = [col.name for col in all_collections]
+                existing_grp = right_name in present_collections
+                prvs_wall_width = sn_types.Assembly(
+                    previous_wall).obj_x.location.x
+                target = targets.get(previous_wall)
+                # NOTE if the group already exists, just add the objects there
+                #      and if it doesn't, create the group and instance
+                if existing_grp:
+                    grp = bpy.data.collections[right_name]
+                    for corner in corner_result:
+                        self.group_children(grp, corner)
+                elif not existing_grp:
+                    grp = bpy.data.collections.new(f'{right_name}')
+                    for corner in corner_result:
+                        self.group_children(grp, corner)
+                    wall_ch = previous_wall.children
+                    wall_mesh = [m for m in wall_ch \
+                        if m.type == 'MESH' and 'wall' in m.name.lower()][0]
+                    curr_wall_glb = self.get_object_global_location(wall_mesh)
+                    curr_wall_glb_x_pos = curr_wall_glb[0]
+                    offset = curr_wall_glb_x_pos + prvs_wall_width
+                    right_instance = bpy.data.objects.new(
+                        f'{previous_wall_name}_right_ins', None)
+                    right_instance.location = (offset, (offset * -1), 0)
+                    right_instance.rotation_euler = (0, 0, math.radians(-90))
+                    right_instance.instance_type = 'COLLECTION'
+                    right_instance.instance_collection = grp
+                    if target:
+                        left_instance, _ = target
+                        targets[previous_wall] = left_instance, right_instance
+                    elif not target:
+                        targets[previous_wall] = None, right_instance
         return (targets, walls_rem_spaces)
 
     def add_ch_accordion_parts(self, extra_dims, curr_wall_key,
@@ -3045,6 +3221,18 @@ class VIEW_OT_generate_2d_views(Operator):
                 oclusion.location[2] = location[2]
                 oclusion.rotation_euler[2] = math.radians(180)
                 group.objects.link(oclusion)
+
+    def accordion_obstacles(self, grp):
+        for item in grp.objects:
+            obstacle = item.get('IS_OBSTACLE')
+            on_acc = item.get('SHOW_ON_ACCORDIONS')
+            hidden_on_accordions = item.get('SHOW_ON_ACCORDIONS', True) == False
+            # NOTE Seems odd, but if the obstacle isn't explicitely hidden
+            # it will be shown, also dealing with older projects
+            if obstacle and hidden_on_accordions:
+                for child in item.children:
+                    grp.objects.unlink(child)
+                grp.objects.unlink(item)
     
     def apply_build_height_label(self, wall_bp, position, multiplier):
         position_metric = position * unit.inch(1)
@@ -3092,7 +3280,7 @@ class VIEW_OT_generate_2d_views(Operator):
         dim.set_label(wall_height)
 
     def accordion_build_hight_n_ceiling_dimensions(self, context, 
-                                                   accordion,
+                                                   accordion, existing_dims,
                                                    extra_dims):
         bh_dims = []
         first_wall = None
@@ -3118,26 +3306,38 @@ class VIEW_OT_generate_2d_views(Operator):
         bh_dims = [self.to_inch(bh) for bh in bh_dims]
         bh_dims = list(set(bh_dims)) 
         bh_dims = sorted(bh_dims)
-        for i, value in enumerate(bh_dims):
-            if value > small_dim_height_value:
-                self.apply_build_height_label(first_wall, value, i )
-            elif value <= small_dim_height_value:
-                self.apply_toe_kick_label(first_wall, value, i)
-        dims_offset = (unit.inch(-4) * len(bh_dims))
-        max_offset = unit.inch(-7) + dims_offset
-        if first_wall is not None:
-            self.ceiling_height_dimension(first_wall, max_offset)
-        return max_offset
+        for bh in list(bh_dims):
+            if isinstance(existing_dims, List) and bh in existing_dims:
+                bh_dims.remove(bh)
+        existing_dims += bh_dims
+        if len(bh_dims) > 0:
+            for i, value in enumerate(bh_dims):
+                if value > small_dim_height_value:
+                    self.apply_build_height_label(first_wall, value, i )
+                elif value <= small_dim_height_value:
+                    self.apply_toe_kick_label(first_wall, value, i)
+            dims_offset = (unit.inch(-4) * len(bh_dims))
+            max_offset = unit.inch(-7) + dims_offset
+            if first_wall is not None:
+                self.ceiling_height_dimension(first_wall, max_offset)
+            return max_offset
+        return None
 
     def get_first_acc_wall(self, accordion):
         first_wall = None
-        found_existing_wall = False
+        # NOTE toggle to stop looking after other walls once you've skipped
+        #      the ones considered empty
+        found = False
+        walls = [wall.name for wall in accordion]
         for wall in accordion:
+            has_csh_lsh = self.next_wall_has_lsh_csh(walls, wall)
             empty = self.empty_wall(wall)
             just_door = self.is_just_door_wall(wall)
-            if not empty and not just_door and not found_existing_wall:
+            std_walls = not empty and not just_door and not found
+            just_csh_lsh_cross_sections = has_csh_lsh and not found
+            if std_walls or just_csh_lsh_cross_sections:
                 first_wall = wall
-                found_existing_wall = True
+                found = True
         return first_wall
 
     def ts_support_corbel_bh(self, bh_dims, item):
@@ -3198,23 +3398,23 @@ class VIEW_OT_generate_2d_views(Operator):
         bh_dims.append(build_height_dim)
 
     def strict_corner_bh(self, bh_dims, item):
-        tk_height = 0
-        tsh_height = 0
-        for tk in item.children:
-            # NOTE the TK height for Corner shelf and L-shelf is on Y-axis
-            #      and as they are part of the entire assembly they need to
-            #      be added to the building height
-            if 'toe kick' in tk.name.lower():
-                tk_assy = sn_types.Assembly(tk)
-                tk_height = tk_assy.obj_z.location.z
-                bh_dims.append(tk_height)
+        tk_height, tsh_height = 0, 0
+        is_hanging, tsh = False, False
         lsh_assy = sn_types.Assembly(item)
-        tsh = lsh_assy.get_prompt("Add Top Shelf").get_value()
+        tk_height_pmpt = lsh_assy.get_prompt("Toe Kick Height")
+        is_hanging_pmpt = lsh_assy.get_prompt("Is Hanging")
+        tsh_pmpt = lsh_assy.get_prompt("Add Top Shelf")
+        if tk_height_pmpt and is_hanging_pmpt and tsh_pmpt:
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+            tsh = tsh_pmpt.get_value()
+        lsh_height = lsh_assy.obj_z.location.z + tk_height
+        if is_hanging:
+            lsh_height = lsh_assy.obj_z.location.z
         if tsh:
             tsh_height += unit.inch(0.75)
-        lsh_height = lsh_assy.obj_z.location.z
-        bh_dims.append(lsh_height + tk_height + tsh_height)
-
+        bh_dims.append(lsh_height + tsh_height)
+               
     
     def wall_width(self, walls_list, wall):
         assembly = sn_types.Assembly(wall)
@@ -3240,6 +3440,7 @@ class VIEW_OT_generate_2d_views(Operator):
                                                  accordion, walls_list,
                                                  extra_dims, wall_rem_spaces):
         offsets = []
+        exstg_dims = []
         for wall in accordion:
             left_space, right_space = wall_rem_spaces.get(wall, (0, 0))
             if left_space > 0:
@@ -3248,9 +3449,11 @@ class VIEW_OT_generate_2d_views(Operator):
                 self.add_remaining_space_lbl(wall, right_space, "right")
             self.wall_width(walls_list, wall)
             offset = self.accordion_build_hight_n_ceiling_dimensions(context, 
-                                                                     accordion, 
+                                                                     accordion,
+                                                                     exstg_dims, 
                                                                      extra_dims)
-            offsets.append(offset)
+            if offset:
+                offsets.append(offset)
         return max(offsets)
 
     def make_flat_crown_label(self, labels, item):
@@ -3355,7 +3558,8 @@ class VIEW_OT_generate_2d_views(Operator):
         csh_dim += toe_kick_height
         return csh_dim
 
-    def add_csh_lsh_accordion_dims(self, insert):     
+    def add_csh_lsh_accordion_dims(self, insert):
+        csh_lsh_objects = []
         for obj in insert.instance_collection.all_objects:
             if hasattr(obj, 'name') and hasattr(obj.parent, 'name'):
                 rot_z = obj.rotation_euler.z
@@ -3364,23 +3568,25 @@ class VIEW_OT_generate_2d_views(Operator):
                 c_shelves = 'corner shelves' in obj.parent.name.lower()
                 l_shelves = 'l shelves' in obj.parent.name.lower()
                 if stringer and left and (c_shelves or l_shelves):
-                    assy = sn_types.Assembly(obj.parent)
-                    panel_height = obj.location[2]
-                    width = abs(assy.obj_y.location.y)
-                    left_depth_pmpt = assy.get_prompt("Left Depth")
-                    has_top_kd = assy.get_prompt("Add Top KD").get_value()
-                    left_depth = left_depth_pmpt.distance_value
-                    left_depth_lbl = self.to_inch_lbl(left_depth)
-                    if has_top_kd:
-                        self.csh_lsh_top_kd_lbl(insert, assy, obj.parent)
-                    self.csh_lsh_bottom_kd_lbl(insert, assy, obj.parent)
-                    self.lsh_csh_toe_kick_lbl(assy)
-                    self.lsh_csh_width(insert, assy, width)
-                    self.lsh_csh_left_partition(insert, assy, panel_height)
-                    self.csh_lsh_pdt_name(insert, c_shelves, 
-                                          l_shelves, assy, panel_height)
-                    self.csh_lsh_depth(insert, panel_height, 
-                                       width, left_depth_lbl)
+                    csh_lsh_objects.append(obj)
+        for item in csh_lsh_objects:
+            csh = 'corner shelves' in item.parent.name.lower()
+            lsh = 'l shelves' in item.parent.name.lower()
+            assy = sn_types.Assembly(item.parent)
+            panel_height = item.location[2]
+            width = abs(assy.obj_y.location.y)
+            left_depth_pmpt = assy.get_prompt("Left Depth")
+            has_top_kd = assy.get_prompt("Add Top KD").get_value()
+            left_depth = left_depth_pmpt.distance_value
+            left_depth_lbl = self.to_inch_lbl(left_depth)
+            if has_top_kd:
+                self.csh_lsh_top_kd_lbl(insert, assy, item.parent)
+            self.csh_lsh_bottom_kd_lbl(insert, assy, item.parent)
+            self.lsh_csh_toe_kick_lbl(assy)
+            self.lsh_csh_width(insert, assy, width)
+            self.lsh_csh_left_partition(insert, assy)
+            self.csh_lsh_pdt_name(insert, csh, lsh, assy)
+            self.csh_lsh_depth(insert, panel_height, width, left_depth_lbl)
 
     def csh_lsh_depth(self, insert, stringer_heigth, width, left_depth_lbl):
         hashmark = sn_types.Line(unit.inch(6), (-45, 0, 90))
@@ -3393,28 +3599,47 @@ class VIEW_OT_generate_2d_views(Operator):
         depth_dim.start_z(value=unit.inch(2))
         depth_dim.set_label(left_depth_lbl)
 
-    def csh_lsh_pdt_name(self, insert, c_shelves, l_shelves, assy, stringer_heigth):
+    def csh_lsh_pdt_name(self, insert, c_shelves, l_shelves, assy):
         pdt_label = ""
+        panel_height, tk_height = 0, 0
+        is_hanging = False
+        panel_height_pmpt = assy.get_prompt("Panel Height")
+        tk_height_pmpt = assy.get_prompt("Toe Kick Height")
+        is_hanging_pmpt = assy.get_prompt("Is Hanging")
+        if panel_height_pmpt and tk_height_pmpt and is_hanging_pmpt:
+            panel_height = panel_height_pmpt.get_value()
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+        elif not panel_height_pmpt or tk_height_pmpt or is_hanging_pmpt:
+            return
         if c_shelves:
             pdt_label = "Corner Shelves"
         elif l_shelves:
             pdt_label = "L-Shaped Shelves" 
-        height = assy.obj_z.location.z
+        height = (assy.obj_z.location.z / 2) + tk_height
+        if is_hanging:
+            height =  assy.obj_z.location.z - panel_height / 2
         pdt_dim = sn_types.Dimension()
         pdt_dim.set_label(pdt_label)
-        utils.copy_world_loc(insert, pdt_dim.anchor)
-        utils.copy_world_rot(insert, pdt_dim.anchor)
-        pdt_dim.anchor.location[2] += ((height / 2) + stringer_heigth)
-        pdt_dim.anchor.rotation_euler[1] -= math.radians(45)
+        utils.copy_world_loc(insert, pdt_dim.anchor, (0, 0, height))
+        utils.copy_world_rot(insert, pdt_dim.anchor, (0, -45, 0))
 
     def csh_lsh_top_kd_lbl(self, insert, assy, item):
-        tk_height = 0
-        for tk in item.children:
-            if 'toe kick' in tk.name.lower():
-                tk_assy = sn_types.Assembly(tk)
-                tk_height = tk_assy.obj_z.location.z
+        tk_height, panel_height, tk_height = 0, 0, 0
+        is_hanging = False
+        panel_height_pmpt = assy.get_prompt("Panel Height")
+        tk_height_pmpt = assy.get_prompt("Toe Kick Height")
+        is_hanging_pmpt = assy.get_prompt("Is Hanging")
+        if panel_height_pmpt and tk_height_pmpt and is_hanging_pmpt:
+            panel_height = panel_height_pmpt.get_value()
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+        elif not panel_height_pmpt or tk_height_pmpt or is_hanging_pmpt:
+            return
+        height = assy.obj_z.location.z + tk_height - unit.inch(1.5)
+        if is_hanging:
+            height = assy.obj_z.location.z - unit.inch(1.5)
         width = assy.obj_x.location.x
-        height = (assy.obj_z.location.z + tk_height) - unit.inch(0.5)
         kd_dim = sn_types.Dimension()
         kd_dim.set_label("KD")
         utils.copy_world_loc(insert, kd_dim.anchor)
@@ -3422,14 +3647,23 @@ class VIEW_OT_generate_2d_views(Operator):
         kd_dim.anchor.location[0] -= width / 2
         kd_dim.anchor.location[2] = height
 
+
     def csh_lsh_bottom_kd_lbl(self, insert, assy, item):
-        tk_height = 0
-        for tk in item.children:
-            if 'toe kick' in tk.name.lower():
-                tk_assy = sn_types.Assembly(tk)
-                tk_height = tk_assy.obj_z.location.z
-        width = assy.obj_x.location.x
+        tk_height, panel_height = 0, 0
+        is_hanging = False
+        panel_height_pmpt = assy.get_prompt("Panel Height")
+        tk_height_pmpt = assy.get_prompt("Toe Kick Height")
+        is_hanging_pmpt = assy.get_prompt("Is Hanging")
+        if panel_height_pmpt and tk_height_pmpt and is_hanging_pmpt:
+            panel_height = panel_height_pmpt.get_value()
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+        elif not panel_height_pmpt or tk_height_pmpt or is_hanging_pmpt:
+            return
         height = tk_height
+        if is_hanging:
+            height = assy.obj_z.location.z - panel_height + unit.inch(1.5)
+        width = assy.obj_x.location.x
         kd_dim = sn_types.Dimension()
         kd_dim.set_label("KD")
         utils.copy_world_loc(insert, kd_dim.anchor)
@@ -3461,6 +3695,20 @@ class VIEW_OT_generate_2d_views(Operator):
                 utils.copy_world_rot(tk, tk_lbl.anchor)
 
     def lsh_csh_width(self, insert, assy, width):
+        wall_height = 0
+        is_hanging = False
+        height = unit.inch(-3)
+        is_hanging_pmpt = assy.get_prompt("Is Hanging")
+        wall_bp = sn_utils.get_wall_bp(assy.obj_bp)
+        wall_assy = sn_types.Assembly(wall_bp)
+        if wall_assy:
+            wall_height = wall_assy.obj_z.location.z
+        if is_hanging_pmpt:
+            is_hanging = is_hanging_pmpt.get_value()
+        if is_hanging:
+            height = assy.obj_z.location.z + unit.inch(10)
+        if abs(wall_height - height) < unit.inch(2):
+            height -= unit.inch(3)
         discount = unit.inch(0.75)
         label = self.to_inch_lbl(width - discount)
         width_dim = sn_types.Dimension()
@@ -3468,17 +3716,31 @@ class VIEW_OT_generate_2d_views(Operator):
         utils.copy_world_loc(insert, width_dim.anchor)
         utils.copy_world_rot(insert, width_dim.anchor)
         width_dim.anchor.location[0] -= width / 2
-        width_dim.anchor.location[2] = unit.inch(-3)
+        width_dim.anchor.location[2] = height
     
-    def lsh_csh_left_partition(self, insert, assy, stringer_heigth):
-        height = assy.obj_z.location.z
+    def lsh_csh_left_partition(self, insert, assy):
+        panel_height, tk_height = 0, 0
+        is_hanging = False
+        panel_height_pmpt = assy.get_prompt("Panel Height")
+        tk_height_pmpt = assy.get_prompt("Toe Kick Height")
+        is_hanging_pmpt = assy.get_prompt("Is Hanging")
+        if panel_height_pmpt and tk_height_pmpt and is_hanging_pmpt:
+            panel_height = panel_height_pmpt.get_value()
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+        elif not panel_height_pmpt or tk_height_pmpt or is_hanging_pmpt:
+            return
+        height = panel_height
         depth = assy.obj_y.location.y
         label = self.to_inch_str(height)
         dim = sn_types.Dimension()
         dim.set_label(label)
         lbl_x = depth + unit.inch(2)
-        lbl_z = (height / 2) + stringer_heigth
+        lbl_z = (panel_height / 2) + tk_height 
         lbl_loc = (0, lbl_x, lbl_z)
+        if is_hanging:
+            lbl_z = assy.obj_z.location.z - (panel_height / 2)
+            lbl_loc = (0, lbl_x, lbl_z)
         lbl_rot = (0, -90, 0)
         utils.copy_world_loc(insert, dim.anchor, lbl_loc)
         utils.copy_world_rot(insert, dim.anchor, lbl_rot)
@@ -3569,6 +3831,110 @@ class VIEW_OT_generate_2d_views(Operator):
         self.ignore_obj_list.append(spdim)
         return spdim
 
+    def cross_sect_lshcsh_elvs_kds(self, shelf_assy, wall_assy, floor_obj):
+        tk_height = 0
+        is_hanging = False
+        discount = unit.inch(0.75)
+        shelf_depth = abs(shelf_assy.obj_y.location.y)
+        shelf_height = shelf_assy.obj_z.location.z
+        wall_length = wall_assy.obj_x.location.x
+        is_hanging_pmpt = shelf_assy.get_prompt("Is Hanging")
+        tk_height_pmpt = shelf_assy.get_prompt("Toe Kick Height")
+        panel_height_pmpt = shelf_assy.get_prompt("Panel Height")
+        if panel_height_pmpt and tk_height_pmpt and is_hanging_pmpt:
+            panel_height = panel_height_pmpt.get_value()
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+        bottom_kd_height = tk_height
+        top_kd_height = shelf_height + tk_height - unit.inch(1.5)
+        if is_hanging_pmpt:
+            is_hanging = is_hanging_pmpt.get_value()
+        if is_hanging:
+            bottom_kd_height = shelf_height - panel_height + unit.inch(1.5)
+            top_kd_height = shelf_height - unit.inch(1.5)
+        bottom_kd_dim = sn_types.Dimension()
+        bottom_kd_dim.parent(floor_obj)
+        bottom_kd_dim.set_label("KD")
+        offset = (wall_length - (shelf_depth / 2), 0, bottom_kd_height)
+        utils.copy_world_loc(floor_obj, bottom_kd_dim.anchor, offset)
+        utils.copy_world_rot(floor_obj, bottom_kd_dim.anchor)
+        top_kd_dim = sn_types.Dimension()
+        top_kd_dim.parent(floor_obj)
+        top_kd_dim.set_label("KD")
+        offset = (wall_length - (shelf_depth / 2), 0, top_kd_height)
+        utils.copy_world_loc(floor_obj, top_kd_dim.anchor, offset)
+        utils.copy_world_rot(floor_obj, top_kd_dim.anchor)
+    
+    def cross_sect_lshcsh_elvs_panel(self, shelf_assy, wall_assy, floor_obj):
+        tk_height = 0
+        is_hanging = False
+        wall_length = wall_assy.obj_x.location.x
+        is_hanging_pmpt = shelf_assy.get_prompt("Is Hanging")
+        tk_height_pmpt = shelf_assy.get_prompt("Toe Kick Height")
+        panel_height_pmpt = shelf_assy.get_prompt("Panel Height")
+        if panel_height_pmpt and tk_height_pmpt and is_hanging_pmpt:
+            panel_height = panel_height_pmpt.get_value()
+            tk_height = tk_height_pmpt.get_value()
+            is_hanging = is_hanging_pmpt.get_value()
+        panel_z_height = (panel_height / 2) + tk_height
+        panel_height_lbl = self.to_inch_str(panel_height)
+        if is_hanging_pmpt:
+            is_hanging = is_hanging_pmpt.get_value()
+        if is_hanging:
+            panel_z_height = shelf_assy.obj_z.location.z - panel_height / 2
+        panel_height_dim = sn_types.Dimension()
+        panel_height_dim.parent(floor_obj)
+        panel_height_dim.set_label(panel_height_lbl)
+        offset = (wall_length - unit.inch(4), 0, panel_z_height)
+        lbl_rot = (0, -90, 0)
+        utils.copy_world_loc(floor_obj,  panel_height_dim.anchor, offset)
+        utils.copy_world_rot(floor_obj,  panel_height_dim.anchor, lbl_rot)
+    
+    def cross_sect_lshcsh_elvs_width(self, shelf_assy, wall_assy, floor_obj):
+        is_hanging = False
+        discount = unit.inch(0.75)
+        width_height = unit.inch(-3)
+        shelf_depth = abs(shelf_assy.obj_y.location.y)
+        wall_length = wall_assy.obj_x.location.x
+        width_lbl = self.to_inch_lbl(shelf_depth - discount)
+        is_hanging_pmpt = shelf_assy.get_prompt("Is Hanging")
+        if is_hanging_pmpt:
+            is_hanging = is_hanging_pmpt.get_value()
+        if is_hanging:
+            width_height = shelf_assy.obj_z.location.z + unit.inch(10)
+        width_dim = sn_types.Dimension()
+        width_dim.parent(floor_obj)
+        width_dim.set_label(width_lbl)
+        offset = (wall_length - (shelf_depth / 2), 0, width_height)
+        utils.copy_world_loc(floor_obj, width_dim.anchor, offset)
+        utils.copy_world_rot(floor_obj, width_dim.anchor)
+
+    def add_corner_cross_sections_dims(self, walls, wall_groups):
+        for wall_name, wall_grp in wall_groups.items():
+            wall_bp = bpy.data.objects[f"{wall_name}"]
+            right_wall = sn_types.Wall(wall_bp).get_connected_wall("RIGHT")
+            right_wall_bp = right_wall.obj_bp
+            right_wall_name = right_wall.obj_bp.name
+            if not right_wall:
+                return
+            corners_shlvs = self.get_lsh_csh_assemblies(right_wall_bp)
+            if not corners_shlvs:
+                return
+            for shelf in corners_shlvs:
+                scene_name = f'{wall_grp.name}'
+                floor_name = f'{wall_grp.name} Floor'
+                bpy.context.window.scene = bpy.data.scenes[scene_name]
+                floor_obj = bpy.data.objects[floor_name]
+                floor = floor_obj
+                shelf_assy = sn_types.Assembly(shelf)
+                sh_assy = shelf_assy
+                wall_assy = sn_types.Assembly(wall_bp)
+                if not wall_assy or not shelf_assy:
+                    return
+                self.cross_sect_lshcsh_elvs_width(sh_assy, wall_assy, floor)
+                self.cross_sect_lshcsh_elvs_kds(sh_assy, wall_assy, floor)
+                self.cross_sect_lshcsh_elvs_panel(sh_assy, wall_assy, floor)
+
     def add_remaining_space_lbl_elv(self, wall_grp, wall, value, position):
         x_loc = 0
         scene_name = f'{wall_grp.name}'
@@ -3643,9 +4009,10 @@ class VIEW_OT_generate_2d_views(Operator):
                 if (just_door or empty) and not has_lsh_csh:
                     continue
                 self.group_every_children_on_acc(grp, wall)
-                # wall height / building height need to be added just at the
-                # first wall of each accordion. So we remove the existing ones
-                # and apply as desired
+                self.accordion_obstacles(grp)
+                # NOTE wall height / building height need to be added just 
+                # at the first wall of each accordion. So we 
+                # remove the existing ones and apply as desired
                 for obj in wall.children:
                     if obj.get("IS_VISDIM_A"):
                         bpy.data.objects.remove(obj, do_unlink=True)
@@ -3653,6 +4020,14 @@ class VIEW_OT_generate_2d_views(Operator):
                         wall_mesh = self.create_elevation_wall(wall_assy, 'Acc')
                         grp.objects.link(wall_mesh)
                         grp.objects.unlink(obj)
+                    if obj.get('IS_OBSTACLE'):
+                        on_accordions = obj.get('SHOW_ON_ACCORDIONS', True)
+                        if on_accordions:
+                            self.add_obstacle_height_width_dim(obj)
+                            for child in obj.children:
+                                new_scene.collection.objects.link(child)
+                                child.hide_render = False
+
                 new_scene.collection.objects.link(wall)
                 # left_space, right_space = walls_rem_spaces.get(wall, (0, 0))
                 self.link_tagged_dims_to_scene(new_scene, wall)
@@ -3672,7 +4047,7 @@ class VIEW_OT_generate_2d_views(Operator):
                         if show_csh_lsh and has_csh_lsh:
                             self.add_csh_lsh_accordion_dims(right_insert)
                             self.adjust_accordion_dims(right_insert)
-                wall_assy = sn_types.Assembly(wall)
+                wall_assy = sn_types.Assembly(wall) 
                 acc_floor = self.create_elevation_floor(new_scene, wall_assy)
                 wall_obj = sn_types.Wall(obj_bp=wall)
                 wall_groups_list = wall_obj.get_wall_groups()
@@ -3688,7 +4063,7 @@ class VIEW_OT_generate_2d_views(Operator):
                                                                    accordion,
                                                                    walls_list,
                                                                    extra_dims,
-                                                                   walls_rem_spaces)                
+                                                                   walls_rem_spaces)
             self.add_flat_crowns(context, accordion, offset)
             proportion = round((walls_length_sum / max(walls_heights)), 2)
             instance_name = "Accordion Instance " + str(i + 1)
@@ -3787,6 +4162,30 @@ class VIEW_OT_generate_2d_views(Operator):
         an_dim.set_label(annotation_label)
         self.ignore_obj_list.append(an_dim)
 
+    def add_obstacle_height_width_dim(self, obstacle):
+        wall_bp = sn_utils.get_wall_bp(obstacle)
+        if wall_bp:
+            assy = sn_types.Assembly(obstacle)
+            loc_x, loc_y, loc_z = obstacle.location
+            dim_x = abs(assy.obj_x.location.x)
+            dim_y = abs(assy.obj_y.location.y) * -1
+            dim_z = abs(assy.obj_z.location.z)
+            # Height 
+            height_lbl = self.to_inch_lbl(loc_z)
+            height_dim = sn_types.Dimension()
+            height_dim.set_label(height_lbl)
+            utils.copy_world_loc(wall_bp, height_dim.anchor, (loc_x, 0, 0))
+            utils.copy_world_rot(wall_bp, height_dim.anchor)
+            height_dim.end_point.location.z = loc_z
+            # Width
+            width_lbl = self.to_inch_lbl(loc_x)
+            width_dim = sn_types.Dimension()
+            width_dim.set_label(width_lbl)
+            utils.copy_world_loc(wall_bp, width_dim.anchor, (0, 0, loc_z))
+            utils.copy_world_rot(wall_bp, width_dim.anchor)
+            width_dim.end_point.location.x = loc_x
+
+
     def create_elv_view_scene(self, context, assembly, grp):
         main_sc_objs = [o for o in bpy.data.scenes["_Main"].objects]
         if assembly.obj_bp and assembly.obj_x and assembly.obj_y and assembly.obj_z:
@@ -3818,6 +4217,12 @@ class VIEW_OT_generate_2d_views(Operator):
 
                 if item.get("IS_VISDIM_A"):
                     self.ignore_obj_list.append(item)
+
+                if item.get('IS_OBSTACLE') and item.get('SHOW_ON_ELEVATIONS', True):
+                    self.add_obstacle_height_width_dim(item)
+                    for child in item.children:
+                        new_scene.collection.objects.link(child)
+                        child.hide_render = False
 
 
             x_offset = assembly.obj_x.location.x / 2
@@ -3960,6 +4365,16 @@ class VIEW_OT_generate_2d_views(Operator):
         for obj in pv_icons:
             if obj.name not in self.ICONS_COLL:
                 self.ICONS_COLL.objects.link(obj)
+        
+        for obj in bpy.data.objects:
+            entry_door = utils.get_entry_door_bp(obj)
+            no_obj_x = 'obj_x' not in obj.name.lower()
+            no_obj_y = 'obj_y' not in obj.name.lower()
+            no_obj_z = 'obj_z' not in obj.name.lower()
+            no_pmpt  = 'obj_prompts' not in obj.name.lower()
+            if entry_door and no_obj_x and no_obj_y and no_obj_z and no_pmpt:
+                if obj.name not in self.FS_HIDE_EXCLUSION_COLL.objects:
+                    self.FS_HIDE_EXCLUSION_COLL.objects.link(obj)
 
     def write_island_height(self, island, x_loc):
         island_assembly = sn_types.Assembly(obj_bp=island)
@@ -4701,6 +5116,32 @@ class VIEW_OT_generate_2d_views(Operator):
         for sc in scenes:
             sc.snap.elevation_selected = True
 
+    def switch_off_kds(self):
+        locked_shelves_prompts = []
+        for scene in bpy.data.scenes:
+            for obj in scene.objects:
+                is_stack = obj.get("IS_STACK_SHELF")
+                unseen = obj not in locked_shelves_prompts
+                if is_stack:
+                    shelf_assy = sn_types.Assembly(obj)
+                    shelf_bp = shelf_assy.obj_bp
+                    is_shelf_bp = shelf_bp.sn_closets.is_shelf_bp
+                    if shelf_assy and is_shelf_bp:
+                        is_locked_pmpt = shelf_assy.get_prompt(
+                            "Is Locked Shelf")
+                        locked = is_locked_pmpt.get_value()
+                        if locked and is_stack and unseen:
+                            is_locked_pmpt.set_value(0)
+                            locked_shelves_prompts.append(obj)
+        return locked_shelves_prompts
+    
+    def switch_on_kds(self, switched_off):
+        for obj in switched_off:
+            assy = sn_types.Assembly(obj)
+            if assy:
+                is_locked_pmpt = assy.get_prompt("Is Locked Shelf")
+                is_locked_pmpt.set_value(1)
+
     def invoke(self, context, event):
         main_sc_objects = []
         existing_scenes = [sc.name for sc in bpy.data.scenes]
@@ -4811,14 +5252,19 @@ class VIEW_OT_generate_2d_views(Operator):
                     wall_groups_list = wall.get_wall_groups()
                     wall_door_only = False
                     door_toggle = False
+                    door_only = len(wall_groups_list) == 1
+                    right_wall = wall.get_connected_wall('RIGHT')
+                    corner_items = self.get_lsh_csh_assemblies(
+                        right_wall.obj_bp)
+                    has_assys = len(wall_groups_list) > 0
                     for item in wall_groups_list:
                         if 'BPASSEMBLY.' in item.name:
                             for door in item.children:
                                 if 'door frame' in door.name.lower():
                                     door_toggle = True
-                    if door_toggle and len(wall_groups_list) == 1:
+                    if door_toggle and door_only:
                         wall_door_only = True
-                    if len(wall_groups_list) > 0 and not wall_door_only:
+                    if (has_assys and not wall_door_only) or corner_items:
                         grp_name = f"CSwall-{wall.obj_bp.snap.name_object}"
                         grp = bpy.data.collections.new(grp_name)
                         if elevations_only:
@@ -4839,6 +5285,7 @@ class VIEW_OT_generate_2d_views(Operator):
                 if elevations_only:
                     assy_dict = self.add_cross_sections(walls, wall_groups)
                     self.add_remaining_space_dims(assy_dict, wall_groups)
+                    self.add_corner_cross_sections_dims(walls, wall_groups)
                 elif accordions_only:
                     self.add_accordion_views(context)
 
@@ -4848,7 +5295,9 @@ class VIEW_OT_generate_2d_views(Operator):
         wm.elevation_scene_index = 0
         bpy.ops.object.select_all(action='DESELECT')
 
+        switched_off_kds = self.switch_off_kds()
         self.add_meshes_to_freestyle_collections()
+        self.switch_on_kds(switched_off_kds)
         hide_dim_handles()
         self.enable_all_elvs()
         return {'FINISHED'}

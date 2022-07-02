@@ -20,6 +20,7 @@ class SNAP_OT_move_closet(Operator):
     bl_label = "Move Closet"
 
     obj_bp_name: bpy.props.StringProperty(name="Obj Base Point Name")
+    copy: bpy.props.BoolProperty(name="Copied Product", default=False)
 
     closet = None
     selected_closet = None
@@ -67,53 +68,72 @@ class SNAP_OT_move_closet(Operator):
         self.reset_properties()
         self.create_drawing_plane(context)
         self.get_closet(context)
-        self.original_parent = self.closet.obj_bp.parent
         self.original_loc = self.closet.obj_bp.matrix_world.copy()
         context.window_manager.modal_handler_add(self)
         context.area.tag_redraw()
         return {'RUNNING_MODAL'}
 
-    def position_closet(self, mouse_location, selected_obj):
-        closet_bp = sn_utils.get_closet_bp(selected_obj)
-        if not closet_bp:
-            closet_bp = sn_utils.get_appliance_bp(selected_obj)
+    def validate_placement(self, context):
+        if self.selected_obj is None:
+            return False
 
-        wall_bp = sn_utils.get_wall_bp(selected_obj)
-        if closet_bp:
-            self.selected_closet = sn_types.Assembly(closet_bp)
+        valid_placement = True
+        floor = self.selected_obj.sn_roombuilder.is_floor
+        drawing_plane = 'IS_DRAWING_PLANE' in self.selected_obj
+        closet = None
+        island = sn_utils.get_island_bp(self.closet.obj_bp)
 
-            sel_closet_world_loc = (self.selected_closet.obj_bp.matrix_world[0][3],
-                                     self.selected_closet.obj_bp.matrix_world[1][3],
-                                     self.selected_closet.obj_bp.matrix_world[2][3])
+        if self.closet.obj_bp.get("product_type"):
+            closet = self.closet.obj_bp['product_type'] == "Closet"
 
-            sel_closet_x_world_loc = (self.selected_closet.obj_x.matrix_world[0][3],
+        # Only validate if room has been created and file has been saved, allow free placement if no existing room
+        if bpy.data.is_saved:
+            # Check if current asset is a hang section
+            if closet and not island:
+                if floor or drawing_plane:
+                    valid_placement = False
+
+        return valid_placement
+
+    def position_closet(self):
+        wall_bp = sn_utils.get_wall_bp(self.selected_obj)
+        product_bp = sn_utils.get_closet_bp(self.selected_obj)
+
+        if product_bp:
+            self.selected_closet = sn_types.Assembly(product_bp)
+            sel_asset_loc_x = self.selected_closet.obj_bp.matrix_world[0][3]
+            sel_asset_loc_y = self.selected_closet.obj_bp.matrix_world[1][3]
+            sel_asset_loc_z = self.selected_closet.obj_bp.matrix_world[2][3]
+
+            sel_cabinet_world_loc = (sel_asset_loc_x,
+                                     sel_asset_loc_y,
+                                     sel_asset_loc_z)
+
+            sel_cabinet_x_world_loc = (self.selected_closet.obj_x.matrix_world[0][3],
                                        self.selected_closet.obj_x.matrix_world[1][3],
                                        self.selected_closet.obj_x.matrix_world[2][3])
 
-            dist_to_bp = sn_utils.calc_distance(mouse_location, sel_closet_world_loc)
-            dist_to_x = sn_utils.calc_distance(mouse_location, sel_closet_x_world_loc)
+            dist_to_bp = sn_utils.calc_distance(self.selected_point, sel_cabinet_world_loc)
+            dist_to_x = sn_utils.calc_distance(self.selected_point, sel_cabinet_x_world_loc)
             rot = self.selected_closet.obj_bp.rotation_euler.z
             x_loc = 0
             y_loc = 0
+
             if wall_bp:
                 self.current_wall = sn_types.Assembly(wall_bp)
-                rot += self.current_wall.obj_bp.rotation_euler.z      
+                rot += self.current_wall.obj_bp.rotation_euler.z
 
             if dist_to_bp < dist_to_x:
                 self.placement = 'LEFT'
                 add_x_loc = 0
                 add_y_loc = 0
-                # if sel_product.obj_bp.snap.placement_type == 'Corner':
-                #     rot += math.radians(90)
-                #     add_x_loc = math.cos(rot) * sel_product.obj_y.location.y
-                #     add_y_loc = math.sin(rot) * sel_product.obj_y.location.y
-                x_loc = self.selected_closet.obj_bp.matrix_world[0][3] - math.cos(rot) * self.closet.obj_x.location.x + add_x_loc
-                y_loc = self.selected_closet.obj_bp.matrix_world[1][3] - math.sin(rot) * self.closet.obj_x.location.x + add_y_loc
+                x_loc = sel_asset_loc_x - math.cos(rot) * self.closet.obj_x.location.x + add_x_loc
+                y_loc = sel_asset_loc_y - math.sin(rot) * self.closet.obj_x.location.x + add_y_loc
 
             else:
                 self.placement = 'RIGHT'
-                x_loc = self.selected_closet.obj_bp.matrix_world[0][3] + math.cos(rot) * self.selected_closet.obj_x.location.x
-                y_loc = self.selected_closet.obj_bp.matrix_world[1][3] + math.sin(rot) * self.selected_closet.obj_x.location.x
+                x_loc = sel_asset_loc_x + math.cos(rot) * self.selected_closet.obj_x.location.x
+                y_loc = sel_asset_loc_y + math.sin(rot) * self.selected_closet.obj_x.location.x
 
             self.closet.obj_bp.rotation_euler.z = rot
             self.closet.obj_bp.location.x = x_loc
@@ -121,19 +141,22 @@ class SNAP_OT_move_closet(Operator):
 
         elif wall_bp:
             self.placement = 'WALL'
-            self.current_wall = sn_types.Assembly(wall_bp)
+            self.current_wall = sn_types.Wall(wall_bp)
             self.closet.obj_bp.rotation_euler = self.current_wall.obj_bp.rotation_euler
-            self.closet.obj_bp.location.x = mouse_location[0]
-            self.closet.obj_bp.location.y = mouse_location[1]
+            self.closet.obj_bp.location.x = self.selected_point[0]
+            self.closet.obj_bp.location.y = self.selected_point[1]
+            wall_mesh = self.current_wall.get_wall_mesh()
+            wall_mesh.select_set(True)
 
         else:
-            self.closet.obj_bp.location.x = mouse_location[0]
-            self.closet.obj_bp.location.y = mouse_location[1]
+            self.closet.obj_bp.location.x = self.selected_point[0]
+            self.closet.obj_bp.location.y = self.selected_point[1]
 
     def get_closet(self, context):
         obj = bpy.data.objects[self.obj_bp_name]
         obj_bp = sn_utils.get_closet_bp(obj)
         self.closet = sn_types.Assembly(obj_bp)
+        self.original_parent = self.closet.obj_bp.parent
         self.closet.obj_bp.constraints.clear()
         self.closet.obj_bp.parent = None
         self.set_child_properties(self.closet.obj_bp)
@@ -155,6 +178,7 @@ class SNAP_OT_move_closet(Operator):
     def create_drawing_plane(self,context):
         bpy.ops.mesh.primitive_plane_add()
         plane = context.active_object
+        plane['IS_DRAWING_PLANE'] = True
         plane.location = (0, 0, 0)
         self.drawing_plane = context.active_object
         self.drawing_plane.display_type = 'WIRE'
@@ -217,16 +241,17 @@ class SNAP_OT_move_closet(Operator):
         self.mouse_y = event.mouse_y
         self.reset_selection()
 
-        selected_point, selected_obj, _ = sn_utils.get_selection_point(
+        self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(
             context,
             event,
             exclude_objects=self.exclude_objects)
 
-        self.position_closet(selected_point, selected_obj)
+        self.position_closet()
 
         if self.event_is_place_first_point(event):
-            self.confirm_placement(context)
-            return self.finish(context)
+            if self.validate_placement(context):
+                self.confirm_placement(context)
+                return self.finish(context)
 
         if self.event_is_cancel_command(event):
             return self.cancel_drop(context)
@@ -277,6 +302,12 @@ class SNAP_OT_move_closet(Operator):
 
     def cancel_drop(self, context):
         sn_utils.delete_object_and_children(self.drawing_plane)
+
+        if self.copy:
+            sn_utils.delete_object_and_children(bpy.data.objects[self.obj_bp_name])
+            self.copy = False
+            return {'FINISHED'}
+
         self.set_placed_properties(self.closet.obj_bp)
         if self.original_parent:
             self.closet.obj_bp.parent = self.original_parent
@@ -524,7 +555,7 @@ class SNAP_OT_copy_product(Operator):
         new_closet = sn_types.Assembly(new_obj_bp)
         self.hide_empties_and_boolean_meshes(new_closet.obj_bp)
 
-        bpy.ops.sn_closets.move_closet(obj_bp_name=new_closet.obj_bp.name)
+        bpy.ops.sn_closets.move_closet(obj_bp_name=new_closet.obj_bp.name, copy=True)
 
         return {'FINISHED'}
 
@@ -708,7 +739,7 @@ class SNAP_OT_Assembly_Copy_Drop(Operator, PlaceClosetInsert):
 class SNAP_OT_update_closet_section_height(Operator):
     bl_idname = "sn_closets.update_closet_section_height"
     bl_label = "Update Closet Section Height"
-    bl_description = "Update the Closet Section Height"
+    bl_description = "Updates all partition heights"
     bl_options = {'UNDO'}
 
     update_hanging: bpy.props.BoolProperty(name="Update Hanging")
@@ -717,8 +748,7 @@ class SNAP_OT_update_closet_section_height(Operator):
         scene_props = bpy.context.scene.sn_closets
 
         for obj in context.scene.objects:
-            obj_props = obj.sn_closets
-            if obj_props.is_closet:
+            if 'IS_BP_CLOSET' in obj:
                 closet = sn_types.Assembly(obj)
 
                 for i in range(1, 10):
@@ -744,15 +774,14 @@ class SNAP_OT_update_closet_section_height(Operator):
 class SNAP_OT_update_closet_hanging_height(Operator):
     bl_idname = "sn_closets.update_closet_hanging_height"
     bl_label = "Update Closet Height"
-    bl_description = "Update Closet Height"
+    bl_description = "Updates all section hang heights"
     bl_options = {'UNDO'}
 
     def execute(self, context):
         scene_props = bpy.context.scene.sn_closets
 
         for obj in context.scene.objects:
-            obj_props = obj.sn_closets
-            if obj_props.is_closet:
+            if 'IS_BP_CLOSET' in obj:
                 closet = sn_types.Assembly(obj)
                 closet.obj_z.location.z = scene_props.closet_defaults.hanging_height
 
@@ -914,6 +943,9 @@ class SNAP_OT_place_applied_panel(Operator):
                 slot.pointer_name = "Glass"
             if slot.name == 'Door Panel':
                 slot.pointer_name = "Wood_Door_Surface"
+            if slot.name == 'Melamine Door Panel':
+                slot.pointer_name = "Five_Piece_Melamine_Door_Surface"
+
 
     def set_wire_and_xray(self, obj, turn_on):
         if turn_on:
@@ -1070,6 +1102,8 @@ class SNAP_OT_update_door_selection(Operator):
                 slot.pointer_name = "Glass"
             if slot.name == 'Door Panel':
                 slot.pointer_name = "Wood_Door_Surface"
+            if slot.name == 'Melamine Door Panel':
+                slot.pointer_name = "Five_Piece_Melamine_Door_Surface"
 
     def get_door_assembly(self, obj):
         is_door = obj.get("IS_DOOR")
@@ -1103,8 +1137,11 @@ class SNAP_OT_update_door_selection(Operator):
             door_bp = self.get_door_assembly(obj)
             if door_bp and door_bp not in door_bps:
                 door_bps.append(door_bp)
-                door_match_bp = self.get_door_match(context, door_bp)
-                door_bps.append(door_match_bp)
+                insert_bp = sn_utils.get_bp(door_bp, 'INSERT')
+
+                if insert_bp and insert_bp.get('IS_BP_DOOR_INSERT'):
+                    door_match_bp = self.get_door_match(context, door_bp)
+                    door_bps.append(door_match_bp)
 
         for obj_bp in door_bps:
             door_assembly = sn_types.Assembly(obj_bp)
@@ -1189,6 +1226,15 @@ class SNAP_OT_update_door_selection(Operator):
             door_style = new_door.get_prompt("Door Style")
             if(door_style):
                 door_style.set_value(props.door_style)
+                if "Traviso" in (door_style.get_value()):
+                    height_constraint = new_door.obj_x.constraints.new(type='LIMIT_LOCATION')
+                    height_constraint.use_max_x = True
+                    height_constraint.max_x = sn_unit.inch(60)
+                    height_constraint.owner_space = 'LOCAL'
+                    width_constraint = new_door.obj_y.constraints.new(type='LIMIT_LOCATION')
+                    width_constraint.use_max_y = True
+                    width_constraint.max_y = sn_unit.inch(24)
+                    width_constraint.owner_space = 'LOCAL'
             if(parent_door_style):
                 parent_door_style.set_value(props.door_style)
             self.update_door_children_properties(new_door.obj_bp, id_prompt, props.door_style)

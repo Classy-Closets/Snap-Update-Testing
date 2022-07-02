@@ -589,6 +589,8 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
 
     def product_drop(self, context, event):
         selected_panel_2 = None
+        same_depth = True
+        both_sections = True
 
         if self.selected_obj is not None:
             self.sel_product_bp = sn_utils.get_bp(self.selected_obj, 'PRODUCT')
@@ -623,12 +625,32 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                         same_product =\
                             self.selected_panel_1.obj_bp.parent == hover_panel.obj_bp.parent
                     hp_to_left = round(hv_x_loc, 1) <= round(sp1_x_loc, 1)
-                    ts_length = hv_x_loc - sp1_x_loc
+                    ts_length = 0
+                    if same_product:
+                        ts_length = hv_x_loc - sp1_x_loc
+                    elif not same_product:
+                        hover_bp = hover_panel.obj_bp
+                        slctd_bp = self.selected_panel_1.obj_bp
+                        hover_sum = hover_bp.parent.location.x + hover_bp.location.x
+                        slctd_sum = slctd_bp.parent.location.x + slctd_bp.location.x
+                        ts_length = abs(slctd_sum - hover_sum)
+                        hover_assy = sn_types.Assembly(hover_bp)
+                        slctd_assy = sn_types.Assembly(slctd_bp)
+                        slctd_deep = round(
+                            sn_unit.meter_to_inch(
+                                abs(slctd_assy.obj_y.location.y)), 2)
+                        hover_deep = round(
+                            sn_unit.meter_to_inch(
+                                abs(hover_assy.obj_y.location.y)), 2)
+                        same_depth = slctd_deep == hover_deep
+                        is_hover_section = 'section' in hover_bp.parent.name.lower()
+                        is_slctd_section = 'section' in slctd_bp.parent.name.lower()
+                        both_sections = is_hover_section and is_slctd_section
                     hp_out_of_reach = round(sn_unit.meter_to_inch(ts_length), 2) > self.max_shelf_length
 
-                    if same_panel or hp_to_left or not same_product or hp_out_of_reach:
+                    if same_product and (same_panel or hp_to_left or hp_out_of_reach):
                         self.selected_obj.select_set(False)
-                        if not self.is_log_shown and same_product and hp_out_of_reach:
+                        if not self.is_log_shown and hp_out_of_reach:
                             bpy.ops.snap.log_window("INVOKE_DEFAULT",
                                         message="Maximum Toe Kick width is 97.5\"",
                                         message2="You can add another Toe Kick",
@@ -636,21 +658,57 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                             self.is_log_shown = True 
                         return {'RUNNING_MODAL'}
 
-                    if self.is_first_panel(self.selected_panel_1):
-                        self.product.obj_x.location.x = ts_length
-                    else:
-                        if hv_x_loc < sp1_x_loc:
-                            pass
+                    if same_product:
+                        if self.is_first_panel(self.selected_panel_1):
+                            self.product.obj_x.location.x = ts_length
                         else:
-                            self.product.obj_x.location.x = ts_length + sn_unit.inch(0.75)
+                            if hv_x_loc < sp1_x_loc:
+                                pass
+                            else:
+                                self.product.obj_x.location.x = ts_length + sn_unit.inch(0.75)
+                    elif not same_product and not hp_out_of_reach and same_depth and both_sections:
+                        self.product.obj_x.location.x = ts_length
+                    elif not same_product and hp_out_of_reach:
+                        self.selected_obj.select_set(False)
+                        if not self.is_log_shown:
+                            bpy.ops.snap.log_window("INVOKE_DEFAULT",
+                                        message="Maximum Toe Kick width is 97.5\"",
+                                        message2="You can add another Toe Kick",
+                                        icon="ERROR")
+                            self.is_log_shown = True 
+                        return {'RUNNING_MODAL'}
+                    elif not same_product and not same_depth and both_sections:
+                        self.selected_obj.select_set(False)
+                        if not self.is_log_shown:
+                            bpy.ops.snap.log_window("INVOKE_DEFAULT",
+                                        message="Toe Kick spans only for sections at the same depth",
+                                        message2="You can add another Toe Kick",
+                                        icon="ERROR")
+                            self.is_log_shown = True 
+                        return {'RUNNING_MODAL'}
+                    elif not both_sections:
+                        self.selected_obj.select_set(False)
+                        if not self.is_log_shown:
+                            bpy.ops.snap.log_window("INVOKE_DEFAULT",
+                                        message="Toe Kick spans only for section(s) assemblies",
+                                        message2="For Toe Kicks in another assemblies check their prompts",
+                                        icon="ERROR")
+                            self.is_log_shown = True 
+                        return {'RUNNING_MODAL'}
 
-            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel_1:
+            if event.type == 'LEFTMOUSE' and event.value == 'PRESS' and self.selected_panel_1 and same_depth:
                 selected_panel_2 = sn_types.Assembly(sel_assembly_bp)
+                sel_panel2_name = selected_panel_2.obj_bp.parent.name.lower()
                 # Do not allow selecting fillers
                 if "IS_FILLER" in selected_panel_2.obj_bp:
                     return {'RUNNING_MODAL'}
+                if 'section' not in sel_panel2_name:
+                    return {'RUNNING_MODAL'}
 
                 if selected_panel_2 and selected_panel_2.obj_bp:
+                    first_bp_parent = self.selected_panel_1.obj_bp.parent
+                    second_bp_parent = selected_panel_2.obj_bp.parent
+                    same_product = first_bp_parent == second_bp_parent
                     sn_utils.set_wireframe(self.product.obj_bp, False)
                     bpy.context.window.cursor_set('DEFAULT')
                     bpy.ops.object.select_all(action='DESELECT')
@@ -665,7 +723,7 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                     Panel_Thickness = carcass_assembly.get_prompt("Panel Thickness").get_var()
                     P1_X_Loc = self.selected_panel_1.obj_bp.snap.get_var('location.x','P1_X_Loc')
                     P2_X_Loc = selected_panel_2.obj_bp.snap.get_var('location.x','P2_X_Loc')
-
+                    
                     if "End Cap" in self.selected_panel_1.obj_bp.name:
                         Parent_X_Loc = self.selected_panel_1.obj_bp.parent.snap.get_var('location.x', 'Parent_X_Loc')
                         self.product.loc_x(
@@ -685,12 +743,23 @@ class DROP_OPERATOR_Place_Base_Assembly(Operator, PlaceClosetInsert):
                         panel_depth_1 = abs(self.selected_panel_1.obj_x.location.x) - ext_Depth_Amount
                         Panel_Depth_1 = self.selected_panel_1.obj_x.snap.get_var('location.x', 'Panel_Depth_1')
                     else:
-                        self.product.loc_x('IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0)',[P1_X_Loc,Panel_Thickness])
-                        self.product.dim_x(
-                            'IF(P2_X_Loc-IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0)>INCH(97.5),'
-                            'INCH(97.5),'
-                            'P2_X_Loc-IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0))',
-                            [P1_X_Loc,P2_X_Loc,Panel_Thickness])
+                        if same_product:
+                            self.product.loc_x('IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0)',[P1_X_Loc,Panel_Thickness])
+                            self.product.dim_x(
+                                'IF(P2_X_Loc-IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0)>INCH(97.5),'
+                                'INCH(97.5),'
+                                'P2_X_Loc-IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0))',
+                                [P1_X_Loc,P2_X_Loc,Panel_Thickness])
+                        elif not same_product and same_depth:
+                            HV_Sec_X_Loc = self.selected_panel_1.obj_bp.parent.snap.get_var('location.x', 'HV_Sec_X_Loc')
+                            HV_Pan_X_Loc = self.selected_panel_1.obj_bp.snap.get_var('location.x', 'HV_Pan_X_Loc')
+                            SL_Sec_X_Loc = selected_panel_2.obj_bp.parent.snap.get_var('location.x','SL_Sec_X_Loc')
+                            SL_Pan_X_Loc = selected_panel_2.obj_bp.snap.get_var('location.x','SL_Pan_X_Loc')
+                            self.product.loc_x('IF(P1_X_Loc>0,P1_X_Loc-Panel_Thickness,0)',[P1_X_Loc,Panel_Thickness])
+                            self.product.dim_x(
+                                'IF((SL_Sec_X_Loc+SL_Pan_X_Loc)-(HV_Sec_X_Loc+HV_Pan_X_Loc)>INCH(97.5),'
+                                'INCH(97.5), (SL_Sec_X_Loc+SL_Pan_X_Loc)-(HV_Sec_X_Loc+HV_Pan_X_Loc) + IF(P1_X_Loc>0,Panel_Thickness,0))',
+                                [HV_Sec_X_Loc,HV_Pan_X_Loc,SL_Sec_X_Loc,SL_Pan_X_Loc,P1_X_Loc,Panel_Thickness])
                         panel_depth_1 = abs(self.selected_panel_1.obj_y.location.y)
                         Panel_Depth_1 = self.selected_panel_1.obj_y.snap.get_var('location.y', 'Panel_Depth_1')
                         tk_setback = 'Toe_Kick_Setback'

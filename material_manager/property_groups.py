@@ -681,6 +681,11 @@ class StainColor(PropertyGroup):
     sku: StringProperty()
 
 
+class FivePieceMelamineDoorColor(PropertyGroup):
+    description: StringProperty()
+    sku: StringProperty()
+
+
 class GlazeColor(PropertyGroup):
     description: StringProperty()
     sku: StringProperty()
@@ -736,6 +741,7 @@ classes = (
     CustomCountertops,
     Countertops,
     StainColor,
+    FivePieceMelamineDoorColor,
     GlazeColor,
     GlazeStyle,
     DoorColor,

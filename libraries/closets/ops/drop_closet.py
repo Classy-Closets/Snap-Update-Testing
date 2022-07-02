@@ -591,23 +591,23 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
             self.asset.obj_bp.parent = self.current_wall.obj_bp
             self.asset.obj_bp.location.x = x_loc
 
-        if self.placement == 'LEFT':
-            self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
-            constraint_obj = self.asset.obj_x
-            constraint = self.selected_asset.obj_bp.constraints.new('COPY_LOCATION')
-            constraint.target = constraint_obj
-            constraint.use_x = True
-            constraint.use_y = True
-            constraint.use_z = False
+        # if self.placement == 'LEFT':
+        #     self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
+        #     constraint_obj = self.asset.obj_x
+        #     constraint = self.selected_asset.obj_bp.constraints.new('COPY_LOCATION')
+        #     constraint.target = constraint_obj
+        #     constraint.use_x = True
+        #     constraint.use_y = True
+        #     constraint.use_z = False
 
-        if self.placement == 'RIGHT':
-            self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
-            constraint_obj = self.selected_asset.obj_x
-            constraint = self.asset.obj_bp.constraints.new('COPY_LOCATION')
-            constraint.target = constraint_obj
-            constraint.use_x = True
-            constraint.use_y = True
-            constraint.use_z = False
+        # if self.placement == 'RIGHT':
+        #     self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
+        #     constraint_obj = self.selected_asset.obj_x
+        #     constraint = self.asset.obj_bp.constraints.new('COPY_LOCATION')
+        #     constraint.target = constraint_obj
+        #     constraint.use_x = True
+        #     constraint.use_y = True
+        #     constraint.use_z = False
 
         if hasattr(self.asset, 'pre_draw'):
             self.asset.draw()
@@ -627,6 +627,9 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
         return {'RUNNING_MODAL'}
 
     def validate_placement(self, context):
+        if self.selected_obj is None:
+            return False
+
         valid_placement = True
         floor = self.selected_obj.sn_roombuilder.is_floor
         drawing_plane = 'IS_DRAWING_PLANE' in self.selected_obj

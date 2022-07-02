@@ -11,6 +11,7 @@ class SN_OT_log_window(bpy.types.Operator):
     message: bpy.props.StringProperty(name="Message", default="")
     message2: bpy.props.StringProperty(name="Message_2", default="")
     icon: bpy.props.StringProperty(name="Icon")
+    width: bpy.props.IntProperty(name="Width", default=300)
 
     def execute(self, context):
         return {'FINISHED'}
@@ -23,7 +24,7 @@ class SN_OT_log_window(bpy.types.Operator):
             box.label(text=self.message2)
 
     def invoke(self, context, event):
-        return context.window_manager.invoke_props_dialog(self)
+        return context.window_manager.invoke_props_dialog(self, width=self.width)
 
 
 def register():
