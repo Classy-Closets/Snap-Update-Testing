@@ -2716,7 +2716,7 @@ class SNAP_OT_Auto_Dimension(Operator):
                 hashmark.parent(opening)
                 dim = self.add_tagged_dimension(hashmark.end_point)
                 dim.start_z(value=sn_unit.inch(2))
-                dim.set_label(f"{depth}\"")
+                dim.set_label(f"{round(depth, 2)}\"")
 
     def get_door_size(self, door_height_metric):
         label = ""

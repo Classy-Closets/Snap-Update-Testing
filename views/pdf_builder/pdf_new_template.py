@@ -11,6 +11,7 @@ registerFont(TTFont('Calibri', 'calibri.ttf'))
 GREY = (0.851, 0.851, 0.851)
 REDWINE = (0.435, 0.078, 0.0)
 BLACK = (0.0, 0.0, 0.0)
+FORBIDDEN_STRINGS = ["Δ "]
 
 
 class New_Template_Builder(Pdf_Builder):
@@ -88,6 +89,12 @@ class New_Template_Builder(Pdf_Builder):
         self.c.setFillColorRGB(*BLACK)
         self.c.setStrokeColorRGB(*BLACK)
 
+    def sanitize(self, string: str) -> str:
+        for forbidden in FORBIDDEN_STRINGS:
+            if forbidden in string:
+                string = string.replace(forbidden, "")
+        return string
+
     def draw_info(self, form_info: dict) -> None:
         """Draw the info about the project in the canvas.
 
@@ -122,15 +129,17 @@ class New_Template_Builder(Pdf_Builder):
                 self._draw_check_box(position, val)
                 continue
             if field.get("line") and not is_big:
+                sanitized = self.sanitize(val)
                 form.textfield(
                     x=posx, y=posy, width=length, height=10,
                     fontSize=6, fillColor=white, borderStyle='underlined',
-                    value=val)
+                    value=sanitized)
             if field.get("line") and is_big:
+                sanitized = self.sanitize(val)
                 form.textfield(
                     x=posx, y=posy, width=length, height=14,
                     fontSize=9, fillColor=white, borderStyle='underlined',
-                    value=val)
+                    value=sanitized)
 
     def _draw_sections(self) -> None:
         """Draw a all section separators in the canvas."""

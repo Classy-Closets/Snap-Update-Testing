@@ -5254,8 +5254,10 @@ class VIEW_OT_generate_2d_views(Operator):
                     door_toggle = False
                     door_only = len(wall_groups_list) == 1
                     right_wall = wall.get_connected_wall('RIGHT')
-                    corner_items = self.get_lsh_csh_assemblies(
-                        right_wall.obj_bp)
+                    corner_items = None
+                    if right_wall:
+                        corner_items = self.get_lsh_csh_assemblies(
+                            right_wall.obj_bp)
                     has_assys = len(wall_groups_list) > 0
                     for item in wall_groups_list:
                         if 'BPASSEMBLY.' in item.name:
@@ -5282,7 +5284,7 @@ class VIEW_OT_generate_2d_views(Operator):
 
             virtual = self.create_virtual_scene()
             if len(walls) > 0:
-                if elevations_only:
+                if elevations_only and room_type != 'SINGLE':
                     assy_dict = self.add_cross_sections(walls, wall_groups)
                     self.add_remaining_space_dims(assy_dict, wall_groups)
                     self.add_corner_cross_sections_dims(walls, wall_groups)

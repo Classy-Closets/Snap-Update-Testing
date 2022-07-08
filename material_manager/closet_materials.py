@@ -53,6 +53,9 @@ def update_material_and_edgeband_colors(self, context):
     if mat_type.name == "Garage Material" and mat_color_name == "Fog Grey" and self.use_black_edge:
         self.set_edge_to_black()
 
+    if mat_color_name == "Duraply Almond" and not self.use_custom_color_scheme:
+        self.set_edge_to_almond()
+
     if mat_type.name == "Melamine":
         if mat_color_name in stain_colors:
             self.stain_color_index = self.stain_colors.find(mat_color_name)
@@ -325,7 +328,7 @@ class SnapMaterialSceneProps(PropertyGroup):
                 return sku
             color_name = self.materials.get_mat_color().name
             if color_name == "Duraply Almond":
-                return "EB-0000326"
+                return "EB-0000311"
             elif color_name == "Fog Grey":
                 return "EB-0000331"
             elif color_name == "Graphite Spectrum":
@@ -909,6 +912,18 @@ class SnapMaterialSceneProps(PropertyGroup):
         for type_index, edge_type in enumerate(self.edges.edge_types):
             if "Black" in edge_type.colors:
                 color_index = edge_type.colors.find("Black")
+                self.edge_type_index = type_index
+                self.secondary_edge_type_index = type_index
+                self.door_drawer_edge_type_index = type_index
+                self.edge_color_index = color_index
+                self.secondary_edge_color_index = color_index
+                self.door_drawer_edge_color_index = color_index
+                break
+    
+    def set_edge_to_almond(self):
+        for type_index, edge_type in enumerate(self.edges.edge_types):
+            if "Cabinet Almond" in edge_type.colors:
+                color_index = edge_type.colors.find("Cabinet Almond")
                 self.edge_type_index = type_index
                 self.secondary_edge_type_index = type_index
                 self.door_drawer_edge_type_index = type_index

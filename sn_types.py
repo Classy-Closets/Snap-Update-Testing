@@ -583,11 +583,12 @@ class Assembly:
             grp2_z_dim = 0
             tk_height = assembly.get_prompt("Toe Kick Height")
             floored_openings = 0
-            for i in range(1, opening_qty.get_value() + 1):
-                is_floored = assembly.get_prompt("Opening " + str(i) + " Floor Mounted")
-                if is_floored:
-                    if is_floored.get_value():
-                        floored_openings += 1
+            if opening_qty:
+                for i in range(1, opening_qty.get_value() + 1):
+                    is_floored = assembly.get_prompt("Opening " + str(i) + " Floor Mounted")
+                    if is_floored:
+                        if is_floored.get_value():
+                            floored_openings += 1
             if opening_qty and opening_height:
                 for i in range(1, opening_qty.get_value() + 1):
                     opening_height = assembly.get_prompt("Opening " + str(i) + " Height")
