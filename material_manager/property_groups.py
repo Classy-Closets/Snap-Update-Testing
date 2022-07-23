@@ -315,12 +315,22 @@ class MaterialType(PropertyGroup):
             text=color.name,
             icon='RADIOBUT_ON' if color.has_render_mat else 'ERROR')
 
-        if color.oversize_max_len > 0:
+        # NOTE dealing with the situation it's needed to show exactly
+        #      109" -> 2768 == 108.98" and 2769 == 109.02"
+        if color.oversize_max_len > 0 and color.oversize_max_len != 2768:
             row = layout.row()
             split = row.split(factor=0.25)
             split.label(text="")
 
             max_len_inch = round(color.oversize_max_len / 25.4, 2)
+            max_len_str = 'Max Length: {}"'.format(max_len_inch)
+            split.label(text=max_len_str, icon='INFO')      
+        elif color.oversize_max_len > 0 and color.oversize_max_len == 2768:
+            row = layout.row()
+            split = row.split(factor=0.25)
+            split.label(text="")
+
+            max_len_inch = 109
             max_len_str = 'Max Length: {}"'.format(max_len_inch)
             split.label(text=max_len_str, icon='INFO')      
 

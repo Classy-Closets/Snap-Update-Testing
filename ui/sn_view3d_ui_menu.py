@@ -130,6 +130,7 @@ class VIEW3D_MT_object_context_menu(Menu):
         # obj_bp = sn_utils.get_assembly_bp(obj)
         assembly_bp = sn_utils.get_assembly_bp(obj)
         closet_bp = sn_utils.get_closet_bp(obj)
+        cabinet_bp = sn_utils.get_cabinet_bp(obj)
         insert_bp = sn_utils.get_bp(context.object, 'INSERT')
         entry_door_bp = sn_utils.get_entry_door_bp(context.object)
         window_bp = sn_utils.get_window_bp(context.object)
@@ -170,7 +171,7 @@ class VIEW3D_MT_object_context_menu(Menu):
                     text="Delete - {}".format(entry_door_bp.snap.name_object),
                     icon='X')
 
-            if insert_bp:
+            if insert_bp and not cabinet_bp:
                 layout.operator(
                     'sn_closets.copy_insert',
                     text="Copy - {}".format(insert_bp.snap.name_object),

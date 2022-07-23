@@ -1748,12 +1748,13 @@ class OPERATOR_Prepare_Closet_For_Export(bpy.types.Operator):
         for assembly in closet_utils.scene_parts(context):
             
             props = assembly.obj_bp.sn_closets
+            cabinet_product = sn_utils.get_cabinet_bp(assembly.obj_bp)
             
             # self.set_manufacturing_material(assembly)
             self.set_manufacturing_prompts(assembly)
             
             #PANELS
-            if props.is_panel_bp:
+            if props.is_panel_bp and not cabinet_product:
                 panels.append(assembly)
             else:
                 pass

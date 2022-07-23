@@ -83,14 +83,18 @@ class PlaceClosetAsset():
                 calculator.calculate()
                 self.calculators.append(calculator)
 
-        if "IS_VERTICAL_SPLITTER_BP" in obj and obj["IS_VERTICAL_SPLITTER_BP"]:
+        if "IS_BP_SPLITTER" in obj and obj["IS_BP_SPLITTER"]:
             assembly = sn_types.Assembly(obj)
-            calculator = assembly.get_calculator('Opening Height Calculator')
+            calculator = assembly.get_calculator('Opening Heights Calculator')
             if calculator:
                 calculator.calculate()
                 self.calculators.append(calculator)
 
-        if obj.type == 'EMPTY':
+        if "IS_VISDIM_A" in obj or "IS_VISDIM_B" in obj:
+            obj.hide_viewport = False
+            obj.hide_set(True)
+
+        elif obj.type == 'EMPTY':
             obj.hide_viewport = True
         if obj.type == 'MESH':
             obj.display_type = 'WIRE'
@@ -167,6 +171,23 @@ class PlaceClosetAsset():
         for calculator in self.asset.obj_prompts.snap.calculators:
             calculator.calculate()
 
+        inserts = []
+        insert_bps = sn_utils.get_insert_bp_list(self.asset.obj_bp, inserts)
+
+        for obj_bp in insert_bps:
+            if "IS_BP_SPLITTER" in obj_bp and obj_bp["IS_BP_SPLITTER"]:
+                assembly = sn_types.Assembly(obj_bp)
+                calculator = assembly.get_calculator('Opening Heights Calculator')
+                if calculator:
+                    calculator.calculate()
+
+            if "IS_DRAWERS_BP" in obj_bp and obj_bp["IS_DRAWERS_BP"]:
+                assembly = sn_types.Assembly(obj_bp)
+                calculator = assembly.get_calculator('Vertical Drawers Calculator')
+                if calculator:
+                    calculator.calculate()
+                    self.calculators.append(calculator)
+
     def create_drawing_plane(self, context):
         bpy.ops.mesh.primitive_plane_add()
         plane = context.active_object
@@ -235,7 +256,7 @@ class PlaceClosetAsset():
 
     def finish(self, context):
         self.add_to_wall_collection(context)
-
+        self.asset.update_dimensions()
         self.set_screen_defaults(context)
         if self.drawing_plane:
             sn_utils.delete_obj_list([self.drawing_plane])
@@ -502,7 +523,9 @@ class SN_CLOSET_OT_drop(Operator, PlaceClosetAsset):
         directory, file = os.path.split(self.filepath)
         filename, ext = os.path.splitext(file)
 
-        if scene_props.active_library_name == "Product Library":
+        libs = ("Product Library", "Kitchen Bath Library")
+
+        if scene_props.active_library_name in libs:
             if hasattr(self.asset, 'drop_id'):
                 drop_id = self.asset.drop_id
                 eval('bpy.ops.{}("INVOKE_DEFAULT", filepath=self.filepath)'.format(drop_id))
@@ -591,23 +614,23 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
             self.asset.obj_bp.parent = self.current_wall.obj_bp
             self.asset.obj_bp.location.x = x_loc
 
-        # if self.placement == 'LEFT':
-        #     self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
-        #     constraint_obj = self.asset.obj_x
-        #     constraint = self.selected_asset.obj_bp.constraints.new('COPY_LOCATION')
-        #     constraint.target = constraint_obj
-        #     constraint.use_x = True
-        #     constraint.use_y = True
-        #     constraint.use_z = False
+        if self.placement == 'LEFT':
+            self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
+            constraint_obj = self.asset.obj_x
+            constraint = self.selected_asset.obj_bp.constraints.new('COPY_LOCATION')
+            constraint.target = constraint_obj
+            constraint.use_x = True
+            constraint.use_y = True
+            constraint.use_z = False
 
-        # if self.placement == 'RIGHT':
-        #     self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
-        #     constraint_obj = self.selected_asset.obj_x
-        #     constraint = self.asset.obj_bp.constraints.new('COPY_LOCATION')
-        #     constraint.target = constraint_obj
-        #     constraint.use_x = True
-        #     constraint.use_y = True
-        #     constraint.use_z = False
+        if self.placement == 'RIGHT':
+            self.asset.obj_bp.parent = self.selected_asset.obj_bp.parent
+            constraint_obj = self.selected_asset.obj_x
+            constraint = self.asset.obj_bp.constraints.new('COPY_LOCATION')
+            constraint.target = constraint_obj
+            constraint.use_x = True
+            constraint.use_y = True
+            constraint.use_z = False
 
         if hasattr(self.asset, 'pre_draw'):
             self.asset.draw()

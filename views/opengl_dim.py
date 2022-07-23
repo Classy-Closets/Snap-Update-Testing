@@ -22,7 +22,8 @@ def get_imp_rounded(value):
     g_props = bpy.context.scene.snap.opengl_dim
     precision = g_props.gl_precision
     inches = value * IMP_CONV_FAC_INCHES
-    result = math.modf(inches)
+    inches_rd = round(inches, 3)
+    result = math.modf(inches_rd)
 
     return (round(result[0], precision), result[1])
 
@@ -74,7 +75,7 @@ def fmt_imp(value):
         elif g_props.gl_number_format == 'FRACTION':
             fract_fmt = " " + str(fract)
         else:
-            fract_fmt = "." + str(dist_imp[0])[2:]
+            fract_fmt = "." + str(dist_imp[0])[2:5]
 
         return str_dist.format(inch_fmt, fract_fmt, '"')
 

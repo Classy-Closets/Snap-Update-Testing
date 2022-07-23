@@ -179,6 +179,7 @@ class SN_MAT_OT_Assign_Materials(Operator):
             garage_exterior_surface_pointer = spec_group.materials["Garage_Exterior_Surface"]
             garage_panel_edge_pointer = spec_group.materials["Garage_Panel_Edges"]
             garage_interior_edge_pointer = spec_group.materials["Garage_Interior_Edges"]
+            cabinet_countertop_pointer = spec_group.materials["Cabinet_Countertop_Surface"]
 
             # Set garage pointers
             garage_exterior_surface_pointer.category_name = "Closet Materials"
@@ -238,12 +239,16 @@ class SN_MAT_OT_Assign_Materials(Operator):
 
             if "Melamine" in mat_props.countertops.get_type().name:
                 countertop_pointer.category_name = "Closet Materials"
+                cabinet_countertop_pointer.category_name = "Closet Materials"
                 countertop_pointer.item_name = mat_props.countertops.get_color_name()
             else:
                 countertop_hpl_pointer.category_name = "Countertop Materials"
                 countertop_granite_pointer.category_name = "Countertop Materials"
+                cabinet_countertop_pointer.category_name = "Countertop Materials"
                 countertop_hpl_pointer.item_name = mat_props.countertops.get_color_name()
                 countertop_granite_pointer.item_name = mat_props.countertops.get_color_name()
+
+            cabinet_countertop_pointer.item_name = mat_props.countertops.get_color_name()
 
     def update_drawer_materials(self):
         props = self.closet_props
@@ -641,6 +646,11 @@ class SN_MAT_OT_Assign_Materials(Operator):
 
                 if props.is_countertop_bp:
                     self.set_countertop_material(assembly)
+
+                if assembly.obj_bp.get("IS_BP_CABINET_COUNTERTOP"):
+                    countertop_part = sn_types.Part(assembly.obj_bp)
+                    countertop_part.set_material_pointers("Cabinet_Countertop_Surface", "Countertop Surface")
+                    countertop_part.cutpart("Panel")
 
                 # Topshelf
                 if props.is_plant_on_top_bp:

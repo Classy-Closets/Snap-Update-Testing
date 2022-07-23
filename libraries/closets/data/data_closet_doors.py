@@ -1294,6 +1294,8 @@ class OPS_Doors_Drop(Operator, PlaceClosetInsert):
 
     def confirm_placement(self, context):
         super().confirm_placement(context)
+
+
         self.set_backing_top_gap(self.insert.obj_bp, self.selected_opening)
         context.view_layer.objects.active = self.insert.obj_bp
         closet_obj = None
@@ -1384,6 +1386,9 @@ class OPS_Doors_Drop(Operator, PlaceClosetInsert):
         carcass_bp = sn_utils.get_closet_bp(insert_bp)
         doors_assembly = sn_types.Assembly(insert_bp)
         Doors_Backing_Gap = doors_assembly.get_prompt('Doors Backing Gap').get_var()
+
+        if "IS_BP_ISLAND" in carcass_bp:
+            return
 
         for child in carcass_bp.children:
             if child.sn_closets.is_back_bp:

@@ -57,10 +57,12 @@ class Closet_Island_Carcass(sn_types.Assembly):
         
         self.add_prompt("Left Against Wall", 'CHECKBOX', False)
         self.add_prompt("Right Against Wall", 'CHECKBOX', False)
+        self.add_prompt("Back Against Wall", 'CHECKBOX', False)
         self.add_prompt("Exposed Back", 'CHECKBOX', True)
         self.add_prompt("No Countertop", 'CHECKBOX', False)
         self.add_prompt("Add TK Skin", 'CHECKBOX', False)
         self.add_prompt("TK Skin Thickness", 'DISTANCE', sn_unit.inch(0.25))
+        self.add_prompt("Add Capping Base", 'CHECKBOX', False)
         self.add_prompt("Material Max Width", 'DISTANCE', sn_unit.inch(48))
 
         if self.is_double_sided:
@@ -384,137 +386,151 @@ class Closet_Island_Carcass(sn_types.Assembly):
         # Extend_Depth_Amount = self.get_prompt('Extend Depth Amount').get_var()
         Add_TK_Skin = self.get_prompt('Add TK Skin').get_var()
         TK_Skin_Thickness = self.get_prompt('TK Skin Thickness').get_var()
-        Left_Against_Wall = self.get_prompt('Left Against Wall').get_var()
-        Right_Against_Wall = self.get_prompt('Right Against Wall').get_var()    
+        LAW = self.get_prompt('Left Against Wall').get_var('LAW')
+        RAW = self.get_prompt('Right Against Wall').get_var('RAW')
+        Back_Against_Wall = self.get_prompt('Back Against Wall').get_var()
+        Add_Capping_Base = self.get_prompt('Add Capping Base').get_var()
         
         toe_kick_front = common_parts.add_toe_kick(self)
         toe_kick_front.set_name("Toe Kick Front")
         toe_kick_front.obj_bp.snap.comment_2 = "1034"
         false_exp =\
-            "Width-(Toe_Kick_Thickness*3)-IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)"+\
-            "-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0)"
+            "Width-(Toe_Kick_Thickness*3)"+\
+            "-IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness)+IF(RAW,0,TK_Skin_Thickness),0)"+\
+            "+IF(Add_Capping_Base,Toe_Kick_Thickness,0)"
         toe_kick_front.dim_x(
             "IF(Width>INCH(98.25),INCH(96),"+false_exp+")",
-            [Width,Toe_Kick_Thickness,Left_Against_Wall,Right_Against_Wall,Add_TK_Skin,TK_Skin_Thickness])
+            [Width, Toe_Kick_Thickness, LAW, RAW, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
         toe_kick_front.dim_y('-Height',[Height])
         toe_kick_front.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         toe_kick_front.loc_x(
-            "(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)",
-            [Toe_Kick_Thickness,Add_TK_Skin,Left_Against_Wall,TK_Skin_Thickness])
-        toe_kick_front.loc_y('Depth+Toe_Kick_Setback',[Depth,Toe_Kick_Setback])
+            "(Toe_Kick_Thickness*1.5)"
+            "+IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)"
+            "-IF(Add_Capping_Base,Toe_Kick_Thickness*0.5,0)",
+            [Toe_Kick_Thickness, Add_TK_Skin, LAW, TK_Skin_Thickness, Add_Capping_Base])
+        toe_kick_front.loc_y('Depth+IF(Add_Capping_Base,0,Toe_Kick_Setback)',[Depth,Toe_Kick_Setback, Add_Capping_Base])
         toe_kick_front.rot_x(value=math.radians(-90))
         
         toe_kick_back = common_parts.add_toe_kick(self)
         toe_kick_back.set_name("Toe Kick Back")
         if(self.is_double_sided):
-            toe_kick_back.loc_y('-Toe_Kick_Setback',[Toe_Kick_Setback])
+            toe_kick_back.loc_y('IF(Add_Capping_Base,0,-Toe_Kick_Setback)',[Toe_Kick_Setback, Add_Capping_Base])
         else:
-            toe_kick_back.loc_y('Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',[Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness])
+            toe_kick_back.loc_y('Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',[Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
         
         toe_kick_back.obj_bp.snap.comment_2 = "1034"
         toe_kick_back.dim_x(
             "IF(Width>INCH(98.25),INCH(96),"+false_exp+")",
-            [Width,Toe_Kick_Thickness,Left_Against_Wall,Right_Against_Wall,Add_TK_Skin,TK_Skin_Thickness])
+            [Width, Toe_Kick_Thickness, LAW, RAW, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
         toe_kick_back.dim_y('-Height', [Height])
         toe_kick_back.dim_z('-Toe_Kick_Thickness',[Toe_Kick_Thickness])
         toe_kick_back.loc_x(
-            '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
-            [Toe_Kick_Thickness, Add_TK_Skin, Left_Against_Wall, TK_Skin_Thickness])
+            '(Toe_Kick_Thickness*1.5)'
+            '+IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)'
+            '-IF(Add_Capping_Base,Toe_Kick_Thickness*0.5,0)',
+            [Toe_Kick_Thickness, Add_TK_Skin, LAW, TK_Skin_Thickness, Add_Capping_Base])
         toe_kick_back.rot_x(value=math.radians(-90))
       
         # Left end cap
         left_toe_kick = common_parts.add_toe_kick_end_cap(self)
         if self.is_double_sided:
-            left_toe_kick.dim_y('-Depth-(Toe_Kick_Setback*2)',[Depth,Toe_Kick_Setback])
-            left_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback])
+            left_toe_kick.dim_y('-Depth-IF(Add_Capping_Base,0,(Toe_Kick_Setback*2))',[Depth,Toe_Kick_Setback, Add_Capping_Base])
+            left_toe_kick.loc_y('Depth+IF(Add_Capping_Base,0,Toe_Kick_Setback)',[Depth, Toe_Kick_Setback, Add_Capping_Base])
         else:
             left_toe_kick.dim_y(
-                '-Depth-Toe_Kick_Setback+Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',
-                [Depth, Toe_Kick_Setback, Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness])
-            left_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback, TK_Skin_Thickness])
+                '-Depth-IF(Add_Capping_Base,0,Toe_Kick_Setback)+Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',
+                [Depth, Toe_Kick_Setback, Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
+            left_toe_kick.loc_y('Depth+IF(Add_Capping_Base,0,Toe_Kick_Setback)',[Depth, Toe_Kick_Setback, TK_Skin_Thickness, Add_Capping_Base])
 
         left_toe_kick.dim_x('-Height',[Height])
         left_toe_kick.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         left_toe_kick.loc_x(
-            '(Toe_Kick_Thickness/2)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
-            [Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness, Left_Against_Wall])
+            '(Toe_Kick_Thickness/2)'
+            '+IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)'
+            '-IF(Add_Capping_Base,Toe_Kick_Thickness/2,0)',
+            [Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness, LAW, Add_Capping_Base])
         left_toe_kick.rot_y(value=math.radians(90))
         
         # Right end cap
         right_toe_kick = common_parts.add_toe_kick_end_cap(self)
         if self.is_double_sided:
-            right_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback])
-            right_toe_kick.dim_y('-Depth-Toe_Kick_Setback*2',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness])
+            right_toe_kick.loc_y('Depth+IF(Add_Capping_Base,0,Toe_Kick_Setback)',[Depth, Toe_Kick_Setback, Add_Capping_Base])
+            right_toe_kick.dim_y('-Depth-IF(Add_Capping_Base,0,(Toe_Kick_Setback*2))',[Depth,Toe_Kick_Setback,Toe_Kick_Thickness, Add_Capping_Base])
         else:
-            right_toe_kick.loc_y('Depth+Toe_Kick_Setback',[Depth, Toe_Kick_Setback])
+            right_toe_kick.loc_y('Depth+IF(Add_Capping_Base,0,Toe_Kick_Setback)',[Depth, Toe_Kick_Setback, Add_Capping_Base])
             right_toe_kick.dim_y(
-                '-Depth-Toe_Kick_Setback+Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',
-                [Depth, Toe_Kick_Setback, Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness])
+                '-Depth-IF(Add_Capping_Base,0,Toe_Kick_Setback)+Toe_Kick_Thickness-IF(Add_TK_Skin,TK_Skin_Thickness,0)',
+                [Depth, Toe_Kick_Setback, Toe_Kick_Thickness, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
 
         right_toe_kick.dim_x('Height',[Height])
         right_toe_kick.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         right_toe_kick.loc_x('IF(Width>INCH(98.25),'
-            'INCH(98.25)-(Toe_Kick_Thickness/2)-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0),'
-            'Width-(Toe_Kick_Thickness/2)-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0))',
-            [Width, Toe_Kick_Thickness, Add_TK_Skin, Right_Against_Wall, TK_Skin_Thickness])
+            'INCH(98.25)-(Toe_Kick_Thickness/2)-IF(Add_TK_Skin,IF(RAW,0,TK_Skin_Thickness),0),'
+            'Width-(Toe_Kick_Thickness/2)-IF(Add_TK_Skin,IF(RAW,0,TK_Skin_Thickness),0))'
+            '+IF(Add_Capping_Base,Toe_Kick_Thickness/2,0)',
+            [Width, Toe_Kick_Thickness, Add_TK_Skin, RAW, TK_Skin_Thickness, Add_Capping_Base])
         right_toe_kick.rot_x(value=math.radians(90))
         right_toe_kick.rot_y(value=math.radians(-90))
         right_toe_kick.rot_z(value=math.radians(-90))
         
         toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
         false_exp =\
-            "Width-(Toe_Kick_Thickness*3)-IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)"+\
-            "-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0)"
+            "Width-(Toe_Kick_Thickness*3)"+\
+            "-IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)"+\
+            "-IF(Add_TK_Skin,IF(RAW,0,TK_Skin_Thickness),0)"+\
+            "+IF(Add_Capping_Base,Toe_Kick_Thickness,0)"
         toe_kick_stringer.dim_x(
             "IF(Width>INCH(98.25),INCH(96),"+false_exp+")",
-            [Width,Toe_Kick_Thickness,Left_Against_Wall,Right_Against_Wall,Add_TK_Skin,TK_Skin_Thickness])
+            [Width, Toe_Kick_Thickness, LAW, RAW, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
         toe_kick_stringer.dim_y('Cleat_Width',[Cleat_Width])
         toe_kick_stringer.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         toe_kick_stringer.loc_x(
-            '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
-            [Toe_Kick_Thickness, Add_TK_Skin, Left_Against_Wall, TK_Skin_Thickness])
-        toe_kick_stringer.loc_y('Depth+Toe_Kick_Thickness+Toe_Kick_Setback',[Depth,Toe_Kick_Thickness,Toe_Kick_Setback])
+            '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)-IF(Add_Capping_Base,Toe_Kick_Thickness*0.5,0)',
+            [Toe_Kick_Thickness, Add_TK_Skin, LAW, TK_Skin_Thickness, Add_Capping_Base])
+        toe_kick_stringer.loc_y('Depth+Toe_Kick_Thickness+IF(Add_Capping_Base,0,Toe_Kick_Setback)',[Depth,Toe_Kick_Thickness,Toe_Kick_Setback, Add_Capping_Base])
         toe_kick_stringer.loc_z('Height-Toe_Kick_Thickness',[Height,Toe_Kick_Thickness])
 
         toe_kick_stringer = common_parts.add_toe_kick_stringer(self)
         if self.is_double_sided:
-            toe_kick_stringer.loc_y('-Toe_Kick_Setback-Toe_Kick_Thickness', [Toe_Kick_Setback, Toe_Kick_Thickness])
+            toe_kick_stringer.loc_y('-IF(Add_Capping_Base,0,Toe_Kick_Setback)-Toe_Kick_Thickness', [Toe_Kick_Setback, Toe_Kick_Thickness, Add_Capping_Base])
         else:
             toe_kick_stringer.loc_y('IF(Add_TK_Skin,-TK_Skin_Thickness,0)', [Add_TK_Skin, TK_Skin_Thickness])
         false_exp =\
-            "Width-(Toe_Kick_Thickness*3)-IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)"+\
-            "-IF(Add_TK_Skin,IF(Right_Against_Wall,0,TK_Skin_Thickness),0)"
+            "Width-(Toe_Kick_Thickness*3)"+\
+            "-IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)"+\
+            "-IF(Add_TK_Skin,IF(RAW,0,TK_Skin_Thickness),0)"+\
+            "+IF(Add_Capping_Base,Toe_Kick_Thickness,0)"
         toe_kick_stringer.dim_x(
             "IF(Width>INCH(98.25),INCH(96),"+false_exp+")",
-            [Width,Toe_Kick_Thickness,Left_Against_Wall,Right_Against_Wall,Add_TK_Skin,TK_Skin_Thickness])
+            [Width, Toe_Kick_Thickness, LAW, RAW, Add_TK_Skin, TK_Skin_Thickness, Add_Capping_Base])
         toe_kick_stringer.dim_y('-Cleat_Width', [Cleat_Width])
         toe_kick_stringer.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
         toe_kick_stringer.loc_x(
-            '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(Left_Against_Wall,0,TK_Skin_Thickness),0)',
-            [Toe_Kick_Thickness, Add_TK_Skin, Left_Against_Wall, TK_Skin_Thickness])
+            '(Toe_Kick_Thickness*1.5)+IF(Add_TK_Skin,IF(LAW,0,TK_Skin_Thickness),0)-IF(Add_Capping_Base,Toe_Kick_Thickness*0.5,0)',
+            [Toe_Kick_Thickness, Add_TK_Skin, LAW, TK_Skin_Thickness, Add_Capping_Base])
 
         front_tk_skin = common_parts.add_toe_kick_skin(self)
         front_tk_skin.dim_x('IF(Width>INCH(98.25),'
             'INCH(98.25)-(Toe_Kick_Thickness),'
             'Width-(Toe_Kick_Thickness))',
-            [Width,Toe_Kick_Thickness,TK_Skin_Thickness,Right_Against_Wall,Left_Against_Wall])
+            [Width, Toe_Kick_Thickness, TK_Skin_Thickness, RAW, LAW])
         front_tk_skin.dim_y('-Height',[Height])
         front_tk_skin.dim_z('TK_Skin_Thickness',[TK_Skin_Thickness])
-        front_tk_skin.loc_x('(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness',[Toe_Kick_Thickness,TK_Skin_Thickness,Left_Against_Wall])
+        front_tk_skin.loc_x('(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness',[Toe_Kick_Thickness,TK_Skin_Thickness,LAW])
         front_tk_skin.loc_y('Depth+Toe_Kick_Setback-TK_Skin_Thickness',[Depth,Toe_Kick_Setback,TK_Skin_Thickness])
         front_tk_skin.rot_x(value=math.radians(-90))
         front_tk_skin.get_prompt("Hide").set_formula('IF(Add_TK_Skin,False,True)',[Add_TK_Skin])
 
         back_tk_skin = common_parts.add_toe_kick_skin(self)
         back_tk_skin.dim_x('IF(Width>INCH(98.25),'
-            'INCH(98.25)-(Toe_Kick_Thickness)-IF(Left_Against_Wall,TK_Skin_Thickness,0)-IF(Right_Against_Wall,TK_Skin_Thickness,0),'
-            'Width-(Toe_Kick_Thickness)-IF(Left_Against_Wall,TK_Skin_Thickness,0)-IF(Right_Against_Wall,TK_Skin_Thickness,0))',
-            [Width, Toe_Kick_Thickness, TK_Skin_Thickness, Left_Against_Wall, Right_Against_Wall])
+            'INCH(98.25)-(Toe_Kick_Thickness)-IF(LAW,TK_Skin_Thickness,0)-IF(RAW,TK_Skin_Thickness,0),'
+            'Width-(Toe_Kick_Thickness)-IF(LAW,TK_Skin_Thickness,0)-IF(RAW,TK_Skin_Thickness,0))',
+            [Width, Toe_Kick_Thickness, TK_Skin_Thickness, LAW, RAW])
         back_tk_skin.dim_y('-Height', [Height])
         back_tk_skin.dim_z('-TK_Skin_Thickness',[TK_Skin_Thickness])
         back_tk_skin.loc_x(
-            '(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness+IF(Left_Against_Wall,TK_Skin_Thickness,0)',
-            [Toe_Kick_Thickness, TK_Skin_Thickness, Left_Against_Wall])
+            '(Toe_Kick_Thickness*1.5)-Toe_Kick_Thickness+IF(LAW,TK_Skin_Thickness,0)',
+            [Toe_Kick_Thickness, TK_Skin_Thickness, LAW])
 
         if self.is_double_sided:
             back_tk_skin.loc_y('-Toe_Kick_Setback+TK_Skin_Thickness', [Toe_Kick_Setback, TK_Skin_Thickness])
@@ -538,8 +554,8 @@ class Closet_Island_Carcass(sn_types.Assembly):
         left_tk_skin.rot_x(value=math.radians(-90))
         left_tk_skin.rot_z(value=math.radians(-90))  
         left_tk_skin.get_prompt("Hide").set_formula(
-            'IF(Left_Against_Wall,True,IF(Add_TK_Skin,False,True))',
-            [Add_TK_Skin, Left_Against_Wall])
+            'IF(LAW,True,IF(Add_TK_Skin,False,True))',
+            [Add_TK_Skin, LAW])
 
         right_tk_skin = common_parts.add_toe_kick_skin(self)
         if(self.is_double_sided):
@@ -558,8 +574,71 @@ class Closet_Island_Carcass(sn_types.Assembly):
         right_tk_skin.rot_x(value=math.radians(90))
         right_tk_skin.rot_z(value=math.radians(-90))
         right_tk_skin.get_prompt("Hide").set_formula(
-            'IF(Right_Against_Wall,True,IF(Add_TK_Skin,False,True))',
-            [Add_TK_Skin, Right_Against_Wall])
+            'IF(RAW,True,IF(Add_TK_Skin,False,True))',
+            [Add_TK_Skin, RAW])
+
+        front_tk_capping_base = common_parts.add_toe_kick_capping_base(self)
+        front_tk_capping_base.dim_x(
+            'IF(Width>INCH(98.25),'
+            'INCH(98.25)-(Toe_Kick_Thickness),'
+            'Width+IF(LAW,0,Toe_Kick_Thickness)+IF(RAW,0,Toe_Kick_Thickness))',
+            [Width,Toe_Kick_Thickness,TK_Skin_Thickness, LAW, RAW])
+        front_tk_capping_base.dim_y('-Height-Toe_Kick_Thickness/3',[Height, Toe_Kick_Thickness])
+        front_tk_capping_base.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        front_tk_capping_base.loc_x('IF(LAW,0,-Toe_Kick_Thickness)',[Toe_Kick_Thickness, LAW])
+        front_tk_capping_base.loc_y('Depth-Toe_Kick_Thickness',[Depth, Toe_Kick_Thickness])
+        front_tk_capping_base.rot_x(value=math.radians(-90))
+        front_tk_capping_base.get_prompt("Hide").set_formula('IF(Add_Capping_Base,False,True)',[Add_Capping_Base])
+
+        back_tk_capping_base = common_parts.add_toe_kick_capping_base(self)
+        back_tk_capping_base.dim_x('IF(Width>INCH(98.25),'
+            'INCH(98.25)-(Toe_Kick_Thickness),'
+            'Width+IF(LAW,0,Toe_Kick_Thickness)+IF(RAW,0,Toe_Kick_Thickness))',
+            [Width, Toe_Kick_Thickness, LAW, RAW])
+        back_tk_capping_base.dim_y('-Height-Toe_Kick_Thickness/3', [Height, Toe_Kick_Thickness])
+        back_tk_capping_base.dim_z('-Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        back_tk_capping_base.loc_x('IF(LAW,0,-Toe_Kick_Thickness)',[Toe_Kick_Thickness, LAW])
+
+        if self.is_double_sided:
+            back_tk_capping_base.loc_y('Toe_Kick_Thickness', [Toe_Kick_Thickness])
+        else:
+            back_tk_capping_base.loc_y('Toe_Kick_Thickness*2', [Toe_Kick_Thickness])
+
+        back_tk_capping_base.rot_x(value=math.radians(-90))
+        back_tk_capping_base.get_prompt("Hide").set_formula('IF(Add_Capping_Base,IF(Back_Against_Wall,True,False),True)',[Add_Capping_Base, Back_Against_Wall]) 
+        
+        left_tk_capping_base = common_parts.add_toe_kick_capping_base(self)
+        if(self.is_double_sided):
+            left_tk_capping_base.dim_x('-Depth+Toe_Kick_Thickness*2-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Depth,Toe_Kick_Thickness, Back_Against_Wall])
+            left_tk_capping_base.loc_y('Toe_Kick_Thickness-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Toe_Kick_Thickness, Back_Against_Wall])
+        else:
+            left_tk_capping_base.dim_x('-Depth+Toe_Kick_Thickness*3-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Depth,Toe_Kick_Thickness, Back_Against_Wall])
+            left_tk_capping_base.loc_y('Toe_Kick_Thickness*2-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Toe_Kick_Thickness, Back_Against_Wall])
+
+        left_tk_capping_base.dim_y('-Height-Toe_Kick_Thickness/3',[Height, Toe_Kick_Thickness])
+        left_tk_capping_base.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        left_tk_capping_base.loc_x('-Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        left_tk_capping_base.rot_x(value=math.radians(-90))
+        left_tk_capping_base.rot_z(value=math.radians(-90))  
+        left_tk_capping_base.get_prompt("Hide").set_formula('IF(Add_Capping_Base,IF(LAW,True,False),True)',[Add_Capping_Base, LAW])
+
+        right_tk_capping_base = common_parts.add_toe_kick_capping_base(self)
+        if(self.is_double_sided):
+            right_tk_capping_base.dim_x('-Depth+Toe_Kick_Thickness*2-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Depth,Toe_Kick_Thickness, Back_Against_Wall])
+            right_tk_capping_base.loc_y('Toe_Kick_Thickness-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Toe_Kick_Thickness, Back_Against_Wall])
+        else:
+            right_tk_capping_base.dim_x('-Depth+Toe_Kick_Thickness*3-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Depth,Toe_Kick_Thickness,Back_Against_Wall])
+            right_tk_capping_base.loc_y('Toe_Kick_Thickness*2-IF(Back_Against_Wall,Toe_Kick_Thickness,0)',[Toe_Kick_Thickness, Back_Against_Wall])
+
+        right_tk_capping_base.dim_y('Height+Toe_Kick_Thickness/3',[Height, Toe_Kick_Thickness])
+        right_tk_capping_base.dim_z('Toe_Kick_Thickness',[Toe_Kick_Thickness])
+        right_tk_capping_base.loc_x('IF(Width>INCH(98.25),'
+            'INCH(98.25),'
+            'Width+Toe_Kick_Thickness)',
+            [Width,Toe_Kick_Thickness])
+        right_tk_capping_base.rot_x(value=math.radians(90))
+        right_tk_capping_base.rot_z(value=math.radians(-90))
+        right_tk_capping_base.get_prompt("Hide").set_formula('IF(Add_Capping_Base,IF(RAW,True,False),True)',[Add_Capping_Base, RAW])
 
     def add_opening_widths_calculator(self):
         calc_distance_obj = self.add_empty('Calc Distance Obj')
@@ -887,13 +966,16 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         toe_kick_setback = self.product.get_prompt("Toe Kick Setback")
         left_against_wall = self.product.get_prompt("Left Against Wall")
         right_against_wall = self.product.get_prompt("Right Against Wall")
+        back_against_wall = self.product.get_prompt("Back Against Wall")
         add_tk_skin = self.product.get_prompt("Add TK Skin")
+        add_capping_base = self.product.get_prompt("Add Capping Base")
         
         col = box.column(align=True)
         row = col.row()
         row.label(text="Against Wall:")   
         row.prop(left_against_wall, "checkbox_value", text="Left")
         row.prop(right_against_wall, "checkbox_value", text="Right")
+        row.prop(back_against_wall, "checkbox_value", text="Back")
         
         col = box.column(align=True)
         col.label(text="Base Options:")        
@@ -903,9 +985,17 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             row.label(text="Toe Kick")
             row.prop(toe_kick_height, "distance_value", text="Height")
             row.prop(toe_kick_setback, "distance_value", text="Setback")
-            if add_tk_skin:
+
+            if add_tk_skin and add_capping_base:
+                if not add_capping_base.get_value():
+                    row = col.row()
+                    row.prop(add_tk_skin, "checkbox_value", text="Add Toe Kick Skin")
+                if not add_tk_skin.get_value():
+                    row = col.row()
+                    row.prop(add_capping_base, "checkbox_value", text="Add Toe Kick Capping Base")
+            elif add_tk_skin:
                 row = col.row()
-                row.prop(add_tk_skin, "checkbox_value", text="Add Toe Kick Skin")            
+                row.prop(add_tk_skin, "checkbox_value", text="Add Toe Kick Skin")
 
         col = box.column(align=True)
         col.label(text="Top Options:")        

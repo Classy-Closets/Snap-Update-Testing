@@ -131,17 +131,21 @@ class SN_FILEBROWSER_PT_library_tabs(Panel):
         return context.space_data.params is not None
 
     def draw(self, context):
-        
-
         layout = self.layout
         wm_props = context.window_manager.snap
         scene_props = context.scene.snap
         col = layout.column(align=True)
         icon_num = 0
+        snap_prefs = context.preferences.addons["snap"].preferences
 
         for library in wm_props.libraries:
             icon_num += 1
             emboss = library.name == scene_props.active_library_name
+
+            # Only show K+B if enabled in prefs
+            if library.name == "Kitchen Bath Library" and not snap_prefs.enable_kitchen_bath_lib:
+                continue
+
             if library.use_custom_icon:
                 col.operator(
                     'sn_library.set_active_library',

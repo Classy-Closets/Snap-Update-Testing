@@ -172,6 +172,7 @@ class SnapMaterialSceneProps(PropertyGroup):
     default_edge_color = "Oxford White"
     default_mat_type = "Melamine"
     default_edge_type = "1mm Dolce"
+    default_kb_countertop_color = "Calacatta Blanco"
     defaults_set: BoolProperty(name="Default materials have been set", default=False)
 
     materials: PointerProperty(type=property_groups.Materials)
@@ -950,7 +951,23 @@ class SnapMaterialSceneProps(PropertyGroup):
         self.set_default_edge_color()
         self.set_default_secondary_edge_color()
         self.set_default_door_drawer_edge_color()
+        self.set_default_countertop_mat()
         self.defaults_set = True
+
+    def set_default_countertop_mat(self):
+        active_lib = bpy.context.scene.snap.active_library_name
+
+        if active_lib == "Kitchen Bath Library":
+            self.ct_type_index = 4
+            self.ct_mfg_index = 4
+            ct_mfg = self.countertops.get_type().manufactuers[self.ct_mfg_index]
+            for i, color in enumerate(ct_mfg.colors):
+                if color.name == self.default_kb_countertop_color:
+                    self.ct_color_index = i
+        else:
+            self.ct_type_index = 0
+            self.ct_mfg_index = 0
+            self.ct_color_index = 0
 
     def set_default_material_type(self):
         for i, type in enumerate(self.materials.mat_types):

@@ -628,7 +628,8 @@ def set_tk_hide(toe_kick):
     for child in children:
         is_obj = "obj" in child.name.lower()
         is_skin = "skin" in child.name.lower()
-        if not is_obj and not is_skin:
+        is_capping_base = "base" in child.name.lower()
+        if not is_obj and not is_skin and not is_capping_base:
             child_assembly =\
                 sn_types.Assembly(obj_bp=child)
             child_hide = child_assembly.get_prompt("Hide")
@@ -857,6 +858,8 @@ class Corner_Shelves(sn_types.Assembly):
         self.add_prompt("Edge Bottom of Left Filler", 'CHECKBOX', False)
         self.add_prompt("Edge Bottom of Right Filler", 'CHECKBOX', False)
 
+        self.add_prompt("Add Capping Base", 'CHECKBOX', False)
+
         # for i in range(1, 11):
         #     self.add_prompt("Shelf " + str(i) + " Height", 'DISTANCE', sn_unit.millimeter(653.034))
 
@@ -982,6 +985,7 @@ class Corner_Shelves(sn_types.Assembly):
         Right_Filler_Setback_Amount = self.get_prompt('Right Filler Setback Amount').get_var()
         Edge_Bottom_of_Right_Filler = self.get_prompt("Edge Bottom of Right Filler").get_var()
         Add_Capping_Right_Filler = self.get_prompt("Add Capping Right Filler").get_var()
+        Add_Capping_Base = self.get_prompt("Add Capping Base").get_var()
 
         self.var[Is_Hanging.name] = Is_Hanging
         self.var[Toe_Kick_Height.name] = Toe_Kick_Height
@@ -1162,6 +1166,53 @@ class Corner_Shelves(sn_types.Assembly):
             'Hide').set_formula(
                 'IF(Hide_Toe_Kick,True,IF(Is_Hanging,True,False))',
                 [Hide_Toe_Kick, Is_Hanging])
+
+        angled_capping_base = common_parts.add_toe_kick_capping_base(self)
+        angled_capping_base.set_name("Capping Base")
+        angled_capping_base.loc_x(
+            'Left_Depth-PT-INCH(0.25)',
+            [Left_Depth, Toe_Kick_Setback, PT])
+        angled_capping_base.loc_y('Depth-INCH(0.25)', [Depth, PT])
+        angled_capping_base.rot_x(value=math.radians(90))
+        angled_capping_base.rot_z(
+            '-atan((Depth+Right_Depth-Toe_Kick_Setback)'
+            '/(Width-Left_Depth+Toe_Kick_Setback))',
+            [Width, Depth, Right_Depth, Left_Depth, Toe_Kick_Setback])
+        angled_capping_base.dim_x(
+            'sqrt((Width-Left_Depth+Toe_Kick_Setback-Shelf_Thickness)**2'
+            '+(Depth+Right_Depth-Toe_Kick_Setback)**2)+INCH(0.2)',
+            [Width, Depth, Left_Depth, Right_Depth,
+             Toe_Kick_Setback, Shelf_Thickness])
+        angled_capping_base.dim_y('Toe_Kick_Height+INCH(0.25)', [Toe_Kick_Height])
+        angled_capping_base.dim_z('PT', [PT])
+        angled_capping_base.get_prompt('Hide').set_formula(
+            'IF(Hide_Toe_Kick,True,IF(Is_Hanging,True,IF(Add_Capping_Base,False,True)))',
+            [Hide_Toe_Kick, Is_Hanging, Add_Capping_Base])
+
+        left_capping_base = common_parts.add_toe_kick_capping_base(self)
+        left_capping_base.set_name("Capping Base")
+        left_capping_base.loc_x(value=0)
+        left_capping_base.loc_y('Depth', [Depth, PT])
+        left_capping_base.rot_x(value=math.radians(90))
+        left_capping_base.dim_x('Left_Depth-PT+INCH(0.25)', [Left_Depth, PT])
+        left_capping_base.dim_y('Toe_Kick_Height+INCH(0.25)', [Toe_Kick_Height])
+        left_capping_base.dim_z('PT', [PT])
+        left_capping_base.get_prompt('Hide').set_formula(
+            'IF(Hide_Toe_Kick,True,IF(Is_Hanging,True,IF(Add_Capping_Base,False,True)))',
+            [Hide_Toe_Kick, Is_Hanging, Add_Capping_Base])
+
+        right_capping_base = common_parts.add_toe_kick_capping_base(self)
+        right_capping_base.set_name("Capping Base")
+        right_capping_base.loc_x("Width+PT", [Width, PT])
+        right_capping_base.loc_y(value=0)
+        right_capping_base.rot_x(value=math.radians(90))
+        right_capping_base.rot_z(value=math.radians(-90))
+        right_capping_base.dim_x('Right_Depth-PT+INCH(0.25)', [Right_Depth, PT])
+        right_capping_base.dim_y('Toe_Kick_Height+INCH(0.25)', [Toe_Kick_Height])
+        right_capping_base.dim_z('PT', [PT])
+        right_capping_base.get_prompt('Hide').set_formula(
+            'IF(Hide_Toe_Kick,True,IF(Is_Hanging,True,IF(Add_Capping_Base,False,True)))',
+            [Hide_Toe_Kick, Is_Hanging, Add_Capping_Base])
 
         # Fillers
         create_corner_fillers(self, Panel_Height, Left_Side_Wall_Filler,
@@ -2072,6 +2123,12 @@ class PROMPTS_Corner_Shelves(sn_types.Prompts_Interface):
 
         row.label(text='Rotation Z:')
         row.prop(self.product.obj_bp, 'rotation_euler', index=2, text="")
+
+        add_capping_base = self.product.get_prompt("Add Capping Base")
+
+        if add_capping_base:
+            row = box.row()
+            row.prop(add_capping_base, "checkbox_value", text=add_capping_base.name)
 
         Add_Backing = self.product.get_prompt("Add Backing")
 

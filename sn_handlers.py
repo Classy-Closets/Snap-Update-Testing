@@ -8,6 +8,7 @@ from snap import sn_utils
 from snap import sn_paths
 from . import sn_utils
 from . import addon_updater_ops
+from snap.libraries.kitchen_bath import cabinet_properties
 
 @persistent
 def load_driver_functions(scene=None):
@@ -58,6 +59,7 @@ def sync_spec_groups(scene):
 def load_libraries(scene=None):
     wm_props = bpy.context.window_manager.snap
     scene_props = bpy.context.scene.snap
+    prefs = bpy.context.preferences.addons["snap"].preferences
 
     wm_props.add_library(
         name="Product Library",
@@ -67,6 +69,16 @@ def load_libraries(scene=None):
         drop_id='sn_closets.drop',
         use_custom_icon=True,
         icon='closet_lib',
+    )
+
+    wm_props.add_library(
+        name="Kitchen Bath Library",
+        lib_type='SNAP',
+        root_dir=sn_paths.KITCHEN_BATH_ROOT,
+        thumbnail_dir=sn_paths.KITCHEN_BATH_THUMB_DIR,
+        drop_id='sn_closets.drop',
+        use_custom_icon=True,
+        icon='cabinet_lib',
     )
 
     wm_props.add_library(
@@ -112,6 +124,11 @@ def load_libraries(scene=None):
     if not bpy.data.is_saved or scene_props.active_library_name == "Product Library":
         path = os.path.join(sn_paths.CLOSET_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
 
+        if scene_props.active_library_name == "Kitchen Bath Library" and prefs.enable_kitchen_bath_lib:
+            path = os.path.join(sn_paths.KITCHEN_BATH_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
+        else:
+            scene_props.active_library_name = "Product Library"
+
         if os.path.exists(path):
             sn_utils.update_file_browser_path(bpy.context, path)
             bpy.ops.sn_library.change_library_category(category=sn_paths.DEFAULT_CATEGORY)
@@ -154,6 +171,10 @@ def default_settings(scene=None):
             scene.closet_materials.set_defaults()
 
         scene.closet_materials.defaults_set = True
+
+    defaults = cabinet_properties.get_scene_props().size_defaults
+    defaults.load_default_heights()
+
 
 @persistent
 def init_machining_collection(scene=None):

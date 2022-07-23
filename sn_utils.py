@@ -218,7 +218,7 @@ def get_room_bp(obj):
 def get_cabinet_bp(obj):
     if not obj:
         return None
-    if "IS_CABINET_BP" in obj:
+    if "IS_BP_CABINET" in obj:
         return obj
     elif obj.parent:
         return get_cabinet_bp(obj.parent)

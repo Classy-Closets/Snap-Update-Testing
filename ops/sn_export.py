@@ -928,6 +928,10 @@ class OPS_Export_XML(Operator):
     tk_skin_lengths = []
     tk_skin_bp = None
 
+    tk_capping_base_heights = []
+    tk_capping_base_lengths = []
+    tk_capping_base_bp = None
+
     hang_rod_lengths = []
     hang_rod_bp = None
     hang_rods_collected = False
@@ -2548,6 +2552,7 @@ class OPS_Export_XML(Operator):
         self.write_full_sized_hang_rod(elm_product,spec_group)
         self.write_full_sized_cleat_stock(elm_product,spec_group)
         self.write_garage_legs(elm_product,spec_group)
+        self.write_full_sized_capping_base(elm_product,spec_group)
 
         info = [('DrawingNum', self.job_number + "." + item_number),
                 ('RoomName', item_name),
@@ -2773,6 +2778,43 @@ class OPS_Export_XML(Operator):
                         if not child.hide_viewport:
                             self.write_part_node(elm_parts, child, spec_group)
                             self.write_part_node(elm_parts, child, spec_group)
+
+    def write_full_sized_capping_base(self, elm_parts, spec_group):
+        if self.tk_capping_base_bp:
+            capping_base = sn_types.Assembly(self.tk_capping_base_bp)
+
+            different_heights = []
+
+            for height in self.tk_capping_base_heights:
+                if height not in different_heights:
+                    different_heights.append(height)
+
+            for height in different_heights:
+                print(height)
+                total_capping_base = 0
+                for i in range(len(self.tk_capping_base_lengths)):
+                    if(float(self.tk_capping_base_heights[i]) == float(height)):
+                        total_capping_base += float(self.tk_capping_base_lengths[i])
+
+                needed_full_lengths = 0
+                if(total_capping_base < 80):  # In inches, total_capping_base has already been converted to inches
+                    needed_full_lengths = 1
+                else:
+                    needed_full_lengths = math.ceil((total_capping_base / 96))  # 96
+                    if(needed_full_lengths < 4):
+                        needed_full_lengths += 1
+                    elif(needed_full_lengths < 7):
+                        needed_full_lengths += 2
+                    else:
+                        needed_full_lengths += 3
+
+                for i in range(0, needed_full_lengths):
+                    capping_base.obj_y.location.y = float(sn_unit.inch_to_millimeter(height) / 1000) + sn_unit.inch(2)
+                    capping_base.obj_x.location.x = sn_unit.inch(96)
+                    for child in capping_base.obj_bp.children:
+                        if child.snap.type_mesh == 'CUTPART':
+                            if not child.hide_viewport:
+                                self.write_part_node(elm_parts, child, spec_group)
 
     def write_garage_legs(self, elm_parts, spec_group):
         if len(self.plastic_leg_list) > 0:
@@ -3209,6 +3251,24 @@ class OPS_Export_XML(Operator):
                                     height += 2
                             self.tk_skin_heights.append(str(height)) 
                 continue
+
+            if child.get("IS_BP_TOE_KICK_CAPPING_BASE"):
+                for nchild in child.children:
+                    if nchild.snap.type_mesh == 'CUTPART':
+                        if not nchild.hide_viewport and not nchild.hide_get():
+                            capping_base_assembly = sn_types.Assembly(child)
+                            if capping_base_assembly.obj_bp.snap.name_object == "Toe Kick Capping Base":
+                                self.tk_capping_base_bp = capping_base_assembly.obj_bp
+                            self.tk_capping_base_lengths.append(self.get_part_length(capping_base_assembly))
+
+                            height = float(self.get_part_width(capping_base_assembly))
+                            tk_assembly = sn_types.Assembly(child.parent)
+                            var_height = tk_assembly.get_prompt("Variable Height")
+                            if var_height:
+                                if var_height.get_value():
+                                    height += 2
+                            self.tk_capping_base_heights.append(height) 
+                continue
                 
             if child.snap.type_group == 'INSERT':
                 continue
@@ -3426,6 +3486,24 @@ class OPS_Export_XML(Operator):
                                     height += 2
                             self.tk_skin_heights.append(str(height))
 
+                continue
+
+            if child.get("IS_BP_TOE_KICK_CAPPING_BASE"):
+                for nchild in child.children:
+                    if nchild.snap.type_mesh == 'CUTPART':
+                        if not nchild.hide_viewport and not nchild.hide_get():
+                            capping_base_assembly = sn_types.Assembly(child)
+                            if capping_base_assembly.obj_bp.snap.name_object == "Toe Kick Capping Base":
+                                self.tk_capping_base_bp = capping_base_assembly.obj_bp
+                            self.tk_capping_base_lengths.append(self.get_part_length(capping_base_assembly))
+
+                            height = float(self.get_part_width(capping_base_assembly))
+                            tk_assembly = sn_types.Assembly(child.parent)
+                            var_height = tk_assembly.get_prompt("Variable Height")
+                            if var_height:
+                                if var_height.get_value():
+                                    height += 2
+                            self.tk_capping_base_heights.append(height)
                 continue
 
             if child.sn_closets.is_hanging_rod:
@@ -4718,6 +4796,11 @@ class OPS_Export_XML(Operator):
                             edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
                             self.top_edgebanded_flat_crown.pop()
 
+            # Capping Base
+            if "IS_BP_TOE_KICK_CAPPING_BASE" in assembly.obj_bp:
+                edge_2 = "L1"
+                edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
+
             len_x = self.get_part_length(assembly)
             len_y = self.get_part_width(assembly)
 
@@ -4957,6 +5040,12 @@ class OPS_Export_XML(Operator):
                 edge_material_name = mat_name if mat_name != "" else "Unnamed"
                 self.xml.add_element_with_text(elm_edgepart,'MaterialName',edge_material_name)
 
+    def write_job_info_var(self, str_val):
+        if str_val:
+            return str_val
+        else:
+            return "None"
+
     def write_job_info(self, elm_job):
         dirname = os.path.dirname(bpy.data.filepath).split("\\")[-1]
         filname = "{}.ccp".format(dirname)
@@ -4982,22 +5071,22 @@ class OPS_Export_XML(Operator):
         total_room_count = str(len(rooms))
         design_date = elm_pinfo.find("design_date").text
 
-        info = [('projectname', project_name),
-                ('jobnumber', self.job_number),
-                ('customername', customer_name),
-                ('clientid', client_id),
-                ('projectaddress', proj_address),
-                ('city', city),
-                ('state', state),
-                ('zipcode', zip_code),
-                ('customerphone1', cphone_1),
-                ('customerphone2', cphone_2),
-                ('customeremail', c_email),
-                ('projectnotes', proj_notes),
-                ('designer', designer),
-                ('totalroomcount', total_room_count),
-                ('designdate', design_date),
-                ('installdate', "")
+        info = [('projectname', self.write_job_info_var(project_name)),
+                ('jobnumber', self.write_job_info_var(self.job_number)),
+                ('customername', self.write_job_info_var(customer_name)),
+                ('clientid', self.write_job_info_var(client_id)),
+                ('projectaddress', self.write_job_info_var(proj_address)),
+                ('city', self.write_job_info_var(city)),
+                ('state', self.write_job_info_var(state)),
+                ('zipcode', self.write_job_info_var(zip_code)),
+                ('customerphone1', self.write_job_info_var(cphone_1)),
+                ('customerphone2', self.write_job_info_var(cphone_2)),
+                ('customeremail', self.write_job_info_var(c_email)),
+                ('projectnotes', self.write_job_info_var(proj_notes)),
+                ('designer', self.write_job_info_var(designer)),
+                ('totalroomcount', self.write_job_info_var(total_room_count)),
+                ('designdate', self.write_job_info_var(design_date)),
+                ('installdate', self.write_job_info_var(""))
         ]
 
         for f in info:

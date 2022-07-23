@@ -245,8 +245,14 @@ class SNAP_MATERIAL_MT_Mat_Colors(bpy.types.Menu):
             if index % MAX_COL_LEN == 0:
                 col = row.column()
 
-            if item.oversize_max_len > 0:
+            # NOTE dealing with the situation it's needed to show exactly
+            #      109" -> 2768 == 108.98" and 2769 == 109.02"
+            if item.oversize_max_len > 0 and item.oversize_max_len != 2768:
                 max_len_inch = round(item.oversize_max_len/25.4,2)
+                max_len_str = ' - (Max Length: {}")'.format(max_len_inch)
+                label = item.name + max_len_str
+            elif item.oversize_max_len > 0 and item.oversize_max_len == 2768:
+                max_len_inch = 109
                 max_len_str = ' - (Max Length: {}")'.format(max_len_inch)
                 label = item.name + max_len_str
             else:

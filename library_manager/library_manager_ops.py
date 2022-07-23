@@ -10,7 +10,7 @@ from bpy.props import (
     EnumProperty,
 )
 
-from .. import sn_utils, sn_unit, sn_handlers
+from .. import sn_types, sn_utils, sn_unit, sn_handlers
 
 
 THUMBNAIL_FILE_NAME = "thumbnail.blend"
@@ -143,6 +143,8 @@ class SNAP_OT_brd_library_items(Operator):
     library_path = ""
     
     placement = 0
+
+    calculators = []
     
     # def __del__(self):
     #     bpy.context.window.cursor_set('DEFAULT')
@@ -298,9 +300,9 @@ class SNAP_OT_brd_library_items(Operator):
                 calculator.calculate()
                 self.calculators.append(calculator)
 
-        if "IS_VERTICAL_SPLITTER_BP" in obj and obj["IS_VERTICAL_SPLITTER_BP"]:
+        if "IS_BP_SPLITTER" in obj and obj["IS_BP_SPLITTER"]:
             assembly = sn_types.Assembly(obj)
-            calculator = assembly.get_calculator('Opening Height Calculator')
+            calculator = assembly.get_calculator('Opening Heights Calculator')
             if calculator:
                 calculator.calculate()
                 self.calculators.append(calculator)
@@ -331,7 +333,10 @@ class SNAP_OT_brd_library_items(Operator):
         if item.width:
             item.obj_x.location.x = item.width
         if item.depth:
-            item.obj_y.location.y = item.depth
+            if item.obj_y['IS_MIRROR']:
+                item.obj_y.location.y = -item.depth
+            else:
+                item.obj_y.location.y = item.depth
         if item.height:
             item.obj_z.location.z = item.height
         self.placement += item.obj_x.location.x + sn_unit.inch(10)

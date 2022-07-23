@@ -192,6 +192,25 @@ class SNAP_GEN_OT_viewport_shade_mode(Operator):
         return {'FINISHED'}
 
 
+class SNAP_GEN_OT_enable_ruler_mode(Operator):
+    bl_idname = "sn_general.enable_ruler"
+    bl_label = "Enable/Disable Ruler"
+
+    enable: BoolProperty(name="Enable Ruler Mode", default=False)
+
+    def execute(self, context):
+        if self.enable:
+            context.scene.tool_settings.use_snap = True
+            context.scene.tool_settings.snap_elements = {'VERTEX'}
+            bpy.ops.wm.tool_set_by_id(name="builtin.measure")
+
+        else:
+            context.scene.tool_settings.use_snap = False
+            context.scene.tool_settings.snap_elements = {'EDGE'}
+            bpy.ops.wm.tool_set_by_id(name="builtin.select_box")
+        return {'FINISHED'}
+
+
 class SNAP_MT_viewport_shade_mode(Menu):
     bl_label = "Viewport Shade Mode"
 
@@ -207,6 +226,7 @@ classes = (
     SN_GEN_OT_select_all_elevation_scenes,
     SN_GEN_OT_project_info,
     SNAP_GEN_OT_viewport_shade_mode,
+    SNAP_GEN_OT_enable_ruler_mode,
     SNAP_MT_viewport_shade_mode
 )
 

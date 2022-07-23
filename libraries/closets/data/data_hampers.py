@@ -389,6 +389,7 @@ class OPS_Hamper_Drop(Operator, PlaceClosetInsert):
                 has_counter_top = True
         if has_counter_top or "IS_BP_ISLAND" in carcass_bp:
             cleat_location.set_value(1)  # Setting Cleat Location to Below
+            return
 
         for child in carcass_bp.children:
             if child.sn_closets.is_back_bp:

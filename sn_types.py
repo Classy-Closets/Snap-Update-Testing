@@ -833,11 +833,17 @@ class Assembly:
         for child in self.obj_bp.children:
             if child.type == 'MESH':
                 self.lock_rot_and_scale(child)
+            if "IS_VISDIM_A" in child:
+                child.hide_set(True)
+                child.hide_viewport = False
+                continue
             if child.type == 'EMPTY':
                 child.hide_viewport = True
             if not child.snap.type_group == 'INSERT':
                 self.set_child_properties(child)
 
+    def update_dimensions(self):
+        pass
 
 class Part(Assembly):
     """
@@ -1423,6 +1429,7 @@ class Prompts_Interface(Operator):
             row1.label(text='Height:')
 
             if alt_height == "":
+                pass
                 row1.prop(self, 'height', text="")
             else:
                 row1.prop(self, alt_height, text="")
@@ -1522,9 +1529,10 @@ class Prompts_Interface(Operator):
             self.product.obj_y.location.y = self.depth
 
         if 'IS_MIRROR' in self.product.obj_z:
-            self.product.obj_z.location.z = -self.height
+            # self.product.obj_z.location.z = sn_unit.millimeter(float(-self.height))
+            self.product.obj_z.location.z = sn_unit.millimeter(-float(self.height))
         else:
-            self.product.obj_z.location.z = self.height
+            self.product.obj_z.location.z = sn_unit.millimeter(float(self.height))
 
         sn_utils.run_calculators(self.product.obj_bp)
 

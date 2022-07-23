@@ -42,6 +42,7 @@ class Material_Pointers():
     Five_Piece_Melamine_Door_Surface = sn_types.Material_Pointer(EXPOSED_MATERIAL)
     Moderno_Door = sn_types.Material_Pointer(MODERNO_DOOR)
     Door_Edge = sn_types.Material_Pointer(EXPOSED_MATERIAL)
+    Cabinet_Countertop_Surface = sn_types.Material_Pointer(COUNTER_TOP_MATERIAL)
     Countertop_Surface = sn_types.Material_Pointer(COUNTER_TOP_MATERIAL)
     Countertop_HPL_Surface = sn_types.Material_Pointer(COUNTER_TOP_HPL_MATERIAL)
     Countertop_Granite_Surface = sn_types.Material_Pointer(COUNTER_TOP_GRANITE_MATERIAL)

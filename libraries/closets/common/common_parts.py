@@ -849,6 +849,16 @@ def add_toe_kick_skin(assembly):
     return kick
 
 
+def add_toe_kick_capping_base(assembly):
+    kick = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_NO_EDGEBANDING))
+    kick.obj_bp["IS_BP_TOE_KICK_CAPPING_BASE"] = True
+    assembly.add_assembly(kick)
+    kick.obj_bp.snap.comment_2 = "1035"
+    kick.set_name("Toe Kick Capping Base")
+    kick.cutpart("Toe_Kick")
+    return kick
+
+
 def add_back(assembly):
     backing = sn_types.Part(assembly.add_assembly_from_file(FULL_BACK))
     assembly.add_assembly(backing)

@@ -1,7 +1,7 @@
 bl_info = {
     "name": "SNaP",
     # "author": "Ryan Montes",
-    "version": (2, 3, 1),
+    "version": (2, 3, 2),
     "blender": (3, 00, 0),
     "location": "Tools Shelf",
     "description": "SNaP",
@@ -31,6 +31,7 @@ from . import addon_updater_ops
 from snap.libraries import closets
 from snap.libraries import doors_and_windows
 from snap.libraries import appliances
+from snap.libraries import kitchen_bath
 
 
 snap_icons = None
@@ -42,6 +43,7 @@ modules = (
     sn_props,
     sn_import,
     closets,
+    kitchen_bath,
     doors_and_windows,
     appliances,
     material_manager,

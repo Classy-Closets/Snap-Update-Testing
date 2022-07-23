@@ -202,6 +202,9 @@ class SNAP_OT_Auto_Dimension(Operator):
 
         for item in bpy.data.objects:
             if item.get('IS_VISDIM_A') or item.get('IS_VISDIM_B'):
+                cabinet_product = sn_utils.get_cabinet_bp(item)
+                if cabinet_product:
+                    continue
                 if sn_utils.get_obstacle_bp(item) or "IS_ANNOTATION" in item:
                     continue
                 else:
@@ -772,6 +775,9 @@ class SNAP_OT_Auto_Dimension(Operator):
     def get_partition_height_list(self, wall_bp):
         partition_list = []
         for product in wall_bp.children:
+            if product.get("IS_BP_CABINET"):
+                continue
+            
             is_lsh = 'l shelves' in product.name.lower()
             is_csh = 'corner shelves' in product.name.lower()
             if is_lsh or is_csh:
@@ -2623,22 +2629,29 @@ class SNAP_OT_Auto_Dimension(Operator):
                                     topshelf_thickness = abs(
                                                 assy.obj_z.location.z)
 
-        # Get world location z from each partition obj_x
-        obj_bp = hanging_assy.obj_bp
-        partitions = [sn_types.Assembly(obj) for obj in obj_bp.children if obj.sn_closets.is_panel_bp]
-        partition_world_heights = [p.obj_x.matrix_world.translation.z for p in partitions]
-        tallest_partition_height = max(partition_world_heights)
+        if "IS_BP_CABINET" in item:
+            if "IS_MIRROR" in  hanging_assy.obj_z:
+                build_height_dim = hanging_assy.obj_bp.location.z
+            else:
+                build_height_dim = hanging_assy.obj_z.location.z
+            bh_dims.append(build_height_dim)
+        else:
+            # Get world location z from each partition obj_x
+            obj_bp = hanging_assy.obj_bp
+            partitions = [sn_types.Assembly(obj) for obj in obj_bp.children if obj.sn_closets.is_panel_bp]
+            partition_world_heights = [p.obj_x.matrix_world.translation.z for p in partitions]
+            tallest_partition_height = max(partition_world_heights)
 
-        hanging = hanging_height > 0
-        ctop = ctop_thickness == 0
-        tshelf = topshelf_thickness == 0
-        if hanging and ctop and tshelf:
-            build_height_dim = tallest_partition_height
-        elif ctop_thickness > 0:
-            build_height_dim = (countertop_height + ctop_thickness)
-        elif topshelf_thickness > 0:
-            build_height_dim = (tallest_partition_height + topshelf_thickness)
-        bh_dims.append(build_height_dim)
+            hanging = hanging_height > 0
+            ctop = ctop_thickness == 0
+            tshelf = topshelf_thickness == 0
+            if hanging and ctop and tshelf:
+                build_height_dim = tallest_partition_height
+            elif ctop_thickness > 0:
+                build_height_dim = (countertop_height + ctop_thickness)
+            elif topshelf_thickness > 0:
+                build_height_dim = (tallest_partition_height + topshelf_thickness)
+            bh_dims.append(build_height_dim)
 
 
     def strict_corner_bh(self, bh_dims, item):
@@ -2667,7 +2680,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         bh_dims = []
         right_wall = sn_types.Wall(wall_bp).get_connected_wall('RIGHT')
         for item in wall_bp.children:
-            if 'section' in item.name.lower():
+            if 'section' in item.name.lower() or "IS_BP_CABINET" in item:
                 self.section_bh(bh_dims, item)
             if 'corner shelves' in item.name.lower():
                 self.strict_corner_bh(bh_dims, item)
@@ -2704,8 +2717,9 @@ class SNAP_OT_Auto_Dimension(Operator):
     def section_depths(self, wall_bp):
         wall = wall_bp.children
         candidates = [item for item in wall if item.get("IS_BP_ASSEMBLY")]
+        closet_candidates = [item for item in candidates if "IS_BP_CABINET" not in item]
         n_openings = [[item for item in obj.children if 'opening' in
-                       item.name.lower()] for obj in candidates]
+                       item.name.lower()] for obj in closet_candidates]
         for openings in n_openings:
             for opening in openings:
                 op_number = opening.sn_closets.opening_name
@@ -2976,7 +2990,6 @@ class SNAP_OT_Auto_Dimension(Operator):
                             value=(assembly.obj_x.location.x / 5) * 4)
                         dim.start_y(value=assembly.obj_y.location.y / 2)
                         dim.set_label(label)
-
             # DRAWER FRONT HEIGHT LABEL
             parent = assembly.obj_bp.parent
             in_island = False

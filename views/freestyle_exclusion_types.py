@@ -53,7 +53,8 @@ FS_SKIPS = ['Anchor',
             'Y2']
 
 HIDE_INCLUDE_OVERRIDE = [
-    '.get("IS_WALL_CLEAT")'
+    '.get("IS_WALL_CLEAT")',
+    '.get("IS_CABINET_SHELF")'
 ]
 
 VIS_INCLUDE_OVERRIDE = [

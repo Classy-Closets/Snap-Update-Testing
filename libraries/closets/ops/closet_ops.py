@@ -15,6 +15,15 @@ from ..ops.drop_closet import PlaceClosetInsert
 from ..data import data_drawers
 
 
+def get_carcass_insert(product):
+    new_list = []
+    inserts = sn_utils.get_insert_bp_list(product.obj_bp,new_list)
+    for insert in inserts:
+        if insert.get("IS_BP_CARCASS"):
+            carcass = sn_types.Assembly(insert)
+            return carcass
+
+
 class SNAP_OT_move_closet(Operator):
     bl_idname = "sn_closets.move_closet"
     bl_label = "Move Closet"
@@ -359,6 +368,8 @@ class SNAP_OT_delete_closet(Delete_Closet_Assembly):
         self.obj_bp = sn_utils.get_closet_bp(context.object)
         if not self.obj_bp:
             self.obj_bp = sn_utils.get_appliance_bp(context.object)
+        if not self.obj_bp:
+            self.obj_bp = sn_utils.get_cabinet_bp(context.object)
         return super().invoke(context, event)
 
     def execute(self, context):
@@ -869,8 +880,6 @@ class SNAP_OT_update_pull_selection(Operator):
             new_pull.parent = pull.parent
             new_pull.location = pull.location
             new_pull.rotation_euler = pull.rotation_euler
-            active_layer = context.view_layer.active_layer_collection
-            active_layer.collection.objects.link(new_pull)
 
             if len(new_pull.snap.material_slots) < 1:
                 bpy.ops.sn_material.add_material_pointers(object_name=new_pull.name)
@@ -881,6 +890,14 @@ class SNAP_OT_update_pull_selection(Operator):
 
             pull_length.set_value(new_pull.dimensions.x)
             sn_utils.copy_drivers(pull, new_pull)
+
+            wall_bp = sn_utils.get_wall_bp(pull_assembly.obj_bp)
+
+            if wall_bp:
+                wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+                scene_coll = context.scene.collection
+                sn_utils.add_assembly_to_collection(new_pull, wall_coll)
+                sn_utils.remove_assembly_from_collection(new_pull, scene_coll)            
 
         sn_utils.delete_obj_list(pulls)
 
@@ -904,8 +921,10 @@ class SNAP_OT_place_applied_panel(Operator):
     selected_obj = None
     selected_point = None
     sel_product_bp = None
+    sel_product = None
     sel_panel = None
     panel_bps = []
+    exclude_objects = []
 
     def update_door_children_properties(self, obj, id_prompt, door_style):
         obj["ID_PROMPT"] = id_prompt
@@ -934,6 +953,7 @@ class SNAP_OT_place_applied_panel(Operator):
         self.assembly = sn_types.Assembly(bp)
         self.assembly.obj_bp["ALLOW_PART_DELETE"] = True
         self.assembly.set_name(props.door_style)
+        self.exclude_objects.append(self.get_door_mesh())
 
     def set_door_material_pointers(self, obj):
         for index, slot in enumerate(obj.snap.material_slots):
@@ -970,34 +990,72 @@ class SNAP_OT_place_applied_panel(Operator):
         return {'FINISHED'}
 
     def add_to_left(self, part):
-        self.assembly.obj_bp.parent = part.obj_bp
-        self.assembly.obj_bp.location.y = part.obj_y.location.y
-        self.assembly.obj_y.location.y = math.fabs(part.obj_y.location.y)
-        self.assembly.obj_x.location.x = part.obj_x.location.x
+        if self.sel_product_bp.get("IS_BP_CABINET"):
+            self.assembly.obj_bp.parent = self.sel_product.obj_bp
+            
+            toe_kick_height = 0
+            carcass = get_carcass_insert(self.sel_product)
+
+            if carcass.get_prompt('Toe Kick Height'):
+                toe_kick_height = carcass.get_prompt('Toe Kick Height').get_value()
+            
+            if self.sel_product.obj_z.location.z > 0:
+                self.assembly.obj_bp.location = (0,0,toe_kick_height)
+            else:
+                self.assembly.obj_bp.location = (0,0,self.sel_product.obj_z.location.z)
+            
+            self.assembly.obj_bp.rotation_euler = (0,math.radians(-90),0)
+            self.assembly.obj_x.location.x = math.fabs(self.sel_product.obj_z.location.z) - toe_kick_height
+            self.assembly.obj_y.location.y = self.sel_product.obj_y.location.y
+
+        else:
+            self.assembly.obj_bp.parent = part.obj_bp
+            self.assembly.obj_bp.location.y = part.obj_y.location.y
+            self.assembly.obj_y.location.y = math.fabs(part.obj_y.location.y)
+            self.assembly.obj_x.location.x = part.obj_x.location.x
 
     def add_to_right(self, part):
-        self.assembly.obj_bp.parent = part.obj_bp
-        self.assembly.obj_bp.rotation_euler.x = math.radians(-180)
-        self.assembly.obj_y.location.y = math.fabs(part.obj_y.location.y)
-        self.assembly.obj_x.location.x = part.obj_x.location.x
+        if self.sel_product_bp.get("IS_BP_CABINET"):
+            self.assembly.obj_bp.parent = self.sel_product.obj_bp
+            
+            toe_kick_height = 0
+            carcass = get_carcass_insert(self.sel_product)
 
-    def add_to_back(self, part, product):
-        self.assembly.obj_bp.parent = product.obj_bp
+            if carcass.get_prompt('Toe Kick Height'):
+                toe_kick_height = carcass.get_prompt('Toe Kick Height').get_value()
+            
+            if self.sel_product.obj_z.location.z > 0:
+                self.assembly.obj_bp.location = (self.sel_product.obj_x.location.x,0,toe_kick_height)
+            else:
+                self.assembly.obj_bp.location = (self.sel_product.obj_x.location.x,0,self.sel_product.obj_z.location.z)
+                
+            self.assembly.obj_bp.rotation_euler = (0,math.radians(-90),math.radians(180))
+            self.assembly.obj_x.location.x = math.fabs(self.sel_product.obj_z.location.z) - toe_kick_height
+            self.assembly.obj_y.location.y = math.fabs(self.sel_product.obj_y.location.y)
+
+        else:
+            self.assembly.obj_bp.parent = part.obj_bp
+            self.assembly.obj_bp.rotation_euler.x = math.radians(-180)
+            self.assembly.obj_y.location.y = math.fabs(part.obj_y.location.y)
+            self.assembly.obj_x.location.x = part.obj_x.location.x
+
+    def add_to_back(self, part):
+        self.assembly.obj_bp.parent = self.sel_product.obj_bp
 
         toe_kick_height = 0
-        if product.get_prompt('Toe Kick Height'):
-            toe_kick_height = product.get_prompt('Toe Kick Height')
+        if self.sel_product.get_prompt('Toe Kick Height'):
+            toe_kick_height = self.sel_product.get_prompt('Toe Kick Height')
 
-        if product.obj_z.location.z > 0:
+        if self.sel_product.obj_z.location.z > 0:
             self.assembly.obj_bp.location = (0, 0, toe_kick_height)
         else:
-            self.assembly.obj_bp.location = (0, 0, product.obj_z.location.z)
+            self.assembly.obj_bp.location = (0, 0, self.sel_product.obj_z.location.z)
 
         self.assembly.obj_bp.rotation_euler = (
             0, math.radians(-90), math.radians(-90))
         self.assembly.obj_x.location.x = math.fabs(
-            product.obj_z.location.z) - toe_kick_height
-        self.assembly.obj_y.location.y = product.obj_x.location.x
+            self.sel_product.obj_z.location.z) - toe_kick_height
+        self.assembly.obj_y.location.y = self.sel_product.obj_x.location.x
 
     def is_first_panel(self, panel):
         if panel.obj_z.location.z < 0:
@@ -1020,6 +1078,11 @@ class SNAP_OT_place_applied_panel(Operator):
                 self.panel_bps.append(child)
         self.panel_bps.sort(key=lambda a: int(a['PARTITION_NUMBER']))
 
+    def get_door_mesh(self):
+        for child in self.assembly.obj_bp.children:
+            if child.type == 'MESH':
+                return child
+
     def door_panel_drop(self, context, event):
         props = context.scene.sn_closets.closet_options
         self.sel_product_bp = sn_utils.get_bp(self.selected_obj, 'PRODUCT')
@@ -1033,11 +1096,20 @@ class SNAP_OT_place_applied_panel(Operator):
                     self.assembly.obj_bp.parent = None
                     self.assembly.obj_bp.location = (0, 0, 0)
                     self.assembly.obj_bp.rotation_euler = (0, 0, 0)
+                    self.sel_product = sn_types.Assembly(self.sel_product_bp)
 
-                    if self.is_first_panel(sel_assembly):
-                        self.add_to_left(sel_assembly)
-                    if self.is_last_panel(sel_assembly):
-                        self.add_to_right(sel_assembly)
+                    if self.sel_product_bp.get("IS_BP_CABINET"):
+                        if 'Left' in sel_assembly.obj_bp.snap.name_object:
+                            self.add_to_left(sel_assembly)
+                        if 'Right' in sel_assembly.obj_bp.snap.name_object:
+                            self.add_to_right(sel_assembly)
+                        if 'Back' in sel_assembly.obj_bp.snap.name_object:
+                            self.add_to_back(sel_assembly)
+                    else:
+                        if self.is_first_panel(sel_assembly):
+                            self.add_to_left(sel_assembly)
+                        if self.is_last_panel(sel_assembly):
+                            self.add_to_right(sel_assembly)
         else:
             self.assembly.obj_bp.parent = None
             self.assembly.obj_bp.location = self.selected_point
@@ -1059,7 +1131,10 @@ class SNAP_OT_place_applied_panel(Operator):
     def modal(self, context, event):
         context.area.tag_redraw()
         bpy.ops.object.select_all(action='DESELECT')
-        self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(context, event)
+        self.selected_point, self.selected_obj, _ = sn_utils.get_selection_point(
+            context,
+            event,
+            exclude_objects=self.exclude_objects)
 
         if event.type in {'MIDDLEMOUSE', 'WHEELUPMOUSE', 'WHEELDOWNMOUSE'}:
             return {'PASS_THROUGH'}
@@ -1078,6 +1153,14 @@ class SNAP_OT_update_door_selection(Operator):
     bl_options = {'UNDO'}
 
     cabinet_type: bpy.props.StringProperty(name="Cabinet Type")
+
+    selected_object: BoolProperty(name="Update selected")
+    base_doors: BoolProperty(name="Update all base cabinet doors")
+    tall_doors: BoolProperty(name="Update all tall cabinet doors")
+    upper_doors: BoolProperty(name="Update all upper cabinet doors")
+    base_drawers: BoolProperty(name="Update all base cabinet drawers")
+    tall_drawers: BoolProperty(name="Update all tall cabinet drawers")
+    upper_drawers: BoolProperty(name="Update all upper cabinet drawers")
 
     def update_door_children_properties(self, obj, id_prompt, door_style):
         obj["ID_PROMPT"] = id_prompt
@@ -1121,6 +1204,45 @@ class SNAP_OT_update_door_selection(Operator):
             if child.get("IS_DOOR") and child != obj_bp:
                 return child
 
+    # def invoke(self, context, event):
+        # wm = context.window_manager
+        # return wm.invoke_props_dialog(self, width=400)
+
+    # def draw(self, context):
+        # layout = self.layout
+        # box = layout.box()
+       
+        # bigrow1 = box.row()
+        # bigrow1.prop(self, "selected_object", text="")
+        # bigrow1.label(text="Current Selection")
+
+        # # # bigrow1.separator()
+
+        # bigrow2 = box.row()
+        # col1 = bigrow2.column(align=True)
+        # # box1 = col1.box()
+        # row1 = col1.row(align=True)
+        # row1.prop(self, "base_doors", text="")
+        # row1.label(text="Base Doors")
+        # row2 = col1.row(align=True)
+        # row2.prop(self, "tall_doors", text="")
+        # row2.label(text="Tall Doors")
+        # row3 = col1.row(align=True)
+        # row3.prop(self, "upper_doors", text="")
+        # row3.label(text="Upper Doors")
+        
+        # col2 = bigrow2.column(align=True)
+        # # box2 = col2.box()
+        # row4 = col2.row(align=True)
+        # row4.prop(self, "base_drawers", text="")
+        # row4.label(text="Base Drawers")
+        # row5 = col2.row(align=True)
+        # row5.prop(self, "tall_drawers", text="")
+        # row5.label(text="Tall Drawers")
+        # row6 = col2.row(align=True)
+        # row6.prop(self, "upper_drawers", text="")
+        # row6.label(text="Upper Drawers")
+
     def execute(self, context):
         door_bps = []
         props = bpy.context.scene.sn_closets.closet_options
@@ -1138,10 +1260,12 @@ class SNAP_OT_update_door_selection(Operator):
             if door_bp and door_bp not in door_bps:
                 door_bps.append(door_bp)
                 insert_bp = sn_utils.get_bp(door_bp, 'INSERT')
+                bp_cabinet = "IS_BP_CABINET" in closet_bp
 
-                if insert_bp and insert_bp.get('IS_BP_DOOR_INSERT'):
-                    door_match_bp = self.get_door_match(context, door_bp)
-                    door_bps.append(door_match_bp)
+                if not bp_cabinet:
+                    if insert_bp and insert_bp.get('IS_BP_DOOR_INSERT'):
+                        door_match_bp = self.get_door_match(context, door_bp)
+                        door_bps.append(door_match_bp)
 
         for obj_bp in door_bps:
             door_assembly = sn_types.Assembly(obj_bp)
@@ -1183,6 +1307,8 @@ class SNAP_OT_update_door_selection(Operator):
                     if child.type == 'MESH':
                         child.snap.type_mesh = 'BUYOUT'
 
+            
+
             id_prompt = door_assembly.obj_bp.get("ID_PROMPT")
 
             sn_utils.copy_assembly_prompts(door_assembly, new_door)
@@ -1210,9 +1336,9 @@ class SNAP_OT_update_door_selection(Operator):
                 sn_utils.add_assembly_to_collection(new_door.obj_bp, wall_coll)
                 sn_utils.remove_assembly_from_collection(new_door.obj_bp, scene_coll)
 
-            if obj_props.is_door_bp:
+            if door_assembly.obj_bp.get("IS_DOOR"):
                 new_door.obj_bp['IS_DOOR'] = True
-            if obj_props.is_drawer_front_bp:
+            if door_assembly.obj_bp.get("IS_BP_DRAWER_FRONT"):
                 new_door.obj_bp['DRAWER_NUM'] = door_assembly.obj_bp.get("DRAWER_NUM")
                 new_door.obj_bp['IS_BP_DRAWER_FRONT'] = True
             if obj_props.is_hamper_front_bp:

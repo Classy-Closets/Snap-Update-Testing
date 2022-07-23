@@ -711,7 +711,11 @@ class VIEW_OT_generate_2d_views(Operator):
         wall_cleat = 0
         wall_beds = 0
         wall_islands = 0
+        cabinets = 0
+
         for item in wall.children:
+            if 'IS_BP_CABINET' in item:
+                cabinets += 1
             if 'section' in item.name.lower():
                 sections += 1
             elif 'corner shelves' in item.name.lower():
@@ -728,6 +732,7 @@ class VIEW_OT_generate_2d_views(Operator):
                 wall_beds += 1
             elif item.get("IS_BP_ISLAND"):
                 wall_islands += 1
+        no_cabinets = cabinets == 0
         no_sections = sections == 0
         no_csh = corner_shelves == 0
         no_lsh = l_shelves == 0
@@ -735,7 +740,7 @@ class VIEW_OT_generate_2d_views(Operator):
         no_wall_cleat = wall_cleat == 0
         no_beds = wall_beds == 0
         no_isl = wall_islands == 0
-        if no_sections and no_csh and no_lsh and no_acc and no_beds and no_isl:
+        if no_sections and no_csh and no_lsh and no_acc and no_beds and no_isl and no_cabinets:
             return True
         return False
 
@@ -2033,7 +2038,10 @@ class VIEW_OT_generate_2d_views(Operator):
                     wall_mesh = wall.get_wall_mesh()
                     # Create Cubes for all products
                     for obj_bp in obj_bps:
-                        eval('bpy.ops.sn_closets.draw_plan' + '(object_name=obj_bp.name)')
+                        if obj_bp.get("IS_BP_CABINET"):
+                            eval('bpy.ops.sn_cabinets.draw_plan' + '(object_name=obj_bp.name)')
+                        else:
+                            eval('bpy.ops.sn_closets.draw_plan' + '(object_name=obj_bp.name)')
                         is_entry_assy = any('Door Frame' in e.name for c in
                                             obj_bp.children for e in c.children)
 
@@ -3294,6 +3302,31 @@ class VIEW_OT_generate_2d_views(Operator):
             if i == 0:
                 first_wall = wall_bp
             for item in wall_bp.children:
+                if "IS_BP_CABINET" in item:
+                    assy = sn_types.Assembly(item)
+                    ctop_thickness = 0
+                    toe_kick_height = 0
+                    for sub_item in item.children:
+                        if "IS_BP_CABINET_COUNTERTOP" in sub_item:
+                            sub_assy = sn_types.Assembly(sub_item)
+                            ctop_thickness_ppt = sub_assy.get_prompt("Deck Thickness")
+                            if ctop_thickness_ppt:
+                                ctop_thickness = ctop_thickness_ppt.get_value()
+                        elif "IS_BP_CARCASS" in sub_item:
+                            sub_assy = sn_types.Assembly(sub_item)
+                            toe_kick_ppt = sub_assy.get_prompt("Toe Kick Height")
+                            if toe_kick_ppt:
+                                if toe_kick_ppt.get_value() > toe_kick_height:
+                                    toe_kick_height = toe_kick_ppt.get_value()
+                    
+                    if 'IS_MIRROR' in assy.obj_z:
+                        bh_dims.append(assy.obj_bp.location.z + ctop_thickness)
+                    else:
+                        bh_dims.append(assy.obj_z.location.z + ctop_thickness)
+
+                    if toe_kick_height > 0: 
+                        bh_dims.append(toe_kick_height)
+                    continue
                 if 'corner shelves' in item.name.lower():
                     self.strict_corner_bh(bh_dims, item)
                 if 'l shelves' in item.name.lower():
@@ -3302,6 +3335,9 @@ class VIEW_OT_generate_2d_views(Operator):
                     self.section_bh(bh_dims, item)
                 if 'IS_TOPSHELF_SUPPORT_CORBELS' in item:
                     self.ts_support_corbel_bh(bh_dims, item)
+                if 'IS_BP_WALL_BED' in item:
+                    assy = sn_types.Assembly(item)
+                    bh_dims.append(assy.obj_z.location.z)
         first_wall = self.get_first_acc_wall(accordion)
         bh_dims = [self.to_inch(bh) for bh in bh_dims]
         bh_dims = list(set(bh_dims)) 
@@ -3454,7 +3490,10 @@ class VIEW_OT_generate_2d_views(Operator):
                                                                      extra_dims)
             if offset:
                 offsets.append(offset)
-        return max(offsets)
+        if offsets:
+            return max(offsets)
+        else:
+            return 0
 
     def make_flat_crown_label(self, labels, item):
         flat_crown_layers = 0
@@ -4300,18 +4339,22 @@ class VIEW_OT_generate_2d_views(Operator):
             # Check parent assembly
             in_drawer = parent_obj.sn_closets.is_drawer_stack_bp
 
-            for d in shelf_obj.animation_data.drivers:
-                exp = d.driver.expression
-                rem_top_str = 'Remove_Top_Shelf'
-                rem_bot_str = 'Remove_Bottom_Shelf'
-                rem_bot_hang_str = 'Remove_Bottom_Hanging_Shelf'
-                top_kd_str = 'Top_KD'
-                bot_kd_str = 'Bottom_KD'
-                if (rem_top_str in exp or rem_bot_str in exp or
-                   top_kd_str in exp or bot_kd_str in exp or rem_bot_hang_str):
-                    top_bot_kd = True
+            if shelf_obj.animation_data:
 
-            return lock_shelf and (top_bot_kd or in_drawer)
+                for d in shelf_obj.animation_data.drivers:
+                    exp = d.driver.expression
+                    rem_top_str = 'Remove_Top_Shelf'
+                    rem_bot_str = 'Remove_Bottom_Shelf'
+                    rem_bot_hang_str = 'Remove_Bottom_Hanging_Shelf'
+                    top_kd_str = 'Top_KD'
+                    bot_kd_str = 'Bottom_KD'
+                    if (rem_top_str in exp or rem_bot_str in exp or
+                    top_kd_str in exp or bot_kd_str in exp or rem_bot_hang_str):
+                        top_bot_kd = True
+
+                return lock_shelf and (top_bot_kd or in_drawer)
+            else:
+                return False
         else:
             return False
 
@@ -5155,6 +5198,11 @@ class VIEW_OT_generate_2d_views(Operator):
         bpy.ops.snap_closet_dimensions.auto_dimension()
         return self.execute(context)
 
+    def unhide_cabinet_drawer_boxes(self, boxes):
+        for box in boxes:
+            hide = box.get_prompt("Hide")
+            hide.set_value(False)
+
     def execute(self, context):
         self.current_ctx = context
         self.pre_2d_cleanup(context)
@@ -5176,6 +5224,7 @@ class VIEW_OT_generate_2d_views(Operator):
         mesh_data_dict = {}
         joint_parts = None
         self.hide_annotation_objects()
+        cabinet_drawer_boxes = []
 
         if self.use_single_scene:
             self.create_single_elv_view(context)
@@ -5205,6 +5254,11 @@ class VIEW_OT_generate_2d_views(Operator):
                 if no_users and font and wall:
                     obj.hide = True
                     obj.hide_render = True
+
+                if "CABINET_DRAWER_BOX" in obj:
+                    drawer_box = sn_types.Assembly(obj)
+                    cabinet_drawer_boxes.append(drawer_box)
+                    drawer_box.get_prompt("Hide").set_value(True)
 
             walls = []
             wall_groups = {}
@@ -5300,6 +5354,7 @@ class VIEW_OT_generate_2d_views(Operator):
         switched_off_kds = self.switch_off_kds()
         self.add_meshes_to_freestyle_collections()
         self.switch_on_kds(switched_off_kds)
+        self.unhide_cabinet_drawer_boxes(cabinet_drawer_boxes)
         hide_dim_handles()
         self.enable_all_elvs()
         return {'FINISHED'}

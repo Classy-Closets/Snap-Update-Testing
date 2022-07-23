@@ -18,13 +18,16 @@ from snap.sn_unit import inch
 
 from snap import sn_paths, sn_utils, sn_unit, sn_types
 from snap.libraries.closets import closet_library
+from snap.libraries.kitchen_bath import kitchen_bath_library
 from snap.libraries.doors_and_windows import doors_and_windows_library
 from snap.libraries.appliances import appliance_library
 from . import addon_updater_ops
 
 LIBRARIES = (closet_library,
              doors_and_windows_library,
-             appliance_library)
+             appliance_library,
+             kitchen_bath_library)
+
 DEV_TOOLS_AVAILABLE = False
 
 try:
@@ -575,7 +578,7 @@ class opengl_dim(PropertyGroup):
                                       ('FEET', "Feet", "Feet"),
                                       ('INCH', "Inches", "Inches")),
                                name="Units",
-                               default="AUTO",
+                               default="INCH",
                                description="Units")
 
     gl_number_format: EnumProperty(items=(('DECIMAL', "Decimal", "Decimal"),
@@ -1385,6 +1388,8 @@ class SnapObjectProps(PropertyGroup):
                              description="Stores the Group Type.",
                              default='NONE')
 
+    product_sub_type: StringProperty(name="Product Sub Type", description="This is the sub type of the product")
+
     item_number: IntProperty(name="Item Number")
     name_object: StringProperty(name="Object Name", description="This is the readable name of the object")
 
@@ -1917,6 +1922,19 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
     def expand_adv_opts(self, context):
         self.expand_dev_panel = self.use_adv_options
 
+    def update_active_lib(self, context):
+        override_context = context.copy()
+        for area in bpy.data.workspaces["SNaP"].screens["Layout"].areas:
+            if area.type == "FILE_BROWSER":
+                override_context["area"] = area
+        override_context['screen'] = bpy.data.workspaces["SNaP"].screens["Layout"]
+
+        if self.enable_kitchen_bath_lib:
+            bpy.ops.sn_library.set_active_library(override_context, library_name="Kitchen Bath Library")
+
+        else:
+            bpy.ops.sn_library.set_active_library(override_context, library_name="Product Library")
+
     designer_id: IntProperty(name="Designer ID", description="Desiger ID")
     project_id_count: IntProperty(name="Project ID", description="Project ID")
     project_dir: StringProperty(
@@ -1964,6 +1982,12 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
         name="Enable Franchise Pricing View",
         description="If enabled, show franchise pricing in Project Pricing",
         default=False)
+
+    enable_kitchen_bath_lib: BoolProperty(
+        name="Enable Kitchen Bath Library",
+        description="If enabled, show Kitchen and Bath library",
+        default=False,
+        update=update_active_lib)
 
     franchise_location: EnumProperty(name="",
                                 description="Select Franchise Materials List Location",
@@ -2048,6 +2072,8 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
             row = box.row()
             row.prop(self, "enable_franchise_pricing")
             row.operator('closet_materials.unpack_material_images')
+            row = box.row()
+            row.prop(self, "enable_kitchen_bath_lib")
 
             addon_updater_ops.update_settings_ui(self, context)
 
