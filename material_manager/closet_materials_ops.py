@@ -473,13 +473,36 @@ class SN_MAT_OT_Assign_Materials(Operator):
                                 mat_slot.pointer_name = "Garage_Interior_Surface"
                 back_part.cutpart("Garage_Back")
             else:
+
                 for child in assembly.obj_bp.children:
                     if child.snap.type_mesh == 'CUTPART':
+                        pointer_name = "Closet_Part_Surfaces"
+                        op_num = assembly.obj_bp.sn_closets.opening_name
+
+                        if op_num:
+                            carcass = sn_types.Assembly(sn_utils.get_closet_bp(assembly.obj_bp))
+                            if assembly.obj_bp.sn_closets.is_top_back_bp:
+                                back_type = carcass.get_prompt(
+                                    "Opening {} Top Backing Thickness".format(op_num)).get_value()
+                            elif assembly.obj_bp.sn_closets.is_back_bp:
+                                back_type = carcass.get_prompt(
+                                    "Opening {} Center Backing Thickness".format(op_num)).get_value()
+                            elif assembly.obj_bp.sn_closets.is_bottom_back_bp:
+                                back_type = carcass.get_prompt(
+                                    "Opening {} Bottom Backing Thickness".format(op_num)).get_value()
+
+                            if back_type == 2:
+                                pointer_name = "Backing_Cedar"
+                                assembly.obj_bp["IS_CEDAR_BACK"] = True
+                            else:
+                                assembly.obj_bp["IS_CEDAR_BACK"] = False
+
                         for mat_slot in child.snap.material_slots:
                             if mat_slot.name == "Full Back Color":
-                                mat_slot.pointer_name = "Closet_Part_Surfaces"
+                                mat_slot.pointer_name = pointer_name
+
                 back_part.cutpart("Back")
-    
+
     def set_drawer_front_material(self, assembly):
         cab_mat_props = self.props_closet_materials
         mat_type = cab_mat_props.materials.get_mat_type()

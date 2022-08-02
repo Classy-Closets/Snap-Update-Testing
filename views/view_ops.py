@@ -271,7 +271,7 @@ class VIEW_OT_generate_2d_views(Operator):
                           default=0.75)
 
     pv_pad: FloatProperty(name="Plan View Padding",
-                          default=1.5)
+                          default=5)
 
     ac_pad: FloatProperty(name="Accordion View Padding",
                           default=3.5)
@@ -563,13 +563,14 @@ class VIEW_OT_generate_2d_views(Operator):
             is_hamper_door = child.sn_closets.is_hamper_front_bp
             is_drawer_door = child.sn_closets.is_drawer_front_bp
             skippable = (is_door or is_hamper_door or is_drawer_door) and shown
+            wallbed_bp = sn_utils.get_wallbed_bp(child)
             if len(child.children) > 0:
                 if child.get('IS_OBSTACLE') and child.get('SHOW_ON_ELEVATIONS', True):
                     for cc in child.children: 
                         if cc.get('IS_CAGE'):
                             cc.hide_render = False
                             grp.objects.link(cc)
-                elif skippable:
+                elif skippable and not wallbed_bp:
                     style_materials = self.door_style_materials(child)
                     self.create_replaced_mesh(child, style_materials)
                     continue
@@ -1432,6 +1433,23 @@ class VIEW_OT_generate_2d_views(Operator):
             text.anchor.location[1] -= label_offset
         elif rotation in [0,-90]:
             text.anchor.location[1] += label_offset
+    
+    def wallbed_pv_tag(self, item):
+        assy = sn_types.Assembly(item)
+        loc_x = assy.obj_x.location.x / 2
+        loc_y = assy.obj_y.location.y / 2
+        loc_offset = min([abs(loc_x), abs(loc_y)])
+        label_offset = ((loc_offset / 3) * 2) - unit.inch(1)
+        parent_height = item.parent.location.z
+        loc_z = -parent_height
+        wall_rotation = round(math.degrees(item.parent.rotation_euler[2]))
+        text = sn_types.Dimension()
+        text.anchor.rotation_mode = 'YZX'
+        text_rotation = (-90, -wall_rotation, 0)
+        label = str(item.name).replace("Wall Bed", "| Wall Bed")
+        text.set_label(label)
+        utils.copy_world_loc(item, text.anchor, (loc_x, loc_y, loc_z))
+        utils.copy_world_rot(item, text.anchor, text_rotation)
 
     def strict_corner_pv_tag(self, item):
         label = ""
@@ -1543,6 +1561,8 @@ class VIEW_OT_generate_2d_views(Operator):
                 self.strict_corner_pv_tag(item)
             elif item.get("IS_TOPSHELF_SUPPORT_CORBELS"):
                 self.ts_support_corbel_pv_tag(item)
+            elif sn_utils.get_wallbed_bp(item):
+                self.wallbed_pv_tag(item)
             elif item.get('IS_BP_ASSEMBLY') and not is_lsh and not is_csh:
                 for opening in item.children:
                     if hasattr(opening, 'snap') and opening.snap.type_group == 'OPENING':
@@ -4117,6 +4137,7 @@ class VIEW_OT_generate_2d_views(Operator):
             camera = self.create_camera(new_scene)
             camera.rotation_euler.x = math.radians(90.0)
             camera.rotation_euler.z = 0
+            self.hide_cross_sections_for_camera(new_scene)
             bpy.ops.object.select_all(action='SELECT')
             bpy.ops.view3d.camera_to_view_selected()
             camera.data.type = 'ORTHO'
@@ -4126,7 +4147,22 @@ class VIEW_OT_generate_2d_views(Operator):
             camera.data.ortho_scale = ratio
             instance.hide_select = True
             bpy.ops.object.select_all(action='DESELECT')
+            self.show_cross_sections_for_camera(new_scene)
+            
 
+    def hide_cross_sections_for_camera(self, new_scene):
+        for o in new_scene.objects: 
+            left_insert = 'left_ins' in o.name.lower()
+            right_insert = 'right_ins' in o.name.lower()
+            if left_insert or right_insert:
+                o.hide_viewport = True
+    
+    def show_cross_sections_for_camera(self, new_scene):
+        for o in new_scene.objects: 
+            left_insert = 'left_ins' in o.name.lower()
+            right_insert = 'right_ins' in o.name.lower()
+            if left_insert or right_insert:
+                o.hide_viewport = False
 
     def key_with_max_value(self, d):
         v = list(d.values())

@@ -328,7 +328,8 @@ class Query_PDF_Form_Data:
         closet_full_back = None
         full_backs_values = {
             0: '1/4"',
-            1: '3/4"'}
+            1: '3/4"',
+            2: 'Cedar'}
         for wall in walls:
             children = wall.obj_bp.children
             for child in children:
@@ -350,12 +351,12 @@ class Query_PDF_Form_Data:
                                         if use_center.get_value():
                                             closet_full_back = closet
                                             op_index = i
-            if closet_full_back is not None:
-                full_back_index =\
-                    closet_full_back.get_prompt(
-                        "Opening " + str(op_index) + " Center Backing Thickness")
-                result.append(full_backs_values[full_back_index.get_value()])
-        result = sorted(list(set(result)))
+                                            if closet_full_back is not None:
+                                                full_back_index =\
+                                                    closet_full_back.get_prompt(
+                                                        "Opening " + str(op_index) + " Center Backing Thickness")
+                                                result.append(full_backs_values[full_back_index.get_value()])
+            result = sorted(list(set(result)))
         for i, res in enumerate(result):
             last_item = len(result) - 1
             if i != last_item:
@@ -907,7 +908,7 @@ class Query_PDF_Form_Data:
             "wood_door": "",
         }
         scene_doors = (o for o in self.main_sc_objs\
-            if o.sn_closets.is_door_bp)
+            if o.sn_closets.is_door_bp and not sn_utils.get_wallbed_bp(o))
         door_styled_data = self.__get_obj_styling(
             walls, scene_doors)
         melamine = door_styled_data["melamine"]

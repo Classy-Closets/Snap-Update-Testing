@@ -485,11 +485,12 @@ class Closet_Defaults(PropertyGroup):
 
     add_backing: BoolProperty(name="Add Backing", description="Add Backing", default=False)
 
-    backing_thickness: EnumProperty(
-        name="Backing Thickness",
+    backing_type: EnumProperty(
+        name="Backing Type",
         items=(
             ('1/4', '1/4"', '1/4"'),
-            ('3/4', '3/4"', '3/4"')),
+            ('3/4', '3/4"', '3/4"'),
+            ('CEDAR', 'Cedar Backing', 'Cedar Backing')),
         default='1/4')
 
     dog_ear_active: BoolProperty(name="Dog Ear Active",description="Active Dog Ear Partition",default=False)
@@ -711,8 +712,7 @@ class Closet_Defaults(PropertyGroup):
         row = box.row()
         row.label(text="Hide Hangers:")
         row.prop(self, 'hide_hangers', text="")
-        props = row.operator(
-            'sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
+        props = row.operator('sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
         props.prompt_name = 'Turn Off Hangers'
         props.prompt_type = 'CHECKBOX'
         props.bool_value = self.hide_hangers
@@ -722,15 +722,15 @@ class Closet_Defaults(PropertyGroup):
         row = box.row()
         row.label(text="Add Backing Throughout:")
         row.prop(self, 'add_backing', text="")
-        # props = row.operator('sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
+        props = row.operator('sn_closets.update_backing_prompts', text="", icon='FILE_REFRESH')
+        props.add_backing = self.add_backing        
 
-        row = box.row()
-        row.label(text="Backing Thickness:")
-        row.prop(self, 'backing_thickness', text="")
-        # props = row.operator('sn_prompt.update_all_prompts_in_scene', text="", icon='FILE_REFRESH')
-        props.prompt_name = 'Add Backing'
-        props.prompt_type = 'CHECKBOX'
-        props.bool_value = self.add_backing
+        if self.add_backing:
+            row = box.row()
+            row.label(text="Backing Thickness:")
+            row.prop(self, 'backing_type', text="")
+            props = row.operator('sn_closets.update_backing_prompts', text="", icon='FILE_REFRESH')
+            props.add_backing = self.add_backing
 
         row = box.row()
         row.label(text="Adjustable Shelf Clip Gap:")

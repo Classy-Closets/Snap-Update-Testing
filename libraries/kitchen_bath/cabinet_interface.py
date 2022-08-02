@@ -780,6 +780,8 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
     
     left_offset: FloatProperty(name="Left Offset", default=0, subtype='DISTANCE', precision=4)
     right_offset: FloatProperty(name="Right Offset", default=0, subtype='DISTANCE', precision=4)
+    selected_location = 0
+    last_placement = 'SELECTED_POINT'
     default_width = 0
     
     product = None
@@ -857,27 +859,31 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         left_x = product.get_collision_location('LEFT')
         right_x = product.get_collision_location('RIGHT')
         offsets = self.left_offset + self.right_offset
-
+       
         if self.placement_on_wall == 'FILL':
             product.obj_bp.location.x = left_x + self.left_offset
-            # product.obj_x.location.x = (right_x - left_x - offsets) / self.quantity
-            product.obj_x.location.x = (right_x - left_x - offsets) / 1
+            product.obj_x.location.x = right_x - left_x - offsets
         if self.placement_on_wall == 'LEFT':
             product.obj_bp.location.x = left_x + self.left_offset
         if self.placement_on_wall == 'CENTER':
-            # x_loc = left_x + (right_x - left_x) / 2 - ((self.product.calc_width() / 2) * self.quantity)
-            x_loc = left_x + (right_x - left_x) / 2 - ((self.product.calc_width() / 2) * 1)
+            x_loc = left_x + (right_x - left_x) / 2 - (self.product.calc_width() / 2) 
             product.obj_bp.location.x = x_loc
         if self.placement_on_wall == 'RIGHT':
             if product.obj_bp.snap.placement_type == 'CORNER':
                 product.obj_bp.rotation_euler.z = math.radians(-90)
             product.obj_bp.location.x = (right_x - product.calc_width()) - self.right_offset
+        if self.placement_on_wall == 'SELECTED_POINT' and self.last_placement != 'SELECTED_POINT':
+                product.obj_bp.location.x = self.selected_location
+        elif self.placement_on_wall == 'SELECTED_POINT' and self.placement_on_wall == 'SELECTED_POINT':
+            self.selected_location = product.obj_bp.location.x
+
+        self.last_placement = self.placement_on_wall
 
         # self.run_calculators(self.closet.obj_bp)
 
     def check(self, context):
         self.update_product_size()
-        # self.update_placement(context)
+        self.update_placement(context)
         self.run_calculators(self.product.obj_bp)
         context.view_layer.update()
         self.update_door_dimensions()
@@ -903,10 +909,10 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         self.product = self.get_product(context)
         self.inserts = sn_utils.get_insert_bp_list(self.product.obj_bp,[])
 
-        # self.current_location = self.closet.obj_bp.location.x
-        # self.selected_location = self.closet.obj_bp.location.x
+        self.selected_location = self.product.obj_bp.location.x
         self.default_width = self.product.obj_x.location.x
         self.placement_on_wall = 'SELECTED_POINT'
+        self.last_placement = 'SELECTED_POINT'
         self.left_offset = 0
         self.right_offset = 0
 
@@ -958,13 +964,14 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         self.run_calculators(self.product.obj_bp)
                 
         wm = context.window_manager
-        return wm.invoke_props_dialog(self, width=500)
+        return wm.invoke_props_dialog(self, width=550)
 
     def draw_product_placment(self,layout):
         box = layout.box()
         
         row = box.row(align=True)
         row.label(text='Placement',icon='LATTICE_DATA')
+        row.prop_enum(self, "placement_on_wall", 'SELECTED_POINT', icon='RESTRICT_SELECT_OFF', text="Selected")
         row.prop_enum(self, "placement_on_wall", 'FILL', icon='ARROW_LEFTRIGHT', text="Fill")
         row.prop_enum(self, "placement_on_wall", 'LEFT', icon='TRIA_LEFT', text="Left") 
         row.prop_enum(self, "placement_on_wall", 'CENTER', icon='TRIA_UP_BAR', text="Center") 
@@ -981,7 +988,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
             row.label(text='Offset',icon='BACK')
             row.prop(self, "left_offset", icon='TRIA_LEFT', text="Left")
  
-        if self.placement_on_wall in 'CENTER':
+        if self.placement_on_wall in {'SELECTED_POINT','CENTER'}:
             row = box.row()
         
         if self.placement_on_wall in 'RIGHT':
@@ -1048,7 +1055,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
 
                 if self.product_tabs == 'CARCASS':
                     self.draw_carcass_prompts(prompt_box)
-                    # self.draw_product_placment(prompt_box)
+                    self.draw_product_placment(prompt_box)
                 if self.product_tabs == 'EXTERIOR':
                     self.draw_door_prompts(prompt_box)
                     self.draw_drawer_prompts(prompt_box)

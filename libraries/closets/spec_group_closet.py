@@ -22,6 +22,7 @@ ALUMINUM_MATERIAL = ("Finished Metals", "Aluminum")
 GOLD_MATERIAL = ("Finished Metals", "Matte Gold")
 SLATE_MATERIAL = ("Finished Metals", "Gray Anodized Metal")
 WHITE = ("Closet Materials", "Oxford White")
+CEDAR_AROMATIC_VENEER = ("Closet Materials", "CEDAR AROMATIC VEN250 G1")
 
 EXPOSED_INTERIOR_MATERIAL = ("Closet Materials", "Oxford White")
 EXPOSED_EXTERIOR_MATERIAL = ("Closet Materials", "Duraply Almond")
@@ -64,6 +65,7 @@ class Material_Pointers():
     Entry_Door_Surface = sn_types.Material_Pointer(WHITE)
     Window_Frame_Surface = sn_types.Material_Pointer(WHITE)
     Room_Molding = sn_types.Material_Pointer(WHITE)
+    Backing_Cedar = sn_types.Material_Pointer(CEDAR_AROMATIC_VENEER)
 
     # Garage pointers
     Garage_Interior_Surface = sn_types.Material_Pointer(EXPOSED_INTERIOR_MATERIAL)

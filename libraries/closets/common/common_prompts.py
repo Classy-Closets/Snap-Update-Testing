@@ -63,7 +63,12 @@ def add_closet_carcass_prompts(assembly):
     assembly.add_prompt("Blind Corner Right Depth", 'DISTANCE', sn_unit.inch(18))
     assembly.add_prompt("Opening Height Difference", 'DISTANCE', sn_unit.inch(1.49))
     assembly.add_prompt("Blind Corner Height Difference", 'DISTANCE', sn_unit.inch(0.91))
-    assembly.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', bpy.context.scene.sn_closets.closet_defaults.thick_adjustable_shelves)
+    assembly.add_prompt("Thick Adjustable Shelves", 'CHECKBOX', defaults.thick_adjustable_shelves)
+    assembly.add_prompt("Add Backing Throughout", 'CHECKBOX', defaults.add_backing)
+    assembly.add_prompt("Backing Throughout Type", 'CHECKBOX', defaults.add_backing)
+    assembly.add_prompt(
+        "Backing Throughout Type",
+        'COMBOBOX', 0, ['1/4"', '3/4"', 'Cedar Backing'])
 
     # For adding individual opening prompts
     for i in range(1, assembly.opening_qty + 1):

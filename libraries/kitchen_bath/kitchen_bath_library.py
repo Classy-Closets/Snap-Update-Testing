@@ -492,7 +492,7 @@ class PRODUCT_2_Door_2_Drawer_Upper(cabinets.Standard):
 
 #---------PRODUCT: DRAWER CABINETS
         
-class PRODUCT_1_Drawer(cabinets.Standard):
+class PRODUCT_1_Drawer_Base(cabinets.Standard):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().size_defaults
@@ -505,7 +505,7 @@ class PRODUCT_1_Drawer(cabinets.Standard):
         self.exterior = frameless_exteriors.INSERT_1_Drawer()
         # self.product_price = 200
 
-class PRODUCT_2_Drawer(cabinets.Standard):
+class PRODUCT_2_Drawer_Base(cabinets.Standard):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().size_defaults
@@ -520,7 +520,7 @@ class PRODUCT_2_Drawer(cabinets.Standard):
         if not props.equal_drawer_stack_heights:
             self.exterior.top_drawer_front_height = props.top_drawer_front_height
 
-class PRODUCT_3_Drawer(cabinets.Standard):
+class PRODUCT_3_Drawer_Base(cabinets.Standard):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().size_defaults
@@ -535,7 +535,7 @@ class PRODUCT_3_Drawer(cabinets.Standard):
         if not props.equal_drawer_stack_heights:
             self.exterior.top_drawer_front_height = props.top_drawer_front_height
             
-class PRODUCT_4_Drawer(cabinets.Standard):
+class PRODUCT_4_Drawer_Base(cabinets.Standard):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().size_defaults
@@ -687,7 +687,7 @@ class PRODUCT_2_Door_Blind_Left_Corner_Base(cabinets.Blind_Corner):
         self.height = props.base_cabinet_height
         self.depth = props.base_cabinet_depth
         self.carcass = carcass_simple.INSERT_Base_Carcass()
-        self.exterior = frameless_exteriors.INSERT_Base_Single_Door()
+        self.exterior = frameless_exteriors.INSERT_Base_Double_Door()
         self.interior = cabinet_shelves()
         # self.product_price = 400
 

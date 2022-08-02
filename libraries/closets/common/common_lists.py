@@ -977,3 +977,9 @@ EMPTY_PDF_FIELDS = {
     "design_date": "",
     "designer": ""
 }
+
+FULLBACK_LABEL_OPTIONS = {
+    0: 'FB|1/4"', 
+    1: 'FB|3/4"', 
+    2: 'FB|Cedar'
+}

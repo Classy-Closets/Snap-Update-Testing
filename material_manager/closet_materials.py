@@ -661,6 +661,10 @@ class SnapMaterialSceneProps(PropertyGroup):
                     'Duraply Almond'
                 ]
 
+                if assembly.obj_bp.get("IS_CEDAR_BACK"):
+                    sku = 'VN-0000005'
+                    return sku
+
                 if color_name in shared_sku_colors:
                     sku = 'PM-0000041'
                     return sku

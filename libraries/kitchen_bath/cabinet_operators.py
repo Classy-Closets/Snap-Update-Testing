@@ -146,34 +146,35 @@ def add_transition_molding(product,is_crown=True):
         return points
 
 def format_name(product_name):
-    product_name = product_name.replace("_", " ")
-    product_name = product_name.replace(" with ", " ")
-    product_name = product_name.replace(" and ", " ")
+    new_name = product_name.split('.', 1)[0]
+    new_name = new_name.replace("_", " ")
+    new_name = new_name.replace(" with ", " ")
+    new_name = new_name.replace(" and ", " ")
 
-    product_name = product_name.replace(" Base", "|Base")
-    product_name = product_name.replace(" Sink", "|Sink")
-    product_name = product_name.replace(" Tall", "|Tall")
-    product_name = product_name.replace(" Upper", "|Upper")
-    product_name = product_name.replace(" Suspended", "|Suspended")
+    new_name = new_name.replace(" Base", "|Base")
+    new_name = new_name.replace(" Sink", "|Sink")
+    new_name = new_name.replace(" Tall", "|Tall")
+    new_name = new_name.replace(" Upper", "|Upper")
+    new_name = new_name.replace(" Suspended", "|Suspended")
 
-    product_name = product_name.replace("Blind Left Corner", "Blind Left")
-    product_name = product_name.replace("Blind Right Corner", "Blind Right")
+    new_name = new_name.replace("Blind Left Corner", "Blind Left")
+    new_name = new_name.replace("Blind Right Corner", "Blind Right")
 
-    product_name = product_name.replace(" Door ", " Door|")
-    product_name = product_name.replace(" Drawer ", " Drawer|")
-    product_name = product_name.replace("Double", " Dbl")
+    new_name = new_name.replace(" Door ", " Door|")
+    new_name = new_name.replace(" Drawer ", " Drawer|")
+    new_name = new_name.replace("Double", " Dbl")
 
-    product_name = product_name.replace("Refrigerator", "2 Door|Refrigerator")
-    product_name = product_name.replace("Microwave ", "Microwave|")
-    product_name = product_name.replace("Micro ", "Microwave|")
-    product_name = product_name.replace(" Microwave", "|Microwave")
-    product_name = product_name.replace(" Vent", "|Vent")
-    product_name = product_name.replace(" Oven", "|Oven")
+    new_name = new_name.replace("Refrigerator", "2 Door|Refrigerator")
+    new_name = new_name.replace("Microwave ", "Microwave|")
+    new_name = new_name.replace("Micro ", "Microwave|")
+    new_name = new_name.replace(" Microwave", "|Microwave")
+    new_name = new_name.replace(" Vent", "|Vent")
+    new_name = new_name.replace(" Oven", "|Oven")
 
-    product_name = product_name.replace("Upper|Microwave", "Microwave|Upper")
-    product_name = product_name.replace("Upper|Vent", "Vent|Upper")
+    new_name = new_name.replace("Upper|Microwave", "Microwave|Upper")
+    new_name = new_name.replace("Upper|Vent", "Vent|Upper")
     
-    return product_name
+    return new_name
 
 class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
     bl_idname = "sn_cabinets.draw_plan"
@@ -232,19 +233,9 @@ class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
             r_filler_mesh.location.x = self.product.obj_x.location.x
             r_filler_mesh.location.y = self.product.obj_y.location.y
             
-        distance = sn_unit.inch(18) if self.product.obj_bp.location.z > 1 else sn_unit.inch(12)
-        distance += sn_unit.inch(6)
-        
-        dim = sn_types.Dimension()
-        dim.parent(assembly_mesh)
-        dim.start_y(value = distance)
-        dim.start_z(value = 0)
-        dim.end_x(value = self.product.obj_x.location.x)   
-
         dim_lbl = dim = sn_types.Dimension()
         dim_lbl.parent(assembly_mesh)
         dim_lbl.start_x(value=assembly_mesh.dimensions.x/2)
-        # dim_lbl.start_y(value=-assembly_mesh.dimensions.y + sn_unit.inch(1))
 
         product_name = format_name(self.product.obj_bp.name)
         if self.product.obj_bp.location.z > 1:  # if this is an upper...
@@ -255,16 +246,6 @@ class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
         dim_lbl.start_z(value=math.fabs(assembly_mesh.dimensions.z))
         dim_lbl.set_label(product_name)
 
-        # bpy.ops.object.text_add()
-        # text = context.active_object
-        # text.parent = assembly_mesh
-        # text.location.x = assembly_mesh.dimensions.x/2
-        # text.location.y = -assembly_mesh.dimensions.y + sn_unit.inch(1)
-        # text.location.z = math.fabs(assembly_mesh.dimensions.z)
-        # text.data.size = .1
-        # text.data.body = str(self.product.obj_bp.name)
-        # text.data.align = 'CENTER'
-        # text.data.font = sn_utils.get_custom_font()
         #TODO: Draw Fillers, Cabinet Shapes, Cabinet Text, Item Number
         return {'FINISHED'}
 

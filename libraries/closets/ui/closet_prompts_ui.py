@@ -166,6 +166,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     Right_End_Condition: EnumProperty(name="Right Side", items=common_lists.END_CONDITIONS, default='WP')
     add_left_filler: BoolProperty(name="Add Left Filler", default=False)
     add_right_filler: BoolProperty(name="Add Right Filler", default=False)
+    add_backing_throughout: BoolProperty(name="Add Backing Throughout", default=False)
 
     def update_filler_amt(self, context):
         self.right_filler_changed = True
@@ -445,11 +446,25 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 if child.get("PARTITION_NUMBER") == num:
                     return sn_types.Assembly(child)
 
+    def update_backing_ppts(self, opening_num):
+        backing_parts = self.closet.backing_parts[str(opening_num)]
+        for part in backing_parts:
+            use_top = part.get_prompt("Top Section Backing")
+            use_center = part.get_prompt("Center Section Backing")
+            use_bottom = part.get_prompt("Bottom Section Backing")
+
+            if use_top:
+                use_top.set_value(True)
+            if use_center:
+                use_center.set_value(True)
+            if use_bottom:
+                use_bottom.set_value(True)
+
     def update_backing(self, context):
         for i in range(self.closet.opening_qty):
             opening_num = i + 1
             add_backing_ppt = self.closet.get_prompt("Add Full Back " + str(opening_num))
-            backing_parts = None
+            add_backing_ppt.set_value(self.add_backing_throughout)
 
             if str(opening_num) in self.closet.backing_parts.keys():
                 backing_parts = self.closet.backing_parts[str(opening_num)]
@@ -463,6 +478,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                     self.closet.add_backing(opening_num, panel)
                     self.closet.update()
 
+                self.update_backing_ppts(opening_num)
+
             if not add_backing_ppt.get_value() and backing_parts:
                 for assembly in backing_parts:
                     sn_utils.delete_object_and_children(assembly.obj_bp)
@@ -474,7 +491,12 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                         if setback_ppt:
                             setback_ppt.set_value(0)
 
+        add_backing_throughout_ppt = self.closet.get_prompt("Add Backing Throughout")
+        if add_backing_throughout_ppt:
+            add_backing_throughout_ppt.set_value(self.add_backing_throughout)
+
         bpy.ops.object.select_all(action='DESELECT')
+        bpy.ops.closet_materials.assign_materials()
 
     def update_countertop(self):
         if self.countertop:
@@ -1129,6 +1151,11 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
             right_end_condition = self.closet.get_prompt("Right End Condition")
             self.is_island = self.closet.get_prompt("Is Island")
             self.is_single_island = self.closet.get_prompt("Inside Depth")
+            add_backing_throughout_ppt = self.closet.get_prompt("Add Backing Throughout")
+
+            if add_backing_throughout_ppt:
+                self.add_backing_throughout = add_backing_throughout_ppt.get_value()
+
             if left_end_condition:
                 combobox_index = left_end_condition.get_value()
                 self.Left_End_Condition = left_end_condition.combobox_items[combobox_index].name
@@ -1465,6 +1492,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         top_back_thickness_prompts = []
         center_back_thickness_prompts = []
         bottom_back_thickness_prompts = []
+        add_all_ppt = self.closet.get_prompt("Add Backing Throughout")
 
         for i in range(1, 10):
             add_full_back = self.closet.get_prompt("Add Full Back " + str(i))
@@ -1482,6 +1510,11 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 bottom_back_thickness_prompts.append(bottom_back_thickness)
 
         box = layout.box()
+
+        if add_all_ppt:
+            row = box.row()
+            row.prop(self, 'add_backing_throughout')
+
         row = box.row()
 
         for i in range(self.closet.opening_qty):

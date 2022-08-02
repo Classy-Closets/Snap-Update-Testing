@@ -505,6 +505,14 @@ class Assembly:
 
             return obj_cage
 
+    def delete_cage(self):
+        list_obj_cage = []
+        for child in self.obj_bp.children:
+            if child.get('IS_CAGE'):
+                list_obj_cage.append(child)
+                
+        sn_utils.delete_obj_list(list_obj_cage)
+
     def calc_width(self):
         """
         Calculates the width of the group based on the rotation.
@@ -543,7 +551,7 @@ class Assembly:
         # Need to calculate z1 and z2 for Hanging openings because their self.obj_z.matrix_world[2][3] is their location rather than their dimension point
         # and self.obj_bp.matrix_world[2][3] is always 0, causing height collision to always calculate to true
 
-        if self.obj_bp.get("IS_BP_CLOSET"):
+        if self.obj_bp.get("IS_BP_CLOSET") and not self.obj_bp.get("IS_BP_CABINET"):
             # If it is a haning opening, calculate the height and greatest opening height, then z1 is going to be the height and z2 is the height minus
             # The greatest opening height
             opening_qty = self.get_prompt("Opening Quantity")
@@ -575,7 +583,7 @@ class Assembly:
             grp1_z_loc = self.obj_bp.matrix_world[2][3]
             grp1_z_dim = self.obj_z.matrix_world[2][3]
 
-        if assembly.obj_bp.get("IS_BP_CLOSET"):
+        if assembly.obj_bp.get("IS_BP_CLOSET") and not self.obj_bp.get("IS_BP_CABINET"):
             # If it is a haning opening, calculate the height and greatest opening height, then z1 is going to be the height and z2 is the height minus
             # The greatest opening height
             opening_qty = assembly.get_prompt("Opening Quantity")

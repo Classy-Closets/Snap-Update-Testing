@@ -35,6 +35,7 @@ HIDE_TYPES = ['.sn_closets.is_panel_bp',
               '.sn_closets.is_cleat_bp',
               '.sn_closets.is_hamper_bp',
               '.snap.is_wall_mesh',
+              '.get("IS_BP_WALL_BED_VALANCE")',
               '.snap.type_mesh == "MACHINING"']
 
 VIS_TYPES = ['.sn_closets.is_cleat_bp',

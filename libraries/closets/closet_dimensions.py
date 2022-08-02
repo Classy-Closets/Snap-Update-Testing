@@ -1050,7 +1050,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         parent_height = parent_assembly.obj_z.location.z
         label_height = (opening.location[2] / -1) + lower_offset
         if position == "up":
-            opng_cage = [c for c in opening.children if c.type == 'MESH'][0]
+            opng_cage = opening_assembly.get_cage()
             opng_gl_z_loc = self.get_object_global_location(opng_cage)[2]
             wall_height = sn_types.Assembly(
                 sn_utils.get_wall_bp(opening)).obj_z.location.z
@@ -1060,6 +1060,7 @@ class SNAP_OT_Auto_Dimension(Operator):
             if diff_z < sn_unit.inch(4):
                 upper_offset -= sn_unit.inch(5)
             label_height += (parent_height + upper_offset)
+            opng_cage.hide_viewport = True
         dim = self.add_tagged_dimension(opening)
         dim.start_x(value=width/2)
         dim.start_y(value=depth)
@@ -1419,6 +1420,15 @@ class SNAP_OT_Auto_Dimension(Operator):
         for desired_high in desired_uppers:
             self.section_width_apply_lbl(desired_high[0], "up")
 
+    def wallbed_widths(self, wallbed_bp):
+        wallbed_assy = sn_types.Assembly(wallbed_bp)
+        if wallbed_assy:
+            wallbed_width = wallbed_assy.obj_x.location.x
+            wallbed_label = self.to_inch_lbl(wallbed_width)
+            dim = self.add_tagged_dimension(wallbed_bp)
+            dim.start_x(value=wallbed_width / 2)
+            dim.start_z(value=sn_unit.inch(-3))
+            dim.set_label(wallbed_label)
 
     def section_widths(self, context, wall_bp):
         opng_data = self.query_openings_data(context, wall_bp)
@@ -1739,11 +1749,15 @@ class SNAP_OT_Auto_Dimension(Operator):
         fullback_props = fullback_obj.sn_closets
         use_unique_mat = fullback_props.use_unique_material
         label = ''
+        is_cedar_back = assembly.obj_bp.get("IS_CEDAR_BACK")
 
-        if full_back_size == 0.25:
-            label = 'F/B|1/4'
-        if full_back_size == 0.75:
-            label = 'F/B|3/4'
+        if is_cedar_back:
+            label = 'F/B|Cedar'
+        elif not is_cedar_back:
+            if full_back_size == 0.25:
+                label = 'F/B|1/4'
+            if full_back_size == 0.75:
+                label = 'F/B|3/4'
 
         if use_unique_mat:
             mat_type = fullback_props.unique_mat_types
@@ -1762,6 +1776,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         dim.start_x(value=lbl_x)
         dim.start_y(value=lbl_y)
         dim.set_label(label)
+
 
     def slanted_shoes_shelves_old(self, item):
         already_tagged = item in tagged_sss_list
@@ -2734,12 +2749,12 @@ class SNAP_OT_Auto_Dimension(Operator):
 
     def get_door_size(self, door_height_metric):
         label = ""
+        tolerance = 0.25
         door_height = self.to_inch_str(door_height_metric)
         if door_height in common_lists.DOOR_SIZES_DICT.keys():
             label = common_lists.DOOR_SIZES_DICT[door_height]
         else:
             qry_result = False
-            tolerance = 0.25 
             for key, value in common_lists.DOOR_SIZES_DICT.items():
                 if abs(float(key) - float(door_height)) <= tolerance:
                     qry_result = True
@@ -2747,6 +2762,30 @@ class SNAP_OT_Auto_Dimension(Operator):
             if not qry_result:
                 label = str(opengl_dim.format_distance(float(door_height)))
         return label
+
+    def get_wallbed_door_size(self, door_height_metric):
+        label = ""
+        door_height = self.to_inch(door_height_metric)
+        door_height_str = str(door_height)
+        smallest = float(min(common_lists.DOOR_SIZES_DICT.keys()))
+        biggest = float(max(common_lists.DOOR_SIZES_DICT.keys()))
+        # If the door height value has an exact match, cool 
+        if door_height_str in common_lists.DOOR_SIZES_DICT.keys():
+            label = common_lists.DOOR_SIZES_DICT[door_height_str]
+        # If there isn't it will look until finding the nearest one...
+        else:
+            if door_height < smallest or door_height > biggest:
+                return door_height
+            smallest_meas_diff = math.inf
+            smallest_meas_diff_hole_number = ''
+            for key, value in common_lists.DOOR_SIZES_DICT.items():
+                meas_diff = abs(float(key) - float(door_height_str))
+                if meas_diff < smallest_meas_diff:
+                    smallest_meas_diff = meas_diff
+                    smallest_meas_diff_hole_number = value
+            return smallest_meas_diff_hole_number
+        return label
+
 
     def get_drawer_size_by_dim(self, drawer_height):
         drawer_h_query = str(round(drawer_height * 1000, 3))
@@ -2889,11 +2928,110 @@ class SNAP_OT_Auto_Dimension(Operator):
             return True
         return False
 
+    def label_regular_doors(self, assembly, door_obj):
+        has_pointers = self.door_has_pointers(door_obj.parent)
+        door_assy = sn_types.Assembly(door_obj)
+        door_height = door_assy.obj_x.location.x
+        if not has_pointers:
+            y_offset = (assembly.obj_y.location.y / 5) * 4
+            if 'left' in door_obj.name.lower():
+                y_offset = (assembly.obj_y.location.y / 5) * 4
+            elif 'right' in door_obj.name.lower():
+                y_offset = (assembly.obj_y.location.y / 5) * 1
+            label = self.get_door_size(door_height)
+            dim = self.add_tagged_dimension(door_obj)
+            dim.start_x(
+                value=(assembly.obj_x.location.x / 5) * 4)
+            dim.start_y(value=y_offset)
+            dim.set_label(label)
+        elif has_pointers:
+            label = self.get_door_size(door_height)
+            dim = self.add_tagged_dimension(door_obj)
+            dim.start_x(
+                value=(assembly.obj_x.location.x / 5) * 4)
+            dim.start_y(value=assembly.obj_y.location.y / 2)
+            dim.set_label(label)
+
+    def label_wallbed_doors(self, door_obj):
+        # NOTE There's a difference between wallbeds prompt info for door
+        #      AND door height, being always... 1.01"
+        diff_prompts_and_height = sn_unit.inch(1.01)
+        door_assy = sn_types.Assembly(door_obj)
+        if not door_assy:
+            return
+        door_height = door_assy.obj_y.location.y + diff_prompts_and_height
+        door_width = door_assy.obj_x.location.x
+        label = self.get_wallbed_door_size(door_height)
+        dim = self.add_tagged_dimension(door_obj)
+        dim.start_x(
+            value=(door_width / 4) * 3)
+        dim.start_y(value=(door_height / 5) * 4)
+        dim.start_z(value=0)
+        if 'H' in label:
+            dim.set_label(label)
+        elif 'H' not in label:
+            lbl_value = self.to_inch_lbl(door_height)
+            dim.set_label(lbl_value)
+
+    def label_wallbed_drawer(self, drawer):
+        if not drawer:
+            return
+        drw_assy = sn_types.Assembly(drawer)
+        if not drw_assy:
+            return
+        drawer_face_height = drw_assy.obj_y.location.y
+        drawer_face_width = drw_assy.obj_x.location.x
+        drawer_height_str = self.to_inch_str(abs(drawer_face_height))
+        face_value = common_lists.DOOR_SIZES_DICT.get(drawer_height_str, None)
+        if face_value:
+            dim = self.add_tagged_dimension(drawer)
+            dim.start_x(value=(drawer_face_width / 5) * 4)
+            dim.start_y(value=drawer_face_height / 2)
+            dim.set_label(face_value)
+
+    def wallbed_doors(self):
+        wallbed_doors_to_lbl = []
+        wallbed_doors = [o for o in bpy.data.objects \
+                if o.get('IS_DOOR') and sn_utils.get_wallbed_bp(o)]
+        for door in wallbed_doors:
+            for child in door.children:
+                is_mesh = child.type == 'MESH'
+                not_hidden = not child.hide_render
+                seen = door in wallbed_doors_to_lbl
+                if is_mesh and not_hidden and not seen:
+                    wallbed_doors_to_lbl.append(door)
+        for door in wallbed_doors_to_lbl:
+            wallbed_bp = sn_utils.get_wallbed_bp(door)
+            has_doors = sn_types.Assembly(
+                wallbed_bp).get_prompt("Add Doors And Drawers")
+            backdoor = 'backing' in door.name.lower()
+            if has_doors and has_doors.get_value() and not backdoor:
+                self.label_wallbed_doors(door)
+            elif has_doors and not has_doors.get_value() and backdoor:
+                self.label_wallbed_doors(door)
+
+    def wallbed_drawers(self):
+        wallbed_drawers_to_lbl = []
+        wallbed_drawers = [o for o in bpy.data.objects \
+                if o.get('IS_BP_DRAWER_FRONT') and sn_utils.get_wallbed_bp(o)]
+        for drawer in wallbed_drawers:
+            for child in drawer.children:
+                if child.type == 'MESH' and not child.hide_render:
+                    wallbed_drawers_to_lbl.append(drawer)
+        for drawer_label in wallbed_drawers_to_lbl:
+            self.label_wallbed_drawer(drawer_label)
+
     def execute(self, context):
         self.clean_up_scene(context)
         scene_props = get_dimension_props()
         self.font = opengl_dim.get_custom_font()
         self.font_bold = opengl_dim.get_custom_font_bold()
+
+        if scene_props.door_face_height:
+            self.wallbed_doors()
+
+        if scene_props.label_drawer_front_height:
+            self.wallbed_drawers()
 
         # Set Closet Product Annotations
         for wall_bp in scene_walls(context):
@@ -2968,28 +3106,8 @@ class SNAP_OT_Auto_Dimension(Operator):
             if props.is_door_bp and scene_props.door_face_height:
                 door_obj = assembly.obj_bp
                 if not sn_utils.get_wallbed_bp(door_obj) and door_obj.parent:
-                    has_pointers = self.door_has_pointers(door_obj.parent)
-                    door_assy = sn_types.Assembly(door_obj)
-                    door_height = door_assy.obj_x.location.x
-                    if not has_pointers:
-                        y_offset = (assembly.obj_y.location.y / 5) * 4
-                        if 'left' in door_obj.name.lower():
-                            y_offset = (assembly.obj_y.location.y / 5) * 4
-                        elif 'right' in door_obj.name.lower():
-                            y_offset = (assembly.obj_y.location.y / 5) * 1
-                        label = self.get_door_size(door_height)
-                        dim = self.add_tagged_dimension(door_obj)
-                        dim.start_x(
-                            value=(assembly.obj_x.location.x / 5) * 4)
-                        dim.start_y(value=y_offset)
-                        dim.set_label(label)
-                    elif has_pointers:
-                        label = self.get_door_size(door_height)
-                        dim = self.add_tagged_dimension(door_obj)
-                        dim.start_x(
-                            value=(assembly.obj_x.location.x / 5) * 4)
-                        dim.start_y(value=assembly.obj_y.location.y / 2)
-                        dim.set_label(label)
+                    self.label_regular_doors(assembly, door_obj)
+
             # DRAWER FRONT HEIGHT LABEL
             parent = assembly.obj_bp.parent
             in_island = False
@@ -3087,6 +3205,9 @@ class SNAP_OT_Auto_Dimension(Operator):
                 for dim in existing_dims:
                     bpy.data.objects.remove(dim, do_unlink=True)
                 self.obstacle_label_dimension(assembly)
+
+            if scene_props.section_widths and assembly.obj_bp.get("IS_BP_WALL_BED"):
+                self.wallbed_widths(assembly.obj_bp)
 
             # Toe Kick Labels
             if props.is_toe_kick_bp:

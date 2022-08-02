@@ -125,7 +125,7 @@ def load_libraries(scene=None):
         path = os.path.join(sn_paths.CLOSET_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
 
         if scene_props.active_library_name == "Kitchen Bath Library" and prefs.enable_kitchen_bath_lib:
-            path = os.path.join(sn_paths.KITCHEN_BATH_THUMB_DIR, sn_paths.DEFAULT_CATEGORY)
+            path = os.path.join(sn_paths.KITCHEN_BATH_THUMB_DIR, sn_paths.DEFAULT_KITCHEN_BATH_CATEGORY)
         else:
             scene_props.active_library_name = "Product Library"
 
@@ -167,7 +167,7 @@ def default_settings(scene=None):
         edge = scene.closet_materials.edges.get_edge_color().name
         custom_colors = scene.closet_materials.use_custom_color_scheme
 
-        if mat != edge and not custom_colors:
+        if mat != edge and not custom_colors and mat != "Duraply Almond":
             scene.closet_materials.set_defaults()
 
         scene.closet_materials.defaults_set = True

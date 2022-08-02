@@ -15,6 +15,6 @@ from snap import closets
 
 
 if __name__ == "__main__":
-    cos_xml = sys.argv[1]
+    cos_xml = sys.argv[4]
     # cos_xml = "path/to/xml_file"
     closets.project_pricing.calculate_project_price(cos_xml, True)

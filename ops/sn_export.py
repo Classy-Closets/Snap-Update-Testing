@@ -1281,7 +1281,9 @@ class OPS_Export_XML(Operator):
             # Slab Drawer Front with Insert = material_number + 57
 
         # Drawer Box
-        use_dovetail_construction = assembly.get_prompt("Use Dovetail Construction")
+        use_dovetail_construction = False
+        if assembly.get_prompt("Use Dovetail Construction"):
+            use_dovetail_construction = assembly.get_prompt("Use Dovetail Construction").get_value()
         drawer_material_number = "20"
         if use_dovetail_construction:
             drawer_material_number = "22"
@@ -4251,6 +4253,7 @@ class OPS_Export_XML(Operator):
                                 edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
 
             #Drawers
+            #Removed EB for Dovetail Construction 7/19/22 Ken Cook
             if obj_props.is_drawer_front_bp:
                 if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
                     edge_1 = "L1"
@@ -4267,21 +4270,24 @@ class OPS_Export_XML(Operator):
                 edge_3_sku = closet_materials.get_edge_sku(obj, assembly, part_name)
                 edge_4_sku = closet_materials.get_edge_sku(obj, assembly, part_name)                            
 
-            if obj_props.is_drawer_sub_front_bp:
+            use_dovetail_construction = False
+            if assembly.get_prompt("Use Dovetail Construction"):
+                use_dovetail_construction = assembly.get_prompt("Use Dovetail Construction").get_value()
+            if obj_props.is_drawer_sub_front_bp and not use_dovetail_construction:
                 if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
                     edge_2 = "L1"
                 else:
                     edge_2 = "S1"
                 edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name) 
 
-            if obj_props.is_drawer_side_bp:
+            if obj_props.is_drawer_side_bp and not use_dovetail_construction:
                 if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
                     edge_2 = "S1"
                 else:
                     edge_2 = "L1"
                 edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name) 
 
-            if obj_props.is_drawer_back_bp:
+            if obj_props.is_drawer_back_bp and not use_dovetail_construction:
                 if(abs(assembly.obj_x.location.x)>abs(assembly.obj_y.location.y)):
                     edge_2 = "L1"
                 else:
@@ -4860,7 +4866,7 @@ class OPS_Export_XML(Operator):
 
             if ppt_dogear and ppt_dogear_depth:
                 if ppt_dogear.get_value():
-                    dogear_lbl = [("DogEaredDepth", "text", self.distance(ppt_dogear_depth.get_value()))]
+                    dogear_lbl = [("DogEaredDepth", "text", self.distance(abs(assembly.obj_y.location.y) - ppt_dogear_depth.get_value()))]
                     lbl.extend(dogear_lbl)
 
             if assembly.obj_bp.get("IS_BP_L_SHELF") or assembly.obj_bp.get("IS_BP_ANGLE_SHELF"):

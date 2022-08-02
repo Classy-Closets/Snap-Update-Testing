@@ -114,6 +114,15 @@ class PlaceClosetAsset():
         context.window.cursor_set('DEFAULT')
         context.area.header_text_set(None)        
 
+    def set_wire_and_xray(self, obj, turn_on):
+        if turn_on:
+            obj.display_type = 'WIRE'
+        else:
+            obj.display_type = 'TEXTURED'
+        obj.show_in_front = turn_on
+        for child in obj.children:
+            self.set_wire_and_xray(child, turn_on)
+
     def hide_cages(self, context):
         for obj in context.visible_objects:
             if 'IS_CAGE' in obj and 'IS_OBSTACLE' not in obj.parent:
@@ -689,6 +698,21 @@ class SN_CLOSET_OT_place_product(Operator, PlaceClosetAsset):
             if self.validate_placement(context):
                 self.confirm_placement(context)
                 return self.finish(context)
+
+        if event.type == 'RIGHTMOUSE' and self.asset.obj_bp.get("IS_BP_CABINET"):
+            wall_bp = sn_utils.get_wall_bp(self.selected_obj)
+            if wall_bp:
+                x_loc = sn_utils.calc_distance((self.asset.obj_bp.location.x,self.asset.obj_bp.location.y,0),
+                                        (wall_bp.matrix_local[0][3],wall_bp.matrix_local[1][3],0))
+                self.asset.obj_bp.location = (0,0,self.asset.obj_bp.location.z)
+                self.asset.obj_bp.rotation_euler = (0,0,0)
+                self.asset.obj_bp.parent = wall_bp
+                self.asset.obj_bp.location.x = x_loc
+                bpy.ops.sn_general.product_placement_options('INVOKE_DEFAULT',object_name=self.asset.obj_bp.name)
+                bpy.ops.closet_materials.assign_materials()
+                self.set_wire_and_xray(self.asset.obj_bp, False)  
+                bpy.context.window.cursor_set('DEFAULT')
+                return self.finish(context) 
 
         if self.event_is_cancel_command(event):
             return self.cancel_drop(context)

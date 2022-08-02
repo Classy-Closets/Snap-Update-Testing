@@ -4,7 +4,10 @@ import time
 
 import bpy
 from bpy.types import Operator
-from bpy.props import BoolProperty
+from bpy.props import (
+    BoolProperty,
+    StringProperty,
+    FloatProperty)
 
 from snap import sn_types, sn_unit
 from snap import sn_utils
@@ -13,6 +16,7 @@ from ..common import common_parts
 from .. import closet_paths
 from ..ops.drop_closet import PlaceClosetInsert
 from ..data import data_drawers
+from ..data import data_closet_carcass
 
 
 def get_carcass_insert(product):
@@ -1868,6 +1872,105 @@ class SNAP_OT_Update_Drawer_boxes(Operator):
         return {'FINISHED'}
 
 
+class SN_OT_update_backing_prompts(Operator):
+    bl_idname = "sn_closets.update_backing_prompts"
+    bl_label = "Update section backing"
+    bl_description = "This will update section backing"
+    bl_options = {'UNDO'}
+
+    add_backing: BoolProperty(name="Add Backing", default=False)
+
+    def get_panel(self, num, product):
+        for child in product.obj_bp.children:
+            if 'IS_BP_PANEL' in child and 'PARTITION_NUMBER' in child:
+                if child.get("PARTITION_NUMBER") == num:
+                    return sn_types.Assembly(child)
+
+    def execute(self, context):
+        defaults = context.scene.sn_closets.closet_defaults
+
+        if defaults.backing_type == "1/4":
+            thickness = 0
+        elif defaults.backing_type == "3/4":
+            thickness = 1
+        else:
+            thickness = 2
+
+        for obj in context.scene.objects:
+            if obj.get("IS_BP_WALL"):
+                wall = sn_types.Wall(obj_bp=obj)
+
+                for obj in wall.obj_bp.children:
+                    if obj.get("IS_BP_ASSEMBLY") and obj.get("IS_BP_CLOSET"):
+                        if obj.get("IS_BP_CABINET") or obj.get("IS_BP_ISLAND"):
+                            continue
+
+                        elif obj.get("IS_BP_CORNER_SHELVES") or obj.get("IS_BP_L_SHELVES"):
+                            product = sn_types.Assembly(obj)
+                            add_backing = product.get_prompt("Add Backing")
+                            if add_backing:
+                                add_backing.set_value(self.add_backing)
+                                continue
+
+                        else:
+                            product = data_closet_carcass.Closet_Carcass(obj)
+                            add_backing_throughout = product.get_prompt("Add Backing Throughout")
+                            back_parts_len = len(product.backing_parts["1"])
+
+                            if add_backing_throughout and back_parts_len < 1:
+                                for i in range(product.opening_qty):
+                                    opening_num = i + 1
+                                    add_backing_ppt = product.get_prompt("Add Full Back " + str(opening_num))
+                                    add_backing_ppt.set_value(self.add_backing)
+
+                                    if opening_num == 1:
+                                        product.add_backing(opening_num, None)
+                                        product.update()
+                                    else:
+                                        panel = self.get_panel(i, product)
+                                        product.add_backing(opening_num, panel)
+                                        product.update()
+                                add_backing_throughout.set_value(self.add_backing)
+
+                            for child in product.obj_bp.children:
+                                back_parts = (
+                                    child.sn_closets.is_back_bp,
+                                    child.sn_closets.is_top_back_bp,
+                                    child.sn_closets.is_bottom_back_bp)
+
+                                if any(back_parts):
+                                    part = sn_types.Assembly(child)
+                                    product = sn_types.Assembly(sn_utils.get_closet_bp(child))
+                                    opening_num = part.obj_bp.sn_closets.opening_name
+                                    use_top = part.get_prompt("Top Section Backing")
+                                    use_center = part.get_prompt("Center Section Backing")
+                                    use_bottom = part.get_prompt("Bottom Section Backing")
+                                    top_back_thickness = product.get_prompt(
+                                        "Opening " + str(opening_num) + " Top Backing Thickness")
+                                    center_back_thickness = product.get_prompt(
+                                        "Opening " + str(opening_num) + " Center Backing Thickness")
+                                    bottom_back_thickness = product.get_prompt(
+                                        "Opening " + str(opening_num) + " Bottom Backing Thickness")
+
+                                    if use_top:
+                                        use_top.set_value(self.add_backing)
+                                        if top_back_thickness:
+                                            top_back_thickness.set_value(thickness)
+                                    if use_center:
+                                        use_center.set_value(self.add_backing)
+                                        if center_back_thickness:
+                                            center_back_thickness.set_value(thickness)
+                                    if use_bottom:
+                                        use_bottom.set_value(self.add_backing)
+                                        if bottom_back_thickness:
+                                            bottom_back_thickness.set_value(thickness)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.ops.closet_materials.assign_materials()
+
+        return {'FINISHED'}
+
+
 classes = (
     SNAP_OT_delete_closet,
     SNAP_OT_delete_closet_insert,
@@ -1887,7 +1990,8 @@ classes = (
     SNAP_OT_Auto_Add_Molding,
     SNAP_OT_Delete_Molding,
     SNAP_OT_Assembly_Copy_Drop,
-    SNAP_OT_Update_Drawer_boxes
+    SNAP_OT_Update_Drawer_boxes,
+    SN_OT_update_backing_prompts
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)
