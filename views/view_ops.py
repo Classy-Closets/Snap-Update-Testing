@@ -1750,45 +1750,46 @@ class VIEW_OT_generate_2d_views(Operator):
     def pv_wall_labels(self, wall):
         x_loc = self.wall_largest_part_xloc(wall)
         wall_width = wall.obj_x.location.x
-        wall_depth = wall.obj_y.location.y
-        wall_height = wall.obj_z.location.z
-        wall_angle = round(math.degrees(wall.obj_bp.rotation_euler.z))
+        if wall_width > 0.0:
+            wall_depth = wall.obj_y.location.y
+            wall_height = wall.obj_z.location.z
+            wall_angle = round(math.degrees(wall.obj_bp.rotation_euler.z))
 
-        # Dimension line
-        dim = sn_types.Dimension()
-        dim_label = f'{self.to_inch_str(wall_width)}"'
-        dim.parent(wall.obj_bp)
-        if wall_angle == 180:
-            dim.start_x(value=wall_width)
-            dim.end_x(value=-wall_width)
-        else:
-            dim.end_x(value=wall_width)
-        dim.start_y(value=unit.inch(4) + wall_depth)
-        dim.start_z(value=wall_height + unit.inch(8))
-        dim.set_label(dim_label)
+            # Dimension line
+            dim = sn_types.Dimension()
+            dim_label = f'{self.to_inch_str(wall_width)}"'
+            dim.parent(wall.obj_bp)
+            if wall_angle == 180:
+                dim.start_x(value=wall_width)
+                dim.end_x(value=-wall_width)
+            else:
+                dim.end_x(value=wall_width)
+            dim.start_y(value=unit.inch(4) + wall_depth)
+            dim.start_z(value=wall_height + unit.inch(8))
+            dim.set_label(dim_label)
 
-        self.ignore_obj_list.append(dim.anchor)
-        self.ignore_obj_list.append(dim.end_point)
+            self.ignore_obj_list.append(dim.anchor)
+            self.ignore_obj_list.append(dim.end_point)
 
-        # Wall name label
-        wall_label = sn_types.Dimension()
-        # Rotation mode for anchor needs to be changed to allow
-        # Y-axis rotation in Plan View
-        wall_label.anchor.rotation_mode = 'YZX'
-        wall_label.parent(wall.obj_bp)
-        if not x_loc:
-            wall_label.start_x(value=wall_width / 2)
-        elif x_loc:
-            wall_label.start_x(value=x_loc)
-        wall_label.start_y(value=wall_depth / 2)
-        wall_label.start_z(value=wall_height)
-        lbl_rot_x = math.radians(-90)
-        if wall_angle == 180:
-            lbl_rot_y = 0
-        else:
-            lbl_rot_y = math.radians(-wall_angle)
-        wall_label.anchor.rotation_euler = (lbl_rot_x, lbl_rot_y, 0)
-        wall_label.set_label(wall.obj_bp.snap.name_object)
+            # Wall name label
+            wall_label = sn_types.Dimension()
+            # Rotation mode for anchor needs to be changed to allow
+            # Y-axis rotation in Plan View
+            wall_label.anchor.rotation_mode = 'YZX'
+            wall_label.parent(wall.obj_bp)
+            if not x_loc:
+                wall_label.start_x(value=wall_width / 2)
+            elif x_loc:
+                wall_label.start_x(value=x_loc)
+            wall_label.start_y(value=wall_depth / 2)
+            wall_label.start_z(value=wall_height)
+            lbl_rot_x = math.radians(-90)
+            if wall_angle == 180:
+                lbl_rot_y = 0
+            else:
+                lbl_rot_y = math.radians(-wall_angle)
+            wall_label.anchor.rotation_euler = (lbl_rot_x, lbl_rot_y, 0)
+            wall_label.set_label(wall.obj_bp.snap.name_object)
 
     def wall_largest_part_xloc(self, wall):
         wall_ch = wall.obj_bp.children
@@ -5247,7 +5248,8 @@ class VIEW_OT_generate_2d_views(Operator):
         views_props = context.window_manager.views_2d
         accordions_only = views_props.views_option == 'ACCORDIONS'
         elevations_only = views_props.views_option == 'ELEVATIONS'
-        if room_type == 'SINGLE':
+        wall_qty = context.window_manager.snap.main_scene_wall_qty
+        if room_type == 'SINGLE' or wall_qty == 1:
             accordions_only = False
             elevations_only = True
         context.window_manager.snap.use_opengl_dimensions = True
@@ -5374,7 +5376,7 @@ class VIEW_OT_generate_2d_views(Operator):
 
             virtual = self.create_virtual_scene()
             if len(walls) > 0:
-                if elevations_only and room_type != 'SINGLE':
+                if elevations_only and room_type != 'SINGLE' and wall_qty > 1:
                     assy_dict = self.add_cross_sections(walls, wall_groups)
                     self.add_remaining_space_dims(assy_dict, wall_groups)
                     self.add_corner_cross_sections_dims(walls, wall_groups)

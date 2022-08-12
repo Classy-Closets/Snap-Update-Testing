@@ -263,7 +263,7 @@ class SecondaryEdges(PropertyGroup):
 
     def draw(self, layout):
         box = layout.box()
-        box.label(text="Secondary Edge Selection:")
+        box.label(text="Cleat Edge Selection:")
 
         if len(self.edge_types) > 0:
             row = box.row()

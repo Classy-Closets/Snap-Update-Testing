@@ -817,10 +817,12 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             pages (list): A list with the paths of the saved images.
         """
         props = bpy.context.window_manager.views_2d
+        wm_props = bpy.context.window_manager.snap
+        wall_qty = wm_props.main_scene_wall_qty
         accordions_mode = props.views_option == 'ACCORDIONS'
         elevations_mode = props.views_option == 'ELEVATIONS'
         room_type = bpy.context.scene.sn_roombuilder.room_type
-        if room_type == 'SINGLE':
+        if room_type == 'SINGLE' or wall_qty == 1:
             accordions_mode = False
             elevations_mode = True
         pages = []
@@ -844,7 +846,7 @@ class OPERATOR_create_pdf(bpy.types.Operator):
             page_layout = props.accordions_layout_setting
         elif just_islands and elevations_mode:
             page_layout = props.page_layout_setting
-        if room_type == 'SINGLE':
+        if room_type == 'SINGLE' or wall_qty == 1:
             page_layout = props.single_page_layout_setting
         #  NOTE 1) For each accordion there will be one page for it
         #      2) Plan views also as they have their page once it's there the

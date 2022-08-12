@@ -15,6 +15,13 @@ from snap import sn_types, sn_unit, sn_utils, sn_db, sn_paths, sn_xml, bl_info
 from . import closet_props
 from . import closet_utils
 import xml.etree.ElementTree as ET
+import openpyxl
+import pandas
+import numpy
+import et_xmlfile
+from openpyxl.formatting.rule import ColorScaleRule, CellIsRule, FormulaRule
+from openpyxl.styles import Font, PatternFill, Border
+
 
 PRICING_PROPERTY_NAMESPACE = "sn_project_pricing"
 
@@ -188,11 +195,11 @@ def price_check(sku_num, franchise, retail):
 
 
 def set_column_width(sheet):
-    try:
-        import openpyxl
-    except ModuleNotFoundError:
-        python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-        sys.path.append(python_lib_path)
+    # try:
+    #     import openpyxl
+    # except ModuleNotFoundError:
+    #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+    #     sys.path.append(python_lib_path)
 
     ws = sheet
     dims = {}
@@ -218,13 +225,15 @@ def display_parts_summary(parts_file):
 
 
 def generate_retail_pricing_summary(parts_file):
-    try:
-        import openpyxl
-        import et_xmlfile
-        import pandas
-    except ModuleNotFoundError:
-        python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-        sys.path.append(python_lib_path)
+    # try:
+    #     import openpyxl
+    #     import et_xmlfile
+    #     import pandas
+    # except ModuleNotFoundError:
+    #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+    #     sys.path.append(python_lib_path)
+
+    red_fill = PatternFill(bgColor="FFCCCB")
 
     wb = openpyxl.Workbook()
     pricing_sheet = wb.active
@@ -267,12 +276,10 @@ def generate_retail_pricing_summary(parts_file):
         pricing_sheet["D" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["E" + str(row_start + 1)] = "Discount Value"
         pricing_sheet["E" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["F" + str(row_start + 1)] = "Adjusted Total"
-        pricing_sheet["F" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["A" + str(row_start + 2)] = "Special Order Items Count"
         pricing_sheet["A" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["B" + str(row_start + 2)] = "See Special Order tab for details"
-        pricing_sheet["C" + str(row_start + 2)] = R_ROOM_PRICING_LIST[i][7]
+        pricing_sheet["C" + str(row_start + 2)] = "=COUNTIF('Special Order'!A:A," + "C" + str(row_start + 1) + ")"
         pricing_sheet["A" + str(row_start + 3)] = "Materials Price"
         pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["C" + str(row_start + 3)] = R_ROOM_PRICING_LIST[i][3]
@@ -317,36 +324,61 @@ def generate_retail_pricing_summary(parts_file):
         pricing_sheet["A" + str(row_start + 7)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["C" + str(row_start + 7)] = "=SUMIF('Special Order'!A:A," + "C" + str(row_start + 1) +  ",'Special Order'!O:O)"
         pricing_sheet["C" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["A" + str(row_start + 8)] = "Room Total Price"
+        pricing_sheet["A" + str(row_start + 8)] = "Discounts"
         pricing_sheet["A" + str(row_start + 8)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["C" + str(row_start + 8)] = "=SUM(C" + str(row_start + 3) + ":C" + str(row_start + 7) + ")"
+        pricing_sheet["C" + str(row_start + 8)] = "=SUM(E" + str(row_start + 3) + ":E" + str(row_start + 6) + ")"
         pricing_sheet["C" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["F" + str(row_start + 8)] = "=C" + str(row_start + 8) + "-SUM(E" + str(row_start + 3) + ":E" + str(row_start + 7) + ")"
-        pricing_sheet["F" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["C" + str(row_start + 8)].font = openpyxl.styles.Font(color="00339966")
+        pricing_sheet["A" + str(row_start + 9)] = "Room Subtotal"
+        pricing_sheet["A" + str(row_start + 9)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 9)] = "=SUM(C" + str(row_start + 3) + ":C" + str(row_start + 7) + ")" + "-" + "C" + str(row_start + 8)
+        pricing_sheet["C" + str(row_start + 9)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 10)] = "Delivery Charge (15%)"
+        pricing_sheet["A" + str(row_start + 10)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 10)] = "=" + "C" + str(row_start + 9) + "*.150"
+        pricing_sheet["C" + str(row_start + 10)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 11)] = "Adjusted Room Subtotal"
+        pricing_sheet["A" + str(row_start + 11)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 11)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10)
+        pricing_sheet["C" + str(row_start + 11)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 12)] = "O.D.C Price"
+        pricing_sheet["A" + str(row_start + 12)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 12)] = 0
+        pricing_sheet["C" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 13)] = "Tear Out Price"
+        pricing_sheet["A" + str(row_start + 13)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 13)] = 0
+        pricing_sheet["C" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 14)] = "Room Grand Total"
+        pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 14)] = "=" + "C" + str(row_start + 11) + "+C" + str(row_start + 12) + "+C" + str(row_start + 13)
+        pricing_sheet["C" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
         erp_sheet["A" + str(erp_row + 2)] = R_ROOM_PRICING_LIST[i][0]
         erp_sheet["A" + str(erp_row + 2)].font = openpyxl.styles.Font(bold=True)
-        erp_sheet["B" + str(erp_row + 2)] = "='Retail Pricing Summary'!" + "C" + str(row_start + 8)
+        erp_sheet["B" + str(erp_row + 2)] = "='Retail Pricing Summary'!" + "C" + str(row_start + 9)
         erp_sheet["B" + str(erp_row + 2)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        erp_sheet["C" + str(erp_row + 2)] = "='Retail Pricing Summary'!" + "F" + str(row_start + 8)
+        erp_sheet["C" + str(erp_row + 2)] = "='Retail Pricing Summary'!" + "C" + str(row_start + 14)
         erp_sheet["C" + str(erp_row + 2)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         erp_sheet["D" + str(erp_row + 2)] = "=C" + str(erp_row + 2) + "*0.3"
         erp_sheet["D" + str(erp_row + 2)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         erp_sheet["E" + str(erp_row + 2)] = "=D" + str(erp_row + 2) + "*0.5"
         erp_sheet["E" + str(erp_row + 2)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
-        pricing_sheet["A" + str(row_start + 9)] = ""
+        pricing_sheet["A" + str(row_start + 15)] = ""
         row_start = pricing_sheet.max_row
         erp_row = erp_sheet.max_row
 
-
-    pricing_sheet["B" + str(row_start + 2)] = "Other Special Order Items"
+    pricing_sheet["B" + str(row_start + 2)] = "Unassigned Special Order Items"
     pricing_sheet["B" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
-    pricing_sheet["A" + str(row_start + 3)] = "Other Special Order Price"
+    pricing_sheet["A" + str(row_start + 3)] = "Unassigned Special Order Price"
     pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["B" + str(row_start + 3)] = "See Special Order tab for details"
     pricing_sheet["C" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["C" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+    pricing_sheet.conditional_formatting.add("C" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet["D" + str(row_start + 3)] = "=IF(" + "C" + str(row_start + 3) + ">0," + '"Please assign Room Names for these items"' + "," + '""' + ")"
+    pricing_sheet.conditional_formatting.add("D" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
 
     pricing_sheet["B" + str(row_start + 6)] = "Project Totals"
     pricing_sheet["B" + str(row_start + 6)].font = openpyxl.styles.Font(bold=True)
@@ -418,13 +450,15 @@ def generate_retail_pricing_summary(parts_file):
 
 
 def generate_franchise_pricing_summary(parts_file):
-    try:
-        import openpyxl
-        import et_xmlfile
-        import pandas
-    except ModuleNotFoundError:
-        python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-        sys.path.append(python_lib_path)
+    # try:
+    #     import openpyxl
+    #     import et_xmlfile
+    #     import pandas
+    # except ModuleNotFoundError:
+    #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+    #     sys.path.append(python_lib_path)
+
+    red_fill = PatternFill(bgColor="FFCCCB")
 
     wb = openpyxl.Workbook()
     pricing_sheet = wb.active
@@ -432,7 +466,12 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet.HeaderFooter.oddHeader.left.text = "Client Name: {}\nClient ID: {}".format(CLIENT_NAME, CLIENT_ID)
     pricing_sheet.HeaderFooter.oddHeader.center.text = "Pricing Summary Sheet\nJob Number: {}".format(JOB_NUMBER)
     pricing_sheet.HeaderFooter.oddHeader.right.text = "Project Name: {}\nDesign Date: {}".format(PROJECT_NAME, DESIGN_DATE)
-    row_start = 0
+    pricing_sheet.merge_cells('B1:E1')
+    cell = pricing_sheet.cell(row=1, column=2)
+    cell.value = "SNaP Version: {}.{}.{}".format(bl_info['version'][0], bl_info['version'][1], bl_info['version'][2])
+    cell.alignment = openpyxl.styles.Alignment(horizontal='center', vertical='center')
+    # cell.fill = openpyxl.styles.fills.PatternFill(patternType='solid', bgColor='d3ede3')
+    row_start = 2
 
     for i in range(len(F_ROOM_PRICING_LIST)):
         pricing_sheet["A" + str(row_start + 1)] = "Room Name"
@@ -445,13 +484,11 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["E" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["F" + str(row_start + 1)] = "Discount Value"
         pricing_sheet["F" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["G" + str(row_start + 1)] = "Adjusted Retail Total"
-        pricing_sheet["G" + str(row_start + 1)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["A" + str(row_start + 2)] = "Special Order Items Count"
         pricing_sheet["A" + str(row_start + 2)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["B" + str(row_start + 2)] = "See Special Order tab for details"
-        pricing_sheet["C" + str(row_start + 2)] = F_ROOM_PRICING_LIST[i][7]
-        pricing_sheet["D" + str(row_start + 2)] = R_ROOM_PRICING_LIST[i][7]
+        pricing_sheet["C" + str(row_start + 2)] = "=COUNTIF('Special Order'!A:A," + "C" + str(row_start + 1) + ")"
+        pricing_sheet["D" + str(row_start + 2)] = "=COUNTIF('Special Order'!A:A," + "D" + str(row_start + 1) + ")"
         pricing_sheet["A" + str(row_start + 3)] = "Materials Price"
         pricing_sheet["A" + str(row_start + 3)].font = openpyxl.styles.Font(bold=True)
         pricing_sheet["C" + str(row_start + 3)] = F_ROOM_PRICING_LIST[i][3]
@@ -506,17 +543,51 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["C" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         pricing_sheet["D" + str(row_start + 7)] = "=SUMIF('Special Order'!A:A," + "D" + str(row_start + 1) +  ",'Special Order'!O:O)"
         pricing_sheet["D" + str(row_start + 7)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["A" + str(row_start + 8)] = "Room Total Price"
+        pricing_sheet["A" + str(row_start + 8)] = "Discounts"
         pricing_sheet["A" + str(row_start + 8)].font = openpyxl.styles.Font(bold=True)
-        pricing_sheet["C" + str(row_start + 8)] = "=SUM(C" + str(row_start + 3) + ":C" + str(row_start + 7) + ")"
+        pricing_sheet["C" + str(row_start + 8)] = 0
         pricing_sheet["C" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["D" + str(row_start + 8)] = "=SUM(D" + str(row_start + 3) + ":D" + str(row_start + 7) + ")"
+        pricing_sheet["D" + str(row_start + 8)] = "=SUM(F" + str(row_start + 3) + ":F" + str(row_start + 6) + ")"
         pricing_sheet["D" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-        pricing_sheet["G" + str(row_start + 8)] = "=D" + str(row_start + 8) + "-SUM(F" + str(row_start + 3) + ":F" + str(row_start + 7) + ")"
-        pricing_sheet["G" + str(row_start + 8)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 8)].font = openpyxl.styles.Font(color="00339966")
+        pricing_sheet["A" + str(row_start + 9)] = "Room Subtotal"
+        pricing_sheet["A" + str(row_start + 9)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 9)] = "=SUM(C" + str(row_start + 3) + ":C" + str(row_start + 7) + ")" + "-" + "C" + str(row_start + 8)
+        pricing_sheet["C" + str(row_start + 9)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 9)] = "=SUM(D" + str(row_start + 3) + ":D" + str(row_start + 7) + ")" + "-" + "D" + str(row_start + 8)
+        pricing_sheet["D" + str(row_start + 9)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 10)] = "Delivery Charge (15%)"
+        pricing_sheet["A" + str(row_start + 10)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 10)] = 0
+        pricing_sheet["C" + str(row_start + 10)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 10)] = "=" + "D" + str(row_start + 9) + "*.150"
+        pricing_sheet["D" + str(row_start + 10)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 11)] = "Adjusted Room Subtotal"
+        pricing_sheet["A" + str(row_start + 11)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 11)] = "=" + "C" + str(row_start + 9) + "+C" + str(row_start + 10)
+        pricing_sheet["C" + str(row_start + 11)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 11)] = "=" + "D" + str(row_start + 9) + "+D" + str(row_start + 10)
+        pricing_sheet["D" + str(row_start + 11)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 12)] = "O.D.C Price"
+        pricing_sheet["A" + str(row_start + 12)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 12)] = 0
+        pricing_sheet["C" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 12)] = 0
+        pricing_sheet["D" + str(row_start + 12)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 13)] = "Tear Out Price"
+        pricing_sheet["A" + str(row_start + 13)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 13)] = 0
+        pricing_sheet["C" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 13)] = 0
+        pricing_sheet["D" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["A" + str(row_start + 14)] = "Room Grand Total"
+        pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)
+        pricing_sheet["C" + str(row_start + 14)] = "=" + "C" + str(row_start + 11) + "+C" + str(row_start + 12) + "+C" + str(row_start + 13)
+        pricing_sheet["C" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+        pricing_sheet["D" + str(row_start + 14)] = "=" + "D" + str(row_start + 11) + "+D" + str(row_start + 12) + "+D" + str(row_start + 13)
+        pricing_sheet["D" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
-
-        pricing_sheet["A" + str(row_start + 9)] = ""
+        pricing_sheet["A" + str(row_start + 15)] = ""
         row_start = pricing_sheet.max_row
 
     pricing_sheet["B" + str(row_start + 2)] = "Other Special Order Items"
@@ -526,9 +597,13 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet["B" + str(row_start + 3)] = "See Special Order tab for details"
     pricing_sheet["C" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["C" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
+    pricing_sheet.conditional_formatting.add("C" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
     pricing_sheet["D" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["D" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-
+    pricing_sheet.conditional_formatting.add("D" + str(row_start + 3), FormulaRule(formula=["D" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet["E" + str(row_start + 3)] = "=IF(" + "C" + str(row_start + 3) + ">0," + '"Please assign Room Names for these items"' + "," + '""' + ")"
+    pricing_sheet.conditional_formatting.add("E" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    
     pricing_sheet["B" + str(row_start + 6)] = "Project Totals"
     pricing_sheet["B" + str(row_start + 6)].font = openpyxl.styles.Font(bold=True)
     pricing_sheet["C" + str(row_start + 6)] = "Franchise"
@@ -576,6 +651,8 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet["D" + str(row_start + 13)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["A" + str(row_start + 14)] = "Discounts"
     pricing_sheet["A" + str(row_start + 14)].font = openpyxl.styles.Font(bold=True)
+    pricing_sheet["C" + str(row_start + 14)] = 0
+    pricing_sheet["C" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["D" + str(row_start + 14)] = "=SUM(E:E)"
     pricing_sheet["D" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
     pricing_sheet["D" + str(row_start + 14)].font = openpyxl.styles.Font(color="00339966")
@@ -623,12 +700,12 @@ def generate_franchise_pricing_summary(parts_file):
 
 
 def generate_parts_summary(parts_file, materials_sheet, hardware_sheet, accessories_sheet, wood_panel_sheet, so_sheet):
-    try:
-        import pandas
-        import numpy
-    except ModuleNotFoundError:
-        python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-        sys.path.append(python_lib_path)
+    # try:
+    #     import pandas
+    #     import numpy
+    # except ModuleNotFoundError:
+    #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+    #     sys.path.append(python_lib_path)
 
     with pandas.ExcelWriter(parts_file, mode='a') as writer:
         if materials_sheet is not None:
@@ -721,12 +798,12 @@ def generate_retail_parts_list():
     generate_retail_pricing_summary(parts_file)
     
     # Start by opening the spreadsheet and selecting the main sheet
-    try:
-        import openpyxl
-        import et_xmlfile
-    except ModuleNotFoundError:
-        python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-        sys.path.append(python_lib_path)
+    # try:
+    #     import openpyxl
+    #     import et_xmlfile
+    # except ModuleNotFoundError:
+    #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+    #     sys.path.append(python_lib_path)
 
     wb = openpyxl.load_workbook(parts_file)
     sheet1 = None
@@ -764,18 +841,20 @@ def generate_retail_parts_list():
             sheet1["N" + str((i + 1) + 1)] = float(MATERIAL_PARTS_LIST[i][11])                                  #RETAIL_PRICE
             sheet1["O" + str((i + 1) + 1)] = float(MATERIAL_PARTS_LIST[i][12])                                  #LABOR
             
+            if "Adj Shelf" in MATERIAL_PARTS_LIST[i][6]:
+                print(MATERIAL_PARTS_LIST[i][6])
             if MATERIAL_PARTS_LIST[i][1][:2] in material_types:
                 if 'SF' in MATERIAL_PARTS_LIST[i][13]:
                     sheet1["L" + str((i + 1) + 1)] = get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
                     sheet1["P" + str((i + 1) + 1)] = (((float(MATERIAL_PARTS_LIST[i][11]) * int(MATERIAL_PARTS_LIST[i][7])) * get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9])))  + float(MATERIAL_PARTS_LIST[i][12]))   #CALCULATED_PRICE
-                    if len(EDGEBANDING) > 0 and i < len(EDGEBANDING):
+                    if len(EDGEBANDING) > 0:
                         for index, sublist in enumerate(EDGEBANDING):
                             if sublist[0] == MATERIAL_PARTS_LIST[i][4]:
                                 if EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = "--"
-                                elif EDGEBANDING[index][1] == 0:
+                                elif EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 1:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][2]) + "L"
-                                elif EDGEBANDING[index][2] == 0:
+                                elif EDGEBANDING[index][1] == 1 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S"
                                 else:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S_" + str(EDGEBANDING[index][2]) + "L"
@@ -784,14 +863,14 @@ def generate_retail_parts_list():
                         eb_length = get_eb_measurements(MATERIAL_PARTS_LIST[i][14], float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
                     sheet1["M" + str((i + 1) + 1)] = str(get_linear_footage(eb_length)) + " (" + str(MATERIAL_PARTS_LIST[i][14]) + ")"
                     sheet1["P" + str((i + 1) + 1)] = (float(MATERIAL_PARTS_LIST[i][11]) * int(MATERIAL_PARTS_LIST[i][7])) * get_linear_footage(eb_length)   #CALCULATED_PRICE
-                    if len(EDGEBANDING) > 0 and i < len(EDGEBANDING):
+                    if len(EDGEBANDING) > 0:
                         for index, sublist in enumerate(EDGEBANDING):
                             if sublist[0] == MATERIAL_PARTS_LIST[i][4]:
                                 if EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = "--"
-                                elif EDGEBANDING[index][1] == 0:
+                                elif EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 1:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][2]) + "L"
-                                elif EDGEBANDING[index][2] == 0:
+                                elif EDGEBANDING[index][1] == 1 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S"
                                 else:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S_" + str(EDGEBANDING[index][2]) + "L"
@@ -1095,12 +1174,12 @@ def generate_franchise_parts_list():
     generate_franchise_pricing_summary(parts_file)
     
     # Start by opening the spreadsheet and selecting the main sheet
-    try:
-        import openpyxl
-        import et_xmlfile
-    except ModuleNotFoundError:
-        python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-        sys.path.append(python_lib_path)
+    # try:
+    #     import openpyxl
+    #     import et_xmlfile
+    # except ModuleNotFoundError:
+    #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+    #     sys.path.append(python_lib_path)
 
     wb = openpyxl.load_workbook(parts_file)
     sheet1 = None
@@ -1140,14 +1219,14 @@ def generate_franchise_parts_list():
                 if 'SF' in MATERIAL_PARTS_LIST[i][13]:
                     sheet1["L" + str((i + 1) + 1)] = get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
                     sheet1["P" + str((i + 1) + 1)] = (((float(MATERIAL_PARTS_LIST[i][16]) * int(MATERIAL_PARTS_LIST[i][7])) * get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9])))  + float(MATERIAL_PARTS_LIST[i][15]))   #CALCULATED_PRICE
-                    if len(EDGEBANDING) > 0 and i < len(EDGEBANDING):
+                    if len(EDGEBANDING) > 0:
                         for index, sublist in enumerate(EDGEBANDING):
                             if sublist[0] == MATERIAL_PARTS_LIST[i][4]:
                                 if EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = "--"
-                                elif EDGEBANDING[index][1] == 0:
+                                elif EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 1:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][2]) + "L"
-                                elif EDGEBANDING[index][2] == 0:
+                                elif EDGEBANDING[index][1] == 1 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S"
                                 else:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S_" + str(EDGEBANDING[index][2]) + "L"
@@ -1157,14 +1236,14 @@ def generate_franchise_parts_list():
                         eb_length = get_eb_measurements(MATERIAL_PARTS_LIST[i][14], float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
                     sheet1["M" + str((i + 1) + 1)] = str(get_linear_footage(eb_length)) + " (" + str(MATERIAL_PARTS_LIST[i][14]) + ")"
                     sheet1["P" + str((i + 1) + 1)] = (float(MATERIAL_PARTS_LIST[i][16]) * int(MATERIAL_PARTS_LIST[i][7])) * get_linear_footage(eb_length)   #CALCULATED_PRICE
-                    if len(EDGEBANDING) > 0 and i < len(EDGEBANDING):
+                    if len(EDGEBANDING) > 0:
                         for index, sublist in enumerate(EDGEBANDING):
                             if sublist[0] == MATERIAL_PARTS_LIST[i][4]:
                                 if EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = "--"
-                                elif EDGEBANDING[index][1] == 0:
+                                elif EDGEBANDING[index][1] == 0 and EDGEBANDING[index][2] == 1:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][2]) + "L"
-                                elif EDGEBANDING[index][2] == 0:
+                                elif EDGEBANDING[index][1] == 1 and EDGEBANDING[index][2] == 0:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S"
                                 else:
                                     sheet1["Q" + str((i + 1) + 1)] = str(EDGEBANDING[index][1]) + "S_" + str(EDGEBANDING[index][2]) + "L"
@@ -1630,11 +1709,11 @@ def get_pricing_info(sku_num, qty, length_inches=0.0, width_inches=0.0, style_na
         glaze_labor = 0
     
         if style_name is not None:
-            try:
-                import pandas
-            except ModuleNotFoundError:
-                python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
-                sys.path.append(python_lib_path)
+            # try:
+            #     import pandas
+            # except ModuleNotFoundError:
+            #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
+            #     sys.path.append(python_lib_path)
 
             wood_panel_data_frame = pandas.read_excel(wood_panel_pricing_file, header=None, skiprows=1, usecols=[0, 1, 2, 3, 4, 5], names=['STYLE', 'TYPE', 'PANEL', 'SKU', 'AP_SKU', 'GL_NUM'])
 
@@ -1835,22 +1914,34 @@ def calculate_project_price(xml_file, cos_flag = False):
                                     if eb1 is not None and eb_counter == 1:
                                         eb_orientation = eb1
                                         eb_counter = 2
-                                        S_COUNT.append(eb_orientation)
+                                        if 's' in eb_orientation or 'S' in eb_orientation:
+                                            S_COUNT.append(eb_orientation)
+                                        if 'l' in eb_orientation or 'L' in eb_orientation:
+                                            L_COUNT.append(eb_orientation)
                                         print(SKU_NUMBER + " :: " + eb_orientation)
                                     if eb2 is not None and eb_counter == 2 or eb2 is not None and eb_counter == 1:
                                         eb_orientation = eb2
                                         eb_counter = 3
-                                        L_COUNT.append(eb_orientation)
+                                        if 's' in eb_orientation or 'S' in eb_orientation:
+                                            S_COUNT.append(eb_orientation)
+                                        if 'l' in eb_orientation or 'L' in eb_orientation:
+                                            L_COUNT.append(eb_orientation)
                                         print(SKU_NUMBER + " :: " + eb_orientation)
                                     if eb3 is not None and eb_counter == 3:
                                         eb_orientation = eb3
                                         eb_counter = 4
-                                        S_COUNT.append(eb_orientation)
+                                        if 's' in eb_orientation or 'S' in eb_orientation:
+                                            S_COUNT.append(eb_orientation)
+                                        if 'l' in eb_orientation or 'L' in eb_orientation:
+                                            L_COUNT.append(eb_orientation)
                                         print(SKU_NUMBER + " :: " + eb_orientation)
                                     if eb4 is not None and eb_counter == 4:
                                         eb_orientation = eb4
                                         eb_counter = 1
-                                        L_COUNT.append(eb_orientation)
+                                        if 's' in eb_orientation or 'S' in eb_orientation:
+                                            S_COUNT.append(eb_orientation)
+                                        if 'l' in eb_orientation or 'L' in eb_orientation:
+                                            L_COUNT.append(eb_orientation)
                                         print(SKU_NUMBER + " :: " + eb_orientation)
                                 else:
                                     print(SKU_NUMBER)
@@ -2010,22 +2101,34 @@ def calculate_project_price(xml_file, cos_flag = False):
                                         if eb1 is not None and eb_counter == 1:
                                             eb_orientation = eb1
                                             eb_counter = 2
-                                            S_COUNT.append(eb_orientation)
+                                            if 's' in eb_orientation or 'S' in eb_orientation:
+                                                S_COUNT.append(eb_orientation)
+                                            if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                L_COUNT.append(eb_orientation)
                                             print(SKU_NUMBER + " :: " + eb_orientation)
                                         if eb2 is not None and eb_counter == 2 or eb2 is not None and eb_counter == 1:
                                             eb_orientation = eb2
                                             eb_counter = 3
-                                            L_COUNT.append(eb_orientation)
+                                            if 's' in eb_orientation or 'S' in eb_orientation:
+                                                S_COUNT.append(eb_orientation)
+                                            if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                L_COUNT.append(eb_orientation)
                                             print(SKU_NUMBER + " :: " + eb_orientation)
                                         if eb3 is not None and eb_counter == 3:
                                             eb_orientation = eb3
                                             eb_counter = 4
-                                            S_COUNT.append(eb_orientation)
+                                            if 's' in eb_orientation or 'S' in eb_orientation:
+                                                S_COUNT.append(eb_orientation)
+                                            if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                L_COUNT.append(eb_orientation)
                                             print(SKU_NUMBER + " :: " + eb_orientation)
                                         if eb4 is not None and eb_counter == 4:
                                             eb_orientation = eb4
                                             eb_counter = 1
-                                            L_COUNT.append(eb_orientation)
+                                            if 's' in eb_orientation or 'S' in eb_orientation:
+                                                S_COUNT.append(eb_orientation)
+                                            if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                L_COUNT.append(eb_orientation)
                                             print(SKU_NUMBER + " :: " + eb_orientation)
                                     else:
                                         print(SKU_NUMBER)
@@ -2190,22 +2293,34 @@ def calculate_project_price(xml_file, cos_flag = False):
                                             if eb1 is not None and eb_counter == 1:
                                                 eb_orientation = eb1
                                                 eb_counter = 2
-                                                S_COUNT.append(eb_orientation)
+                                                if 's' in eb_orientation or 'S' in eb_orientation:
+                                                    S_COUNT.append(eb_orientation)
+                                                if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                    L_COUNT.append(eb_orientation)
                                                 print(SKU_NUMBER + " :: " + eb_orientation)
                                             if eb2 is not None and eb_counter == 2 or eb2 is not None and eb_counter == 1:
                                                 eb_orientation = eb2
                                                 eb_counter = 3
-                                                L_COUNT.append(eb_orientation)
+                                                if 's' in eb_orientation or 'S' in eb_orientation:
+                                                    S_COUNT.append(eb_orientation)
+                                                if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                    L_COUNT.append(eb_orientation)
                                                 print(SKU_NUMBER + " :: " + eb_orientation)
                                             if eb3 is not None and eb_counter == 3:
                                                 eb_orientation = eb3
                                                 eb_counter = 4
-                                                S_COUNT.append(eb_orientation)
+                                                if 's' in eb_orientation or 'S' in eb_orientation:
+                                                    S_COUNT.append(eb_orientation)
+                                                if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                    L_COUNT.append(eb_orientation)
                                                 print(SKU_NUMBER + " :: " + eb_orientation)
                                             if eb4 is not None and eb_counter == 4:
                                                 eb_orientation = eb4
                                                 eb_counter = 1
-                                                L_COUNT.append(eb_orientation)
+                                                if 's' in eb_orientation or 'S' in eb_orientation:
+                                                    S_COUNT.append(eb_orientation)
+                                                if 'l' in eb_orientation or 'L' in eb_orientation:
+                                                    L_COUNT.append(eb_orientation)
                                                 print(SKU_NUMBER + " :: " + eb_orientation)
                                         else:
                                             print(SKU_NUMBER)
@@ -2424,14 +2539,57 @@ class SNAP_PROPS_Pricing(bpy.types.PropertyGroup):
         name="Pricing Tabs",
         items=[('RETAIL', "Retail Pricing", 'View Pricing Information'), 
                ('FRANCHISE', "Franchise Pricing", 'View Pricing information')])
-    
-    # auto_calculate_on_save: BoolProperty(name="Auto Calculate On Save",
-    #                                       default=False,
-    #                                       description="Automatically calculate the pricing information")
 
-    export_pricing_parts_list: BoolProperty(name="Export Pricing Parts List (.xlsx)",
-                                          default=False,
-                                          description="Export a list of all parts being priced")
+    export_pricing_parts_list: BoolProperty(
+        name="Export Pricing Parts List (.xlsx)",
+        description="Export a list of all parts being priced",
+        default=False)
+
+    use_tearout_pricing: BoolProperty(
+        name="Include Tearout Pricing",
+        description="Select Tearout Pricing Options",
+        default=False)
+    customer_tearout: BoolProperty(
+        name="Customer Tearout",
+        description="Customer will perform tearout. No additional charge.",
+        default=False)
+    light_same_tearout: BoolProperty(
+        name="Light Same-Day",
+        description="No additional charge under 25 LF.",
+        default=False)
+    heavy_same_bool_0: BoolProperty(
+        name="Heavy Same-Day",
+        description="Heavy Same-Day Tearout. $5 per LF",
+        default=False)
+    heavy_same_int_0: IntProperty(
+        name="Heavy Same-Day Tearout", 
+        description="Heavy Same-Day Tearout. $5 per LF")
+    heavy_same_bool_1: BoolProperty(
+        name="Extra Heavy Same-Day",
+        description="Extra Heavy Same-Day Tearout. $10 per LF",
+        default=False)
+    heavy_same_int_1: IntProperty(
+        name="Extra Heavy Same-Day Tearout", 
+        description="Extra Heavy Same-Day Tearout. $10 per LF")
+    light_prior_tearout: BoolProperty(
+        name="Light Prior Day",
+        description="$75 trip charge",
+        default=False)
+    heavy_prior_bool_0: BoolProperty(
+        name="Heavy Prior-Day",
+        description="Heavy Prior-Day Tearout. $5 per LF",
+        default=False)
+    heavy_prior_int_0: IntProperty(
+        name="Heavy Prior Day Tearout", 
+        description="Heavy Prior Day Tearout. $5 per LF + $75 trip charge")
+    heavy_prior_bool_1: BoolProperty(
+        name="Extra Heavy Prior-Day",
+        description="Extra Heavy Prior-Day Tearout. $10 per LF + $75 trip charge",
+        default=False)
+    heavy_prior_int_1: IntProperty(
+        name="Extra Heavy Prior Day Tearout", 
+        description="Extra Heavy Prior Day Tearout. $10 per LF + $75 trip charge")
+    
     
     def reset(self):
         '''
@@ -2494,19 +2652,56 @@ class SNAP_PROPS_Pricing(bpy.types.PropertyGroup):
             
 
     def draw(self, layout):
-        main_box = layout.box()
-
-        row = main_box.row()
-        row.scale_y = 1.3
+        box = layout.box()
+        row = box.row()
         row.operator(PRICING_PROPERTY_NAMESPACE + ".calculate_price",icon='FILE_TICK')
-        main_col = main_box.column(align=True)
-        row = main_col.row(align=True)
+
+        row = layout.row(align=True)
         row.prop(self,'export_pricing_parts_list',text="Export Pricing Parts List (.xlsx)")
-        # row.prop(self,'auto_calculate_on_save',text="Auto Calculate on Save")
-                   
-        main_col = main_box.column(align=True)
+
+        # split = row.split()
+        # row = split.row()
+        # row = layout.row(align=True)
+        # row.prop(self, "use_tearout_pricing", text="Include Tearout Pricing")
+
+
+        # if self.use_tearout_pricing:
+        #     box = layout.box()
+        #     box.enabled = self.use_tearout_pricing
+        #     row = box.row(align=True)
+        #     row.prop(self, "customer_tearout")
+        #     if self.customer_tearout:
+        #         row.label(text="No Charge")
+        #     row = box.row(align=True)
+        #     row.prop(self, "light_same_tearout")
+        #     if self.light_same_tearout:
+        #         row.label(text="No Charge under 25 LF")
+        #     row = box.row(align=True)
+        #     row.prop(self, "heavy_same_bool_0")
+        #     if self.heavy_same_bool_0:
+        #         row.prop(self, "heavy_same_int_0",text="$")
+        #     row = box.row(align=True)
+        #     row.prop(self, "heavy_same_bool_1")
+        #     if self.heavy_same_bool_1:
+        #         row.prop(self, "heavy_same_int_1",text="$")
+        #     row = box.row(align=True)
+        #     row.prop(self, "light_prior_tearout")
+        #     if self.light_prior_tearout:
+        #         row.label(text="$75 trip charge")
+        #     row = box.row(align=True)
+        #     row.prop(self, "heavy_prior_bool_0")
+        #     if self.heavy_prior_bool_0:
+        #         row.prop(self, "heavy_prior_int_0",text="$")
+        #     row = box.row(align=True)
+        #     row.prop(self, "heavy_prior_bool_1")
+        #     if self.heavy_prior_bool_1:
+        #         row.prop(self, "heavy_prior_int_1",text="$")
+
+
+        box = layout.box()        
+        main_col = box.column(align=True)
         row = main_col.row(align=True)
-        row.scale_y = 1.1
+        row.scale_y = 1
         row.prop_enum(self, "pricing_tabs", 'RETAIL', icon='PREFERENCES', text="Retail Pricing")
 
         if self.pricing_tabs == 'RETAIL':
@@ -2520,7 +2715,7 @@ class SNAP_PROPS_Pricing(bpy.types.PropertyGroup):
                 col.label(text="Acccessories Price: " + sn_unit.draw_dollar_price(R_ROOM_PRICING_LIST[i][5]),icon='BLANK1')
                 col.label(text="Wood_Upgraded Panels Price: " + sn_unit.draw_dollar_price(R_ROOM_PRICING_LIST[i][6]),icon='BLANK1')
                 # col.label(text="Labor Price: " + sn_unit.draw_dollar_price(R_ROOM_PRICING_LIST[i][8]),icon='BLANK1')
-                col.label(text="Room Total Price: " + sn_unit.draw_dollar_price(R_ROOM_PRICING_LIST[i][9]),icon='BLANK1')
+                col.label(text="Room Subtotal: " + sn_unit.draw_dollar_price(R_ROOM_PRICING_LIST[i][9]),icon='BLANK1')
                 col.separator()
 
             col.separator()
@@ -2553,7 +2748,7 @@ class SNAP_PROPS_Pricing(bpy.types.PropertyGroup):
                     col.label(text="Acccessories Price: " + sn_unit.draw_dollar_price(F_ROOM_PRICING_LIST[i][5]),icon='BLANK1')
                     col.label(text="Wood_Upgraded Panels Price: " + sn_unit.draw_dollar_price(F_ROOM_PRICING_LIST[i][6]),icon='BLANK1')
                     # col.label(text="Labor Price: " + sn_unit.draw_dollar_price(F_ROOM_PRICING_LIST[i][8]),icon='BLANK1')
-                    col.label(text="Room Total Price: " + sn_unit.draw_dollar_price(F_ROOM_PRICING_LIST[i][9]),icon='BLANK1')
+                    col.label(text="Room Subtotal: " + sn_unit.draw_dollar_price(F_ROOM_PRICING_LIST[i][9]),icon='BLANK1')
                     col.separator()
 
                 col.separator()

@@ -70,8 +70,8 @@ class VIEW_PT_2d_views(bpy.types.Panel):
         sn_wm = context.window_manager.snap
         accordions_only = props.views_option == 'ACCORDIONS'
         elevations_only = props.views_option == 'ELEVATIONS'
-        room_type = context.scene.sn_roombuilder.room_type
-        if room_type == 'SINGLE':
+        wall_qty = sn_wm.main_scene_wall_qty
+        if room_type == 'SINGLE' or wall_qty == 1:
             accordions_only = False
             elevations_only = True
         layout = self.layout
@@ -101,7 +101,7 @@ class VIEW_PT_2d_views(bpy.types.Panel):
         row = col.row(align=True)
         row.operator('sn_2d_views.dimension_interface',
                      text='Dimension Options', icon='SETTINGS')
-        row.operator('sn_2d_views.accordion_interface',
+        row.operator('sn_2d_views.accordion_interface', 
                      text='Accordion Options', icon='SETTINGS')
 
         row = panel_box.row(align=True)
@@ -121,9 +121,9 @@ class VIEW_PT_2d_views(bpy.types.Panel):
             row.operator("sn_2d_views.generate_2d_views",
                          text="Prepare 2D Views", icon='RENDERLAYERS')
             views_option_row = panel_box.row(align=True)
-            if room_type != "SINGLE":
+            if room_type != "SINGLE" and wall_qty > 1:
                 views_option_row.prop(props, 'views_option', expand=True)
-            elif room_type == "SINGLE":
+            elif room_type == "SINGLE" or wall_qty == 1:
                 views_option_row.prop(props, 'single_views_option', expand=True)
         else:
             row.operator_context = 'INVOKE_DEFAULT'
@@ -149,9 +149,9 @@ class VIEW_PT_2d_views(bpy.types.Panel):
             row = panel_box.row(align=True)
             if accordions_only:
                 row.prop(props, 'accordions_layout_setting', text="Accordions layout")
-            elif elevations_only and room_type != 'SINGLE':
+            elif elevations_only and room_type != 'SINGLE' and wall_qty > 1:
                 row.prop(props, 'page_layout_setting', text="Elevations layout")
-            elif room_type == 'SINGLE':
+            elif room_type == 'SINGLE' or wall_qty == 1:
                 row.prop(props, 'single_page_layout_setting', text="Elevations layout")
             paper_row = panel_box.row(align=True)
             paper_row.label(text='Paper Size')

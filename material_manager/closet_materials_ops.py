@@ -105,8 +105,9 @@ class SN_MAT_OT_Assign_Materials(Operator):
                 mat_color_name = cab_mat_props.materials.get_mat_color().name
                 edge_type = cab_mat_props.door_drawer_edges.get_edge_type()
                 door_part = sn_types.Part(assembly.obj_bp)
+                custom_colors = cab_mat_props.use_custom_color_scheme
 
-                if mat_type.name == "Garage Material":
+                if mat_type.name == "Garage Material" and not custom_colors:
                     door_part.cutpart("Garage_Slab_Door")
                     if mat_color_name == "Graphite Spectrum":
                         door_part.edgebanding("Black_Edge", l1=True, w1=True, l2=True, w2=True)
@@ -116,7 +117,6 @@ class SN_MAT_OT_Assign_Materials(Operator):
                         door_part.edgebanding("Exterior_Edge", l1=True, w1=True, l2=True, w2=True)
                         door_part.set_material_pointers("Garage_Panel_Edges", "TopBottomEdge")
                         door_part.set_material_pointers("Garage_Panel_Edges", "LeftRightEdge")
-                
                 else:
                     door_part.cutpart("Slab_Door")
                     door_part.edgebanding('Door_Edges', l1=True, w1=True, l2=True, w2=True)
@@ -508,8 +508,9 @@ class SN_MAT_OT_Assign_Materials(Operator):
         mat_type = cab_mat_props.materials.get_mat_type()
         mat_color_name = cab_mat_props.materials.get_mat_color().name
         drawer_front_part = sn_types.Part(assembly.obj_bp)
+        custom_colors = cab_mat_props.use_custom_color_scheme
         
-        if mat_type.name == "Garage Material":
+        if mat_type.name == "Garage Material" and not custom_colors:
             drawer_front_part.cutpart("Garage_Slab_Drawer_Front")
             if mat_color_name == "Graphite Spectrum":
                 drawer_front_part.edgebanding("Black_Edge", l1=True, w1=True, l2=True, w2=True)

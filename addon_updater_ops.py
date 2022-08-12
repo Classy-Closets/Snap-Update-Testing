@@ -679,40 +679,41 @@ def updater_run_success_popup_handler(scene):
 
 @persistent
 def updater_run_install_popup_handler(scene):
-    global ran_auto_check_install_popup
-    ran_auto_check_install_popup = True
-    updater.print_verbose("Running the install popup handler.")
+    if not bpy.app.background:
+        global ran_auto_check_install_popup
+        ran_auto_check_install_popup = True
+        updater.print_verbose("Running the install popup handler.")
 
-    # in case of error importing updater
-    if updater.invalid_updater:
-        return
-
-    try:
-        if "scene_update_post" in dir(bpy.app.handlers):
-            bpy.app.handlers.scene_update_post.remove(
-                updater_run_install_popup_handler)
-        else:
-            bpy.app.handlers.depsgraph_update_post.remove(
-                updater_run_install_popup_handler)
-    except:
-        pass
-
-    if "ignore" in updater.json and updater.json["ignore"]:
-        return  # Don't do popup if ignore pressed.
-    elif "version_text" in updater.json and updater.json["version_text"].get("version"):
-        version = updater.json["version_text"]["version"]
-        ver_tuple = updater.version_tuple_from_text(version)
-
-        if ver_tuple < updater.current_version:
-            # User probably manually installed to get the up to date addon
-            # in here. Clear out the update flag using this function.
-            updater.print_verbose(
-                "{} updater: appears user updated, clearing flag".format(
-                    updater.addon))
-            updater.json_reset_restore()
+        # in case of error importing updater
+        if updater.invalid_updater:
             return
-    atr = AddonUpdaterInstallPopup.bl_idname.split(".")
-    getattr(getattr(bpy.ops, atr[0]), atr[1])('INVOKE_DEFAULT')
+
+        try:
+            if "scene_update_post" in dir(bpy.app.handlers):
+                bpy.app.handlers.scene_update_post.remove(
+                    updater_run_install_popup_handler)
+            else:
+                bpy.app.handlers.depsgraph_update_post.remove(
+                    updater_run_install_popup_handler)
+        except:
+            pass
+
+        if "ignore" in updater.json and updater.json["ignore"]:
+            return  # Don't do popup if ignore pressed.
+        elif "version_text" in updater.json and updater.json["version_text"].get("version"):
+            version = updater.json["version_text"]["version"]
+            ver_tuple = updater.version_tuple_from_text(version)
+
+            if ver_tuple < updater.current_version:
+                # User probably manually installed to get the up to date addon
+                # in here. Clear out the update flag using this function.
+                updater.print_verbose(
+                    "{} updater: appears user updated, clearing flag".format(
+                        updater.addon))
+                updater.json_reset_restore()
+                return
+        atr = AddonUpdaterInstallPopup.bl_idname.split(".")
+        getattr(getattr(bpy.ops, atr[0]), atr[1])('INVOKE_DEFAULT')
 
 
 def background_update_callback(update_ready):

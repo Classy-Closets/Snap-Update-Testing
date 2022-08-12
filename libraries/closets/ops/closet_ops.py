@@ -1043,22 +1043,27 @@ class SNAP_OT_place_applied_panel(Operator):
             self.assembly.obj_y.location.y = math.fabs(part.obj_y.location.y)
             self.assembly.obj_x.location.x = part.obj_x.location.x
 
-    def add_to_back(self, part):
+    def add_to_back(self, part, add_to_island=False):
         self.assembly.obj_bp.parent = self.sel_product.obj_bp
+        toe_kick_height_ppt = self.sel_product.get_prompt('Toe Kick Height')
+        sel_product_height = math.fabs(self.sel_product.obj_z.location.z)
 
         toe_kick_height = 0
-        if self.sel_product.get_prompt('Toe Kick Height'):
-            toe_kick_height = self.sel_product.get_prompt('Toe Kick Height')
+        if toe_kick_height_ppt:
+            toe_kick_height = toe_kick_height_ppt.get_value()
 
         if self.sel_product.obj_z.location.z > 0:
             self.assembly.obj_bp.location = (0, 0, toe_kick_height)
         else:
             self.assembly.obj_bp.location = (0, 0, self.sel_product.obj_z.location.z)
 
-        self.assembly.obj_bp.rotation_euler = (
-            0, math.radians(-90), math.radians(-90))
-        self.assembly.obj_x.location.x = math.fabs(
-            self.sel_product.obj_z.location.z) - toe_kick_height
+        if add_to_island:
+            x_loc = sel_product_height
+        else:
+            x_loc = sel_product_height - toe_kick_height
+
+        self.assembly.obj_bp.rotation_euler = (0, math.radians(-90), math.radians(-90))
+        self.assembly.obj_x.location.x = x_loc
         self.assembly.obj_y.location.y = self.sel_product.obj_x.location.x
 
     def is_first_panel(self, panel):
@@ -1095,12 +1100,12 @@ class SNAP_OT_place_applied_panel(Operator):
         if sel_assembly_bp and self.sel_product_bp:
             sel_assembly = sn_types.Assembly(sel_assembly_bp)
             if sel_assembly and 'Door' not in sel_assembly.obj_bp.snap.name_object:
+                self.sel_product = sn_types.Assembly(self.sel_product_bp)
                 if sel_assembly.obj_bp.sn_closets.is_panel_bp:
                     self.sel_panel = sel_assembly
                     self.assembly.obj_bp.parent = None
                     self.assembly.obj_bp.location = (0, 0, 0)
                     self.assembly.obj_bp.rotation_euler = (0, 0, 0)
-                    self.sel_product = sn_types.Assembly(self.sel_product_bp)
 
                     if self.sel_product_bp.get("IS_BP_CABINET"):
                         if 'Left' in sel_assembly.obj_bp.snap.name_object:
@@ -1114,6 +1119,8 @@ class SNAP_OT_place_applied_panel(Operator):
                             self.add_to_left(sel_assembly)
                         if self.is_last_panel(sel_assembly):
                             self.add_to_right(sel_assembly)
+                if "IS_BACK" in sel_assembly.obj_bp:
+                    self.add_to_back(sel_assembly, add_to_island=True)
         else:
             self.assembly.obj_bp.parent = None
             self.assembly.obj_bp.location = self.selected_point

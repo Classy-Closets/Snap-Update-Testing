@@ -1016,15 +1016,16 @@ class SNAP_OT_Auto_Dimension(Operator):
 
     def wall_width_dimension(self, wall_bp):
         assembly = sn_types.Assembly(wall_bp)
+        wall_width = assembly.obj_x.location.x
         has_entry = any('Door Frame' in e.name for c in wall_bp.children
                         for e in c.children)
-        if not has_entry:
+        if not has_entry and wall_width > 0.0:
             dim = self.add_tagged_dimension(wall_bp)
-            label = self.to_inch_lbl(assembly.obj_x.location.x)
+            label = self.to_inch_lbl(wall_width)
             dim.parent(wall_bp)
             dim.start_y(value=assembly.obj_y.location.y)
             dim.start_z(value=assembly.obj_z.location.z + sn_unit.inch(4))
-            dim.end_x(value=assembly.obj_x.location.x)
+            dim.end_x(value=wall_width)
             dim.set_label(label)
 
     def section_width_apply_lbl(self, opening, position):
@@ -2738,14 +2739,15 @@ class SNAP_OT_Auto_Dimension(Operator):
         for openings in n_openings:
             for opening in openings:
                 op_number = opening.sn_closets.opening_name
-                dad_assy = sn_types.Assembly(opening.parent)
-                depth_pmpt = dad_assy.get_prompt(f"Opening {op_number} Depth")
-                depth = sn_unit.meter_to_inch(depth_pmpt.get_value())
-                hashmark = sn_types.Line(sn_unit.inch(6), (0, 45, 0))
-                hashmark.parent(opening)
-                dim = self.add_tagged_dimension(hashmark.end_point)
-                dim.start_z(value=sn_unit.inch(2))
-                dim.set_label(f"{round(depth, 2)}\"")
+                if op_number != '':
+                    dad_assy = sn_types.Assembly(opening.parent)
+                    depth_pmpt = dad_assy.get_prompt(f"Opening {op_number} Depth")
+                    depth = sn_unit.meter_to_inch(depth_pmpt.get_value())
+                    hashmark = sn_types.Line(sn_unit.inch(6), (0, 45, 0))
+                    hashmark.parent(opening)
+                    dim = self.add_tagged_dimension(hashmark.end_point)
+                    dim.start_z(value=sn_unit.inch(2))
+                    dim.set_label(f"{round(depth, 2)}\"")
 
     def get_door_size(self, door_height_metric):
         label = ""

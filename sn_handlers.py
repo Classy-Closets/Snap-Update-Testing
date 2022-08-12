@@ -6,6 +6,7 @@ import bpy
 from bpy.app.handlers import persistent
 from snap import sn_utils
 from snap import sn_paths
+from snap import sn_types
 from . import sn_utils
 from . import addon_updater_ops
 from snap.libraries.kitchen_bath import cabinet_properties
@@ -40,6 +41,47 @@ def load_materials_from_db(scene=None):
 
 @persistent
 def assign_material_pointers(scene=None):
+    mat_props = bpy.context.scene.closet_materials
+
+    def get_part_mesh(obj_bp):
+        for obj in obj_bp.children:
+            if obj.type == 'MESH' and obj.snap.type_mesh == 'CUTPART':
+                return obj
+
+    if bpy.data.is_saved:
+        # If 2Ds generated
+        if "_Main" in bpy.data.scenes:
+            scene = bpy.data.scenes["_Main"]
+        else:
+            scene = bpy.data.scenes["Scene"]
+
+        custom_colors = scene.closet_materials.use_custom_color_scheme
+        mat_type = scene.closet_materials.materials.get_mat_type()
+
+        if not custom_colors:
+            for obj in scene.objects:
+                part_mesh = None
+                room_mat_color = None
+                if mat_type.type_code == 1:
+                    if "IS_BP_DRAWER_FRONT" in obj or "IS_DOOR" in obj:
+                        part_mesh = get_part_mesh(obj)
+
+                else:
+                    if "IS_BP_PANEL" in obj:
+                        part_mesh = get_part_mesh(obj)
+
+                if part_mesh:
+                    use_unique_material = part_mesh.sn_closets.use_unique_material
+                    if not use_unique_material:
+                        room_mat_color = part_mesh.snap.material_slots["Top"].item_name
+                        break
+
+            if room_mat_color:
+                if mat_type.get_mat_color().name != room_mat_color:
+                    for i, color in mat_type.colors:
+                        if color.name == room_mat_color:
+                            mat_type.set_color_index(i)
+
     bpy.ops.closet_materials.assign_materials(only_update_pointers=True)
 
 
@@ -145,6 +187,7 @@ def load_library_modules(scene):
 def default_settings(scene=None):
     scene = bpy.context.scene
     prefs = bpy.context.preferences
+    bg_mode = bpy.app.background
     # Units
     scene.unit_settings.system = 'IMPERIAL'
     scene.unit_settings.length_unit = 'INCHES'
@@ -163,13 +206,6 @@ def default_settings(scene=None):
     if not bpy.data.is_saved:
         scene.closet_materials.set_defaults()
     else:
-        mat = scene.closet_materials.materials.get_mat_color().name
-        edge = scene.closet_materials.edges.get_edge_color().name
-        custom_colors = scene.closet_materials.use_custom_color_scheme
-
-        if mat != edge and not custom_colors and mat != "Duraply Almond":
-            scene.closet_materials.set_defaults()
-
         scene.closet_materials.defaults_set = True
 
     defaults = cabinet_properties.get_scene_props().size_defaults

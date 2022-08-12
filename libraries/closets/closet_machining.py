@@ -2012,7 +2012,7 @@ class PROPS_Machining_Defaults(bpy.types.PropertyGroup):
     #CAM HOLE SETTINGS
     cam_bore_face_depth: FloatProperty(name="Cam Bore Face Depth",
                                         description="Enter the face drilling depth for cams. This is the depth to drill on the associated panel.",
-                                        default=sn_unit.millimeter(15),unit='LENGTH')    
+                                        default=sn_unit.millimeter(15.7),unit='LENGTH')    
     
     cam_bore_edge_depth: FloatProperty(name="Cam Bore Edge Depth",
                                         description="Enter the edge drilling depth for cams.",

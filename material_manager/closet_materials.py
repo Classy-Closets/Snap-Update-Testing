@@ -50,7 +50,7 @@ def update_material_and_edgeband_colors(self, context):
     if not self.use_custom_color_scheme and self.defaults_set:
         self.set_all_material_colors()
 
-    if mat_type.name == "Garage Material" and mat_color_name == "Fog Grey" and self.use_black_edge:
+    if mat_type.name == "Garage Material" and mat_color_name == "Dura White Fog Grey" and self.use_black_edge:
         self.set_edge_to_black()
 
     if mat_color_name == "Duraply Almond" and not self.use_custom_color_scheme:
@@ -279,13 +279,26 @@ class SnapMaterialSceneProps(PropertyGroup):
         type_code = self.edges.get_edge_type().type_code
         color_code = self.edges.get_edge_color().color_code
         obj_props = assembly.obj_bp.sn_closets
-
+        custom_colors = bpy.context.scene.closet_materials.use_custom_color_scheme
 
         # There is no edgebanding for garage colors, so we have to hardcode in alternate edgebanding.
         if self.materials.get_mat_type().type_code == 1:
             sku = self.get_garage_edge_sku(obj, assembly, part_name)
             if sku != "Unknown":
                 return sku
+
+            elif not custom_colors:
+                color_name = self.materials.get_mat_color().name
+                if color_name == "Duraply Almond":
+                    return "EB-0000311"
+                elif color_name == "Dura White Fog Grey":
+                    return "EB-0000331"
+                elif color_name == "Graphite Spectrum":
+                    return "EB-0000324"
+                elif color_name == "Hardrock Maple":
+                    return "EB-0000333"
+                else:
+                    return "EB-0000338"
 
         door_drawer_parts = [
             obj_props.is_door_bp,
@@ -330,7 +343,7 @@ class SnapMaterialSceneProps(PropertyGroup):
             color_name = self.materials.get_mat_color().name
             if color_name == "Duraply Almond":
                 return "EB-0000311"
-            elif color_name == "Fog Grey":
+            elif color_name == "Dura White Fog Grey":
                 return "EB-0000331"
             elif color_name == "Graphite Spectrum":
                 return "EB-0000324"
@@ -456,6 +469,7 @@ class SnapMaterialSceneProps(PropertyGroup):
             return "Unknown"
 
     def get_mat_sku(self, obj=None, assembly=None, part_name=None):
+        print(obj, assembly, part_name)
         mat_type = self.materials.get_mat_type()
         type_code = mat_type.type_code
         color_code = self.materials.get_mat_color().color_code
@@ -734,6 +748,7 @@ class SnapMaterialSceneProps(PropertyGroup):
                         "No SKU found for - Material Type Code: {} Color Code: {}".format(type_code, color_code))
                     return "Unknown"
                 elif len(sku) == 1:
+                    print(sku[0][0])
                     return sku[0][0]
                 else:
                     print(
@@ -1050,6 +1065,15 @@ class SnapMaterialSceneProps(PropertyGroup):
         row.prop_enum(self, "main_tabs", 'DOORS_AND_DRAWER_FACES')
 
         if self.main_tabs == 'MATERIAL':
+            box = c_box.box()
+            box.label(text="Options:")
+            box.prop(self, "use_custom_color_scheme")
+
+            if self.materials.get_mat_type().name == "Garage Material":
+                if self.materials.get_mat_color().name == "Dura White Fog Grey":
+                    row = box.row()
+                    row.prop(self, "use_black_edge", text="Use Black Edgebanding")
+
             if self.use_custom_color_scheme:
                 self.materials.draw(c_box)
                 self.edges.draw(c_box)
@@ -1120,13 +1144,6 @@ class SnapMaterialSceneProps(PropertyGroup):
                     row.label(text="None", icon='ERROR')
             else:
                 self.materials.draw(c_box)
-            if self.materials.get_mat_type().name == "Garage Material":
-                if self.materials.get_mat_color().name == "Fog Grey":
-                    row = c_box.row()
-                    row.label(text="Use Black Edgebanding")
-                    row.prop(self, "use_black_edge", text='')
-            else:
-                c_box.prop(self, "use_custom_color_scheme")
 
         if self.main_tabs == 'COUNTERTOP':
             self.countertops.draw(c_box)

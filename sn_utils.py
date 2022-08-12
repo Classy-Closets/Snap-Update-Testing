@@ -2340,4 +2340,3 @@ def set_prompt_if_exists(assembly, prompt_name, value):
     prompt = assembly.get_prompt(prompt_name)
     if prompt:
         prompt.set_value(value)
-

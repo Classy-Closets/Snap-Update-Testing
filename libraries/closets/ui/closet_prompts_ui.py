@@ -208,6 +208,8 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     is_single_island = None
     show_tk_mess = None
 
+    prev_all_backing = None
+
     def reset_variables(self):
         self.product_tabs = 'OPENINGS'
 
@@ -219,6 +221,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
         self.left_filler = None
         self.right_filler = None
         self.back = None
+        self.prev_all_backing = None
 
         self.closet = None
         self.carcass = None
@@ -447,24 +450,36 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                     return sn_types.Assembly(child)
 
     def update_backing_ppts(self, opening_num):
+        add_backing_throughout_ppt = self.closet.get_prompt("Add Backing Throughout")
+        add_backing_ppt = self.closet.get_prompt("Add Full Back " + str(opening_num))
         backing_parts = self.closet.backing_parts[str(opening_num)]
-        for part in backing_parts:
-            use_top = part.get_prompt("Top Section Backing")
-            use_center = part.get_prompt("Center Section Backing")
-            use_bottom = part.get_prompt("Bottom Section Backing")
 
-            if use_top:
-                use_top.set_value(True)
-            if use_center:
-                use_center.set_value(True)
-            if use_bottom:
-                use_bottom.set_value(True)
+        if self.prev_all_backing != self.add_backing_throughout and add_backing_throughout_ppt:
+            if self.add_backing_throughout and add_backing_throughout_ppt:
+                if add_backing_ppt:
+                    add_backing_ppt.set_value(self.add_backing_throughout)
+                add_backing_throughout_ppt.set_value(self.add_backing_throughout)
+
+            for part in backing_parts:
+                use_top = part.get_prompt("Top Section Backing")
+                use_center = part.get_prompt("Center Section Backing")
+                use_bottom = part.get_prompt("Bottom Section Backing")
+
+                if use_top:
+                    use_top.set_value(self.add_backing_throughout)
+                if use_center:
+                    use_center.set_value(self.add_backing_throughout)
+                if use_bottom:
+                    use_bottom.set_value(self.add_backing_throughout)
+
+            add_backing_throughout_ppt.set_value(self.add_backing_throughout)
+            add_backing_ppt.set_value(self.add_backing_throughout)
 
     def update_backing(self, context):
         for i in range(self.closet.opening_qty):
             opening_num = i + 1
             add_backing_ppt = self.closet.get_prompt("Add Full Back " + str(opening_num))
-            add_backing_ppt.set_value(self.add_backing_throughout)
+            self.update_backing_ppts(opening_num)
 
             if str(opening_num) in self.closet.backing_parts.keys():
                 backing_parts = self.closet.backing_parts[str(opening_num)]
@@ -491,12 +506,9 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                         if setback_ppt:
                             setback_ppt.set_value(0)
 
-        add_backing_throughout_ppt = self.closet.get_prompt("Add Backing Throughout")
-        if add_backing_throughout_ppt:
-            add_backing_throughout_ppt.set_value(self.add_backing_throughout)
-
         bpy.ops.object.select_all(action='DESELECT')
         bpy.ops.closet_materials.assign_materials()
+        self.prev_all_backing = self.add_backing_throughout
 
     def update_countertop(self):
         if self.countertop:
@@ -1155,6 +1167,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
 
             if add_backing_throughout_ppt:
                 self.add_backing_throughout = add_backing_throughout_ppt.get_value()
+                self.prev_all_backing  = add_backing_throughout_ppt.get_value()
 
             if left_end_condition:
                 combobox_index = left_end_condition.get_value()

@@ -2926,31 +2926,33 @@ class OPS_Export_XML(Operator):
         height = wall_bed_assembly.obj_z.location.z
         wall_bed_height = wall_bed_assembly.get_prompt("Wall Bed Height")
         wall_bed_depth = wall_bed_assembly.get_prompt("Wall Bed Depth")
-        # extend_height = wall_bed_assembly.get_prompt("Extend Height")
-        # extend_depth = wall_bed_assembly.get_prompt("Extend Depth")
 
         if bed_make == 0:
             width = full_width -sn_unit.inch(2)
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(8), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(8), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(30), sn_unit.inch(2), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(30), sn_unit.inch(2), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(30), sn_unit.inch(2), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(8), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(8), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(2), sn_unit.inch(30), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(2), sn_unit.inch(30), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(2), sn_unit.inch(30), sn_unit.inch(0.75))
+
+            # Twin
             if bed_type == 0:
                 self.write_hardware_node(elm_subassembly, obj_bp, name="EURO TWIN BLACK", qty=1)
+            # Double
             elif bed_type == 1:
                 self.write_hardware_node(elm_subassembly, obj_bp, name="EURO DBL BLACK", qty=1)
+            # Queen
             elif bed_type == 2:
                 self.write_hardware_node(elm_subassembly, obj_bp, name="EURO QUEEN BLACK", qty=1)
             else:
                 print("No Bed Type of: ", bed_type)
         elif bed_make ==1:
             width = full_width -sn_unit.inch(2)
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(7.25), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(7.25), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(30), sn_unit.inch(2), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(30), sn_unit.inch(2), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(30), sn_unit.inch(2), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(7.25), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(7.25), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(2), sn_unit.inch(30), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(2), sn_unit.inch(30), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(2), sn_unit.inch(30), sn_unit.inch(0.75))
             if bed_type == 1:
                 self.write_hardware_node(elm_subassembly, obj_bp, name="EURO 24/7 DBL BLACK", qty=1)
             elif bed_type == 2:
@@ -2961,17 +2963,18 @@ class OPS_Export_XML(Operator):
                 print("No Bed Type of: ", bed_type)
         elif bed_make == 2:
             width = full_width -sn_unit.inch(1.5)
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(6), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(6), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(6), sn_unit.inch(0.75))
-            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", width, sn_unit.inch(6), sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(6), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(6), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(6), width, sn_unit.inch(0.75))
+            self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Cleat", sn_unit.inch(6), width, sn_unit.inch(0.75))
+
             self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Block", sn_unit.inch(4)+(depth+wall_bed_depth.get_value()), sn_unit.inch(14), sn_unit.inch(0.75))
             self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Block", sn_unit.inch(4)+(depth+wall_bed_depth.get_value()), sn_unit.inch(14), sn_unit.inch(0.75))
             if bed_type == 0:
-                self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Backing", height-sn_unit.inch(5.93), width-sn_unit.inch(0.5), sn_unit.inch(0.75))
+                self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Backing", (width-sn_unit.inch(0.5))/2, height-sn_unit.inch(5.93), sn_unit.inch(0.75))
             else:
-                self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Backing", height-sn_unit.inch(5.93), (width-sn_unit.inch(0.5))/2, sn_unit.inch(0.75))
-                self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Backing", height-sn_unit.inch(5.93), (width-sn_unit.inch(0.5))/2, sn_unit.inch(0.75))
+                self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Backing", (width-sn_unit.inch(0.5))/2, height-sn_unit.inch(5.93), sn_unit.inch(0.75))
+                self.write_wall_bed_part_node(elm_subassembly, obj_bp, spec_group, "Wall Bed Backing", (width-sn_unit.inch(0.5))/2, height-sn_unit.inch(5.93), sn_unit.inch(0.75))
             if bed_type == 0:
                 self.write_hardware_node(elm_subassembly, obj_bp, name="Murphy WB Mechanism - Twin", qty=1)
             elif bed_type == 1:
