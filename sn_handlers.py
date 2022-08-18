@@ -78,7 +78,7 @@ def assign_material_pointers(scene=None):
 
             if room_mat_color:
                 if mat_type.get_mat_color().name != room_mat_color:
-                    for i, color in mat_type.colors:
+                    for i, color in enumerate(mat_type.colors):
                         if color.name == room_mat_color:
                             mat_type.set_color_index(i)
 
