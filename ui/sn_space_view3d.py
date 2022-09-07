@@ -329,13 +329,14 @@ class VIEW3D_HT_header(Header):
             layout.prop(overlay, "show_extras", text="", icon='LIGHT_DATA')
             layout.popover(panel="VIEW3D_PT_shading", text="", icon='LIGHT_SUN')
 
-            current_tool = context.workspace.tools[0].idname
-            if current_tool == "builtin.select_box":
-                draw_depressed = False
-                mode = True
-            else:
+            current_tool = context.workspace.tools.from_space_view3d_mode(mode="OBJECT")
+
+            if current_tool.idname == "builtin.measure":
                 draw_depressed = True
                 mode = False
+            else:
+                draw_depressed = False
+                mode = True
 
             layout.operator(
                 "sn_general.enable_ruler",

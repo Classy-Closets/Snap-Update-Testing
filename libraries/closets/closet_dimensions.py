@@ -16,7 +16,7 @@ from bpy.types import Menu, PropertyGroup, Panel, Operator
 from bpy.props import (BoolProperty,
                        PointerProperty,
                        EnumProperty)
-
+from snap import sn_utils
 
 from .data import data_closet_splitters
 
@@ -78,6 +78,7 @@ def scene_label_props(scenes, option):
         scene.snap_closet_dimensions.partition_height = option
         scene.snap_closet_dimensions.corner_shelves_l_shelves = option
         scene.snap_closet_dimensions.section_depths = option
+        scene.snap_closet_dimensions.positive_overlay = option
         scene.snap_closet_dimensions.section_widths = option
         scene.snap_closet_dimensions.toe_kicks = option
         scene.snap_closet_dimensions.toe_kick_height = option
@@ -2032,6 +2033,45 @@ class SNAP_OT_Auto_Dimension(Operator):
         filler_lbl.start_y(value=filler_measure / 2)
         filler_lbl.set_label(lbl_txt)
 
+    def lsh_csh_filler_label(self, filler, amount, side):
+        if side not in ["left", "right"] or amount <= 0:
+            return
+        factor = -1
+        filler_z_height = (abs(filler.location[2]) + sn_unit.inch(3)) * factor
+        filler_y_loc = (abs(amount) / 2) * factor
+        filler_amount = self.to_inch_lbl(amount)
+        lbl_txt = f'{filler_amount}|Filler'
+        filler_lbl = self.add_tagged_dimension(filler)
+        filler_lbl.start_x(value=filler_z_height)
+        if side == "right": 
+            filler_lbl.start_y(value=filler_y_loc)
+        if side == "left":
+            filler_lbl.anchor.location[2] += filler_y_loc
+        filler_lbl.set_label(lbl_txt)
+
+    def lsh_csh_filler(self, assembly):
+        l_filler_pmpt = assembly.get_prompt("Add Left Filler")
+        if l_filler_pmpt and l_filler_pmpt.get_value():
+            for obj in assembly.obj_bp.children:
+                is_filler = obj.get("IS_FILLER")
+                is_left = "left" in obj.name.lower()
+                not_capping = "capping" not in obj.name.lower()
+                if is_filler and is_left and not_capping:
+                    left_pmpt = assembly.get_prompt("Left Side Wall Filler")
+                    if left_pmpt:
+                        amount = left_pmpt.get_value()
+                        self.lsh_csh_filler_label(obj, amount, "left")
+        r_filler_pmpt = assembly.get_prompt("Add Right Filler")
+        if r_filler_pmpt and r_filler_pmpt.get_value():
+            for obj in assembly.obj_bp.children:
+                is_filler = obj.get("IS_FILLER")
+                is_right = "right" in obj.name.lower()
+                not_capping = "capping" not in obj.name.lower()
+                if is_filler and is_right and not_capping:
+                    right_pmpt = assembly.get_prompt("Right Side Wall Filler")
+                    amount = right_pmpt.get_value()
+                    self.lsh_csh_filler_label(obj, amount, "right")
+
     def upper_lower_filler_labeling(self, wall_bp):
         MAX_FILLERS = 2
         left_fillers = []
@@ -2692,7 +2732,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         product = sn_types.Assembly(item)
         bh_dims.append(product.obj_bp.location.z)
 
-    def build_height_dimension(self, wall_bp):
+    def build_height_dimension(self, wall_bp, overlay_offset):
         bh_dims = []
         right_wall = sn_types.Wall(wall_bp).get_connected_wall('RIGHT')
         for item in wall_bp.children:
@@ -2714,14 +2754,18 @@ class SNAP_OT_Auto_Dimension(Operator):
         bh_dims = list(set(bh_dims))
         bh_dims = sorted(bh_dims)
         for i, value in enumerate(bh_dims):
-            self.apply_build_height_label(wall_bp, value, i)
+            self.apply_build_height_label(wall_bp, value, i, overlay_offset)
+        if overlay_offset > 0:
+            pass
         dims_offset = (sn_unit.inch(-4) * len(bh_dims))
         max_offset = sn_unit.inch(-7) + dims_offset
         return max_offset
 
 
-    def apply_build_height_label(self, wall_bp, position, multiplier):
+    def apply_build_height_label(self, wall_bp, position, 
+                                 multiplier, overlay_offset):
         offset = sn_unit.inch(-7) + (sn_unit.inch(-4) * multiplier)
+        offset -= overlay_offset
         dim = self.add_tagged_dimension(wall_bp)
         dim.start_x(value=offset)
         dim.start_y(value=offset)
@@ -2930,6 +2974,12 @@ class SNAP_OT_Auto_Dimension(Operator):
             return True
         return False
 
+    def overlay_label(self, wall_bp, x_loc, z_loc):
+        dim = self.add_tagged_dimension(wall_bp)
+        dim.start_x(value=x_loc / 2)
+        dim.start_z(value=z_loc + sn_unit.inch(6))
+        dim.set_label("Positive|Overlay")
+        
     def label_regular_doors(self, assembly, door_obj):
         has_pointers = self.door_has_pointers(door_obj.parent)
         door_assy = sn_types.Assembly(door_obj)
@@ -2992,36 +3042,15 @@ class SNAP_OT_Auto_Dimension(Operator):
             dim.set_label(face_value)
 
     def wallbed_doors(self):
-        wallbed_doors_to_lbl = []
-        wallbed_doors = [o for o in bpy.data.objects \
-                if o.get('IS_DOOR') and sn_utils.get_wallbed_bp(o)]
+        wallbed_doors = sn_utils.get_wallbed_doors()
         for door in wallbed_doors:
-            for child in door.children:
-                is_mesh = child.type == 'MESH'
-                not_hidden = not child.hide_render
-                seen = door in wallbed_doors_to_lbl
-                if is_mesh and not_hidden and not seen:
-                    wallbed_doors_to_lbl.append(door)
-        for door in wallbed_doors_to_lbl:
-            wallbed_bp = sn_utils.get_wallbed_bp(door)
-            has_doors = sn_types.Assembly(
-                wallbed_bp).get_prompt("Add Doors And Drawers")
-            backdoor = 'backing' in door.name.lower()
-            if has_doors and has_doors.get_value() and not backdoor:
-                self.label_wallbed_doors(door)
-            elif has_doors and not has_doors.get_value() and backdoor:
-                self.label_wallbed_doors(door)
+            self.label_wallbed_doors(door)
 
     def wallbed_drawers(self):
-        wallbed_drawers_to_lbl = []
-        wallbed_drawers = [o for o in bpy.data.objects \
-                if o.get('IS_BP_DRAWER_FRONT') and sn_utils.get_wallbed_bp(o)]
-        for drawer in wallbed_drawers:
-            for child in drawer.children:
-                if child.type == 'MESH' and not child.hide_render:
-                    wallbed_drawers_to_lbl.append(drawer)
+        wallbed_drawers_to_lbl = sn_utils.get_wallbed_drawers()
         for drawer_label in wallbed_drawers_to_lbl:
-            self.label_wallbed_drawer(drawer_label)
+            if drawer_label:
+                self.label_wallbed_drawer(drawer_label)
 
     def execute(self, context):
         self.clean_up_scene(context)
@@ -3038,8 +3067,15 @@ class SNAP_OT_Auto_Dimension(Operator):
         # Set Closet Product Annotations
         for wall_bp in scene_walls(context):
             bheight_offset = 0
+            overlay_x_loc, overlay_item_height = self.positive_overlay(
+                wall_bp)
+            has_overlay = overlay_x_loc != 0
             if scene_props.framing_height:
-                bheight_offset = self.build_height_dimension(wall_bp)
+                bheight_offset += self.build_height_dimension(
+                    wall_bp, abs(overlay_x_loc))
+            if scene_props.positive_overlay and has_overlay:
+                self.overlay_label(wall_bp, overlay_x_loc, overlay_item_height)
+            bheight_offset += overlay_x_loc
             if scene_props.section_depths:
                 self.section_depths(wall_bp)
             if scene_props.section_widths:
@@ -3300,6 +3336,8 @@ class SNAP_OT_Auto_Dimension(Operator):
             # Corner Shelves and L-shelves
             is_lsh = 'l shelves' in assembly.obj_bp.name.lower()
             is_csh = 'corner shelves' in assembly.obj_bp.name.lower()
+            if scene_props.filler and (is_lsh or is_csh):
+                self.lsh_csh_filler(assembly)
             if scene_props.corner_shelves_l_shelves and (is_lsh or is_csh):
                 self.corner_shelves_l_shelves(assembly.obj_bp)
 
@@ -3311,6 +3349,38 @@ class SNAP_OT_Auto_Dimension(Operator):
         bpy.ops.sn_closets.update_drawer_boxes(add=False)
 
         return {'FINISHED'}
+
+    def has_positive_overlay(self, item):
+        if not item.get("IS_BP_ASSEMBLY"):
+            return False
+        wall_length, item_length = math.inf, 0
+        wall_assy = None
+        wall_bp = sn_utils.get_wall_bp(item)
+        if wall_bp:
+            wall_assy = sn_types.Assembly(wall_bp)
+            item_assy = sn_types.Assembly(item)
+            if not wall_assy and not item_assy and not item_assy.obj_x:
+                return False
+            wall_length = wall_assy.obj_x.location.x
+            item_length = item_assy.obj_x.location.x
+        negative_x_loc = item.location[0] < 0
+        positive_x_loc = (item_length + item.location[0]) < wall_length
+        if negative_x_loc or positive_x_loc:
+            return True
+        return False
+
+    def positive_overlay(self, wall_bp):
+        overlays = []
+        for item in wall_bp.children:
+            if self.has_positive_overlay(item):
+                assy = sn_types.Assembly(item)
+                height = assy.obj_z.location.z
+                overlays.append((item.location[0], height))
+        if len(overlays) > 0:
+            higher_overlay = sorted(
+                overlays, key=lambda tup: tup[0], reverse=True)[0]
+            return higher_overlay
+        return (0, 0)
 
 
 class SNAP_PROPS_2D_Dimensions(PropertyGroup):
@@ -3327,6 +3397,10 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
     auto_add_on_save: BoolProperty(name="Auto Add On Save",
                                    default=False,
                                    description="Automatically add annotations and dimensions to scene")
+    
+    disable_2dviews_shading: BoolProperty(name="Disable 2D Views Shading",
+                                   default=False,
+                                   description="Disable shading for obstacles and glass panels")
 
     include_accordions: BoolProperty(name="Include Accordions",
                                    default=False,
@@ -3366,6 +3440,10 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
                                    description="")
 
     partition_depths: BoolProperty(name="Add Partition Depths",
+                                   default=True,
+                                   description="")
+    
+    positive_overlay: BoolProperty(name="Add Positive Overlays",
                                    default=True,
                                    description="")
 
@@ -3499,6 +3577,7 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
         general_box.prop(self, 'obstacles')
         general_box.prop(self, 'partition_depths')
         general_box.prop(self, 'partition_height')
+        general_box.prop(self, 'positive_overlay')
         general_box.prop(self, 'section_depths')
         general_box.prop(self, 'section_widths')
         general_box.prop(self, 'toe_kicks')
@@ -3543,6 +3622,7 @@ class SNAP_PROPS_2D_Dimensions(PropertyGroup):
                  text="", icon='DOWNARROW_HLT')
         row = main_box.row(align=True)
         row.prop(self, 'auto_add_on_save', text="Auto Add on Save")
+        row.prop(self, 'disable_2dviews_shading', text="Disable 2D Views shading")
 
         col = box.column(align=True)
         row = col.row(align=True)

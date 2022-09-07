@@ -50,7 +50,9 @@ class SN_LIB_OT_set_active_library(Operator):
         snap_scene.active_library_name = self.library_name
         lib_names = [lib.name for lib in snap_wm.libraries]
         material_props = context.scene.closet_materials
-        material_props.set_default_countertop_mat()
+
+        if self.library_name in ("Kitchen Bath Library", "Product Library"):
+            material_props.set_default_countertop_mat()
 
         if self.library_name in lib_names:
             library = snap_wm.libraries[snap_scene.active_library_name]

@@ -18,9 +18,6 @@ import xml.etree.ElementTree as ET
 import openpyxl
 import pandas
 import numpy
-import et_xmlfile
-from openpyxl.formatting.rule import ColorScaleRule, CellIsRule, FormulaRule
-from openpyxl.styles import Font, PatternFill, Border
 
 
 PRICING_PROPERTY_NAMESPACE = "sn_project_pricing"
@@ -233,7 +230,7 @@ def generate_retail_pricing_summary(parts_file):
     #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
     #     sys.path.append(python_lib_path)
 
-    red_fill = PatternFill(bgColor="FFCCCB")
+    red_fill = openpyxl.styles.PatternFill(bgColor="FFCCCB")
 
     wb = openpyxl.Workbook()
     pricing_sheet = wb.active
@@ -365,7 +362,7 @@ def generate_retail_pricing_summary(parts_file):
         erp_sheet["E" + str(erp_row + 2)] = "=D" + str(erp_row + 2) + "*0.5"
         erp_sheet["E" + str(erp_row + 2)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
-        pricing_sheet["A" + str(row_start + 15)] = ""
+        pricing_sheet["A" + str(row_start + 16)] = ""
         row_start = pricing_sheet.max_row
         erp_row = erp_sheet.max_row
 
@@ -376,9 +373,9 @@ def generate_retail_pricing_summary(parts_file):
     pricing_sheet["B" + str(row_start + 3)] = "See Special Order tab for details"
     pricing_sheet["C" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["C" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet.conditional_formatting.add("C" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet.conditional_formatting.add("C" + str(row_start + 3), openpyxl.formatting.rule.FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
     pricing_sheet["D" + str(row_start + 3)] = "=IF(" + "C" + str(row_start + 3) + ">0," + '"Please assign Room Names for these items"' + "," + '""' + ")"
-    pricing_sheet.conditional_formatting.add("D" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet.conditional_formatting.add("D" + str(row_start + 3), openpyxl.formatting.rule.FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
 
     pricing_sheet["B" + str(row_start + 6)] = "Project Totals"
     pricing_sheet["B" + str(row_start + 6)].font = openpyxl.styles.Font(bold=True)
@@ -442,6 +439,7 @@ def generate_retail_pricing_summary(parts_file):
     set_column_width(pricing_sheet)
     set_column_width(erp_sheet)
     erp_sheet.sheet_state = 'hidden'
+
     try:
         wb.save(filename=parts_file)
     except PermissionError:
@@ -458,7 +456,7 @@ def generate_franchise_pricing_summary(parts_file):
     #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
     #     sys.path.append(python_lib_path)
 
-    red_fill = PatternFill(bgColor="FFCCCB")
+    red_fill = openpyxl.styles.PatternFill(bgColor="FFCCCB")
 
     wb = openpyxl.Workbook()
     pricing_sheet = wb.active
@@ -466,6 +464,7 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet.HeaderFooter.oddHeader.left.text = "Client Name: {}\nClient ID: {}".format(CLIENT_NAME, CLIENT_ID)
     pricing_sheet.HeaderFooter.oddHeader.center.text = "Pricing Summary Sheet\nJob Number: {}".format(JOB_NUMBER)
     pricing_sheet.HeaderFooter.oddHeader.right.text = "Project Name: {}\nDesign Date: {}".format(PROJECT_NAME, DESIGN_DATE)
+
     pricing_sheet.merge_cells('B1:E1')
     cell = pricing_sheet.cell(row=1, column=2)
     cell.value = "SNaP Version: {}.{}.{}".format(bl_info['version'][0], bl_info['version'][1], bl_info['version'][2])
@@ -587,7 +586,7 @@ def generate_franchise_pricing_summary(parts_file):
         pricing_sheet["D" + str(row_start + 14)] = "=" + "D" + str(row_start + 11) + "+D" + str(row_start + 12) + "+D" + str(row_start + 13)
         pricing_sheet["D" + str(row_start + 14)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
-        pricing_sheet["A" + str(row_start + 15)] = ""
+        pricing_sheet["A" + str(row_start + 16)] = ""
         row_start = pricing_sheet.max_row
 
     pricing_sheet["B" + str(row_start + 2)] = "Other Special Order Items"
@@ -597,12 +596,12 @@ def generate_franchise_pricing_summary(parts_file):
     pricing_sheet["B" + str(row_start + 3)] = "See Special Order tab for details"
     pricing_sheet["C" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["C" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet.conditional_formatting.add("C" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet.conditional_formatting.add("C" + str(row_start + 3), openpyxl.formatting.rule.FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
     pricing_sheet["D" + str(row_start + 3)] = "=SUMIF('Special Order'!A:A," + '""' + ",'Special Order'!O:O)"
     pricing_sheet["D" + str(row_start + 3)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
-    pricing_sheet.conditional_formatting.add("D" + str(row_start + 3), FormulaRule(formula=["D" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet.conditional_formatting.add("D" + str(row_start + 3), openpyxl.formatting.rule.FormulaRule(formula=["D" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
     pricing_sheet["E" + str(row_start + 3)] = "=IF(" + "C" + str(row_start + 3) + ">0," + '"Please assign Room Names for these items"' + "," + '""' + ")"
-    pricing_sheet.conditional_formatting.add("E" + str(row_start + 3), FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
+    pricing_sheet.conditional_formatting.add("E" + str(row_start + 3), openpyxl.formatting.rule.FormulaRule(formula=["C" + str(row_start + 3) + ">0"], stopIfTrue=True, fill=red_fill))
     
     pricing_sheet["B" + str(row_start + 6)] = "Project Totals"
     pricing_sheet["B" + str(row_start + 6)].font = openpyxl.styles.Font(bold=True)
@@ -723,6 +722,7 @@ def generate_parts_summary(parts_file, materials_sheet, hardware_sheet, accessor
             writer.sheets['Materials Summary'].HeaderFooter.oddHeader.right.text = "Project Name: {}\nDesign Date: {}".format(PROJECT_NAME, DESIGN_DATE)
             set_column_width(writer.sheets['Materials Summary'])
 
+
             df_drawers = pandas.read_excel(parts_file, sheet_name='Materials').query(' (PART_NAME == "Drawer Side" and VENDOR_NAME != "EDGBANDING SERVICES") \
                                                                                     or (PART_NAME == "Drawer Sub Front" and VENDOR_NAME != "EDGBANDING SERVICES") \
                                                                                     or (PART_NAME == "Drawer Back" and VENDOR_NAME != "EDGBANDING SERVICES") \
@@ -841,8 +841,6 @@ def generate_retail_parts_list():
             sheet1["N" + str((i + 1) + 1)] = float(MATERIAL_PARTS_LIST[i][11])                                  #RETAIL_PRICE
             sheet1["O" + str((i + 1) + 1)] = float(MATERIAL_PARTS_LIST[i][12])                                  #LABOR
             
-            if "Adj Shelf" in MATERIAL_PARTS_LIST[i][6]:
-                print(MATERIAL_PARTS_LIST[i][6])
             if MATERIAL_PARTS_LIST[i][1][:2] in material_types:
                 if 'SF' in MATERIAL_PARTS_LIST[i][13]:
                     sheet1["L" + str((i + 1) + 1)] = get_square_footage(float(MATERIAL_PARTS_LIST[i][8]), float(MATERIAL_PARTS_LIST[i][9]))
@@ -885,6 +883,7 @@ def generate_retail_parts_list():
         sheet1["R" + str(row_max + 4)] = "=SUM(P2:P" + str(row_max) + ")"
 
         sheet1.column_dimensions['Q'].hidden = True
+        sheet1.column_dimensions['O'].hidden = True
         set_column_width(sheet1)
     else:
         print("Materials Parts List Empty")
@@ -915,6 +914,7 @@ def generate_retail_parts_list():
         sheet1["Q2"] = "---"
 
         sheet1.column_dimensions['Q'].hidden = True
+        sheet1.column_dimensions['O'].hidden = True
         set_column_width(sheet1)
 
     if len(HARDWARE_PARTS_LIST) != 0:
@@ -1049,6 +1049,7 @@ def generate_retail_parts_list():
         sheet4["P" + str(row_max + 4)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         sheet4["P" + str(row_max + 4)] = "=SUM(O2:O" + str(row_max) + ")"
 
+        sheet4.column_dimensions['N'].hidden = True
         set_column_width(sheet4)
     else:
         print("Wood_Upgraded Panels Parts List Empty")
@@ -1076,6 +1077,7 @@ def generate_retail_parts_list():
         sheet4["O2"] = 0                                              #CALCULATED_PRICE
         sheet4["O2"].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
+        sheet4.column_dimensions['N'].hidden = True
         set_column_width(sheet4)
 
     if len(SPECIAL_ORDER_PARTS_LIST) != 0:
@@ -1110,6 +1112,7 @@ def generate_retail_parts_list():
         # sheet5["O" + str(row_max + 4)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         # sheet5["O" + str(row_max + 4)] = "=SUM(O2:O" + str(row_max) + ")"
 
+        sheet5.column_dimensions['N'].hidden = True
         set_column_width(sheet5)
     else:
         print("Special Order Parts List Empty")
@@ -1138,6 +1141,7 @@ def generate_retail_parts_list():
         sheet5["O2"] = 0                                              #CALCULATED_PRICE
         sheet5["O2"].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
+        sheet5.column_dimensions['N'].hidden = True
         set_column_width(sheet5)
 
     # Save the spreadsheet
@@ -1145,11 +1149,45 @@ def generate_retail_parts_list():
         wb.save(filename=parts_file)
         print("Retail Pricing Parts List Generated")
         print("Creating Retail Parts Summary...")
-        generate_parts_summary(parts_file, sheet1, sheet2, sheet3, sheet4, sheet5)
     except PermissionError:
         parts_file_name = os.path.basename(parts_file)
         message = "Cannot create parts list. Pricing Spreadsheet Open.\nPlease close the file:\n" + parts_file_name
         return bpy.ops.snap.message_box('INVOKE_DEFAULT', message=message, icon='ERROR')
+    
+    df_materials = pandas.read_excel(parts_file, sheet_name='Materials').query('SKU_NUMBER.str.contains("EB")==False \
+                                                                                and (PART_NAME != "Drawer Side" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                and (PART_NAME != "Drawer Sub Front" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                and (PART_NAME != "Drawer Back" and VENDOR_NAME != "EDGBANDING SERVICES")', engine='python')
+    sf_summary = pandas.pivot_table(df_materials, index=['MATERIAL', 'SKU_NUMBER'], values=['SQUARE_FT'], aggfunc=numpy.sum)
+
+    thin_border = openpyxl.styles.borders.Border(left=openpyxl.styles.borders.Side(style='thin'), 
+                                                right=openpyxl.styles.borders.Side(style='thin'), 
+                                                top=openpyxl.styles.borders.Side(style='thin'), 
+                                                bottom=openpyxl.styles.borders.Side(style='thin'))
+    wb = openpyxl.load_workbook(parts_file)
+    ws = wb["Retail Pricing Summary"]
+    ws["H3"] = "Project Material Totals"
+    ws["H3"].font = openpyxl.styles.Font(bold=True)
+    ws["H3"].border = thin_border
+    ws["I3"] = "SKU Number"
+    ws["I3"].font = openpyxl.styles.Font(bold=True)
+    ws["I3"].border = thin_border
+    ws["J3"] = "Square FT"
+    ws["J3"].font = openpyxl.styles.Font(bold=True)
+    ws["J3"].border = thin_border
+    i = 0
+    
+    for index, data_row in sf_summary.iterrows():
+        ws["H" + str(i + 4)] = index[0]
+        ws["H" + str(i + 4)].border = thin_border
+        ws["I" + str(i + 4)] = index[1]
+        ws["I" + str(i + 4)].border = thin_border
+        ws["J" + str(i + 4)] = data_row['SQUARE_FT']
+        ws["J" + str(i + 4)].border = thin_border
+        i = i + 1
+    set_column_width(ws)
+    wb.save(filename=parts_file)
+    generate_parts_summary(parts_file, sheet1, sheet2, sheet3, sheet4, sheet5)
 
 
 def generate_franchise_parts_list():
@@ -1258,6 +1296,7 @@ def generate_franchise_parts_list():
         sheet1["R" + str(row_max + 4)] = "=SUM(P2:P" + str(row_max) + ")"
 
         sheet1.column_dimensions['Q'].hidden = True
+        sheet1.column_dimensions['O'].hidden = True
         set_column_width(sheet1)
     else:
         print("Materials Parts List Empty")
@@ -1288,6 +1327,7 @@ def generate_franchise_parts_list():
         sheet1["Q2"] = "---"
 
         sheet1.column_dimensions['Q'].hidden = True
+        sheet1.column_dimensions['O'].hidden = True
         set_column_width(sheet1)
 
     if len(HARDWARE_PARTS_LIST) != 0:
@@ -1422,6 +1462,7 @@ def generate_franchise_parts_list():
         sheet4["P" + str(row_max + 4)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         sheet4["P" + str(row_max + 4)] = "=SUM(O2:O" + str(row_max) + ")"
 
+        sheet4.column_dimensions['N'].hidden = True
         set_column_width(sheet4)
     else:
         print("Wood_Upgraded Panels Parts List Empty")
@@ -1449,6 +1490,7 @@ def generate_franchise_parts_list():
         sheet4["O2"] = 0                                              #CALCULATED_PRICE
         sheet4["O2"].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
+        sheet4.column_dimensions['N'].hidden = True
         set_column_width(sheet4)
 
     if len(SPECIAL_ORDER_PARTS_LIST) != 0:
@@ -1483,6 +1525,7 @@ def generate_franchise_parts_list():
         # sheet5["P" + str(row_max + 4)].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
         # sheet5["P" + str(row_max + 4)] = "=SUM(O2:O" + str(row_max) + ")"
 
+        sheet5.column_dimensions['N'].hidden = True
         set_column_width(sheet5)
     else:
         print("Special Order Parts List Empty")
@@ -1510,6 +1553,7 @@ def generate_franchise_parts_list():
         sheet5["O2"] = 0                                              #CALCULATED_PRICE
         sheet5["O2"].number_format = openpyxl.styles.numbers.FORMAT_CURRENCY_USD_SIMPLE
 
+        sheet5.column_dimensions['N'].hidden = True
         set_column_width(sheet5)
 
 
@@ -1518,11 +1562,45 @@ def generate_franchise_parts_list():
         wb.save(filename=parts_file)
         print("Franchise Pricing Parts List Generated")
         print("Creating Franchise Parts Summary...")
-        generate_parts_summary(parts_file, sheet1, sheet2, sheet3, sheet4, sheet5)
     except PermissionError:
         parts_file_name = os.path.basename(parts_file)
         message = "Cannot create parts list. Pricing Spreadsheet Open.\nPlease close the file:\n" + parts_file_name
         return bpy.ops.snap.message_box('INVOKE_DEFAULT', message=message, icon='ERROR')
+
+    df_materials = pandas.read_excel(parts_file, sheet_name='Materials').query('SKU_NUMBER.str.contains("EB")==False \
+                                                                                and (PART_NAME != "Drawer Side" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                and (PART_NAME != "Drawer Sub Front" and VENDOR_NAME != "EDGBANDING SERVICES") \
+                                                                                and (PART_NAME != "Drawer Back" and VENDOR_NAME != "EDGBANDING SERVICES")', engine='python')
+    sf_summary = pandas.pivot_table(df_materials, index=['MATERIAL', 'SKU_NUMBER'], values=['SQUARE_FT'], aggfunc=numpy.sum)
+
+    thin_border = openpyxl.styles.borders.Border(left=openpyxl.styles.borders.Side(style='thin'), 
+                                                right=openpyxl.styles.borders.Side(style='thin'), 
+                                                top=openpyxl.styles.borders.Side(style='thin'), 
+                                                bottom=openpyxl.styles.borders.Side(style='thin'))
+    wb = openpyxl.load_workbook(parts_file)
+    ws = wb["Franchise Pricing Summary"]
+    ws["H3"] = "Project Material Totals"
+    ws["H3"].font = openpyxl.styles.Font(bold=True)
+    ws["H3"].border = thin_border
+    ws["I3"] = "SKU Number"
+    ws["I3"].font = openpyxl.styles.Font(bold=True)
+    ws["I3"].border = thin_border
+    ws["J3"] = "Square FT"
+    ws["J3"].font = openpyxl.styles.Font(bold=True)
+    ws["J3"].border = thin_border
+    i = 0
+    
+    for index, data_row in sf_summary.iterrows():
+        ws["H" + str(i + 4)] = index[0]
+        ws["H" + str(i + 4)].border = thin_border
+        ws["I" + str(i + 4)] = index[1]
+        ws["I" + str(i + 4)].border = thin_border
+        ws["J" + str(i + 4)] = data_row['SQUARE_FT']
+        ws["J" + str(i + 4)].border = thin_border
+        i = i + 1
+    set_column_width(ws)
+    wb.save(filename=parts_file)
+    generate_parts_summary(parts_file, sheet1, sheet2, sheet3, sheet4, sheet5)
 
 
 def get_labor_costs(part_name):
@@ -1711,6 +1789,7 @@ def get_pricing_info(sku_num, qty, length_inches=0.0, width_inches=0.0, style_na
         if style_name is not None:
             # try:
             #     import pandas
+            #     import numpy
             # except ModuleNotFoundError:
             #     python_lib_path = os.path.join(sn_paths.ROOT_DIR, "python_lib")
             #     sys.path.append(python_lib_path)

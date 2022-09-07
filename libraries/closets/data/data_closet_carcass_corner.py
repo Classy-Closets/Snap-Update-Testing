@@ -126,6 +126,7 @@ class L_Shelves(sn_types.Assembly):
             previous_shelf = shelf
 
         for shelf in self.shelves:
+            shelf.add_to_wall_collection()
             sn_utils.update_obj_driver_expressions(shelf.obj_bp)
 
     def pre_draw(self):
@@ -378,7 +379,7 @@ class L_Shelves(sn_types.Assembly):
                               Add_Capping_Left_Filler, Right_Side_Wall_Filler,
                               Right_Filler_Setback_Amount, Toe_Kick_Height,
                               Edge_Bottom_of_Right_Filler, Right_Depth,
-                              Add_Capping_Right_Filler)
+                              Add_Capping_Right_Filler, Height)
 
         spine = common_parts.add_panel(self)
         spine.set_name("Mitered Pard")
@@ -643,7 +644,7 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
                           Add_Capping_Left_Filler, Right_Side_Wall_Filler,
                           Right_Filler_Setback_Amount, Toe_Kick_Height,
                           Edge_Bottom_of_Right_Filler, Right_Depth,
-                          Add_Capping_Right_Filler):
+                          Add_Capping_Right_Filler, Height):
 
     # Left Filler
     left_filler = common_parts.add_filler(assemly)
@@ -660,8 +661,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
         "Depth-Left_Side_Wall_Filler",
         [Depth, Left_Side_Wall_Filler])
     left_filler.loc_z(
-        'IF(Is_Hanging, 0, Toe_Kick_Height)',
-        [Toe_Kick_Height, Is_Hanging])
+        'IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)',
+        [Toe_Kick_Height, Height, Panel_Height, Is_Hanging])
     left_filler.rot_x(value=0)
     left_filler.rot_y(value=math.radians(-90))
     left_filler.rot_z(value=math.radians(180))
@@ -692,8 +693,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
         "Depth-Left_Side_Wall_Filler",
         [Depth, Left_Side_Wall_Filler])
     left_capping_filler.loc_z(
-        'IF(Is_Hanging, 0, Toe_Kick_Height)+INCH(0.455)',
-        [Toe_Kick_Height, Is_Hanging])
+        'IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+INCH(0.455)',
+        [Toe_Kick_Height, Height, Panel_Height, Is_Hanging])
     left_capping_filler.rot_y(value=math.radians(-90))
     left_capping_filler.rot_z(value=math.radians(180))
     left_capping_filler.get_prompt('Hide').set_formula(
@@ -718,8 +719,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
         '-Right_Depth+Right_Filler_Setback_Amount',
         [Right_Depth, Right_Filler_Setback_Amount])
     right_filler.loc_z(
-        'IF(Is_Hanging, 0, Toe_Kick_Height)',
-        [Toe_Kick_Height, Is_Hanging])
+        'IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)',
+        [Toe_Kick_Height, Height, Panel_Height, Is_Hanging])
     right_filler.rot_x(value=0)
     right_filler.rot_y(value=math.radians(-90))
     right_filler.rot_z(value=math.radians(-90))
@@ -750,8 +751,8 @@ def create_corner_fillers(assemly, Panel_Height, Left_Side_Wall_Filler,
         '-Right_Depth+Right_Filler_Setback_Amount-Panel_Thickness',
         [Right_Depth, Right_Filler_Setback_Amount, Panel_Thickness])
     right_capping_filler.loc_z(
-        'IF(Is_Hanging, 0, Toe_Kick_Height)+INCH(0.455)',
-        [Toe_Kick_Height, Is_Hanging])
+        'IF(Is_Hanging,Height-Panel_Height,Toe_Kick_Height)+INCH(0.455)',
+        [Toe_Kick_Height, Height, Panel_Height, Is_Hanging])
     right_capping_filler.rot_y(value=math.radians(-90))
     right_capping_filler.rot_z(value=math.radians(-90))
     right_capping_filler.get_prompt('Hide').set_formula(
@@ -923,6 +924,7 @@ class Corner_Shelves(sn_types.Assembly):
             previous_shelf = shelf
 
         for shelf in self.shelves:
+            shelf.add_to_wall_collection()
             sn_utils.update_obj_driver_expressions(shelf.obj_bp)
 
     def update(self):
@@ -1222,7 +1224,7 @@ class Corner_Shelves(sn_types.Assembly):
                               Add_Capping_Left_Filler, Right_Side_Wall_Filler,
                               Right_Filler_Setback_Amount, Toe_Kick_Height,
                               Edge_Bottom_of_Right_Filler, Right_Depth,
-                              Add_Capping_Right_Filler)
+                              Add_Capping_Right_Filler, Height)
         # Doors
         # Left Angled Door
         angled_door_l = common_parts.add_door(self)

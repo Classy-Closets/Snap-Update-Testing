@@ -337,7 +337,9 @@ class SNAP_PT_Cabinet_Options(bpy.types.Panel):
 
     def draw_header(self, context):
         layout = self.layout
-        layout.label(text='',icon='OUTLINER_COLLECTION')
+        wm = context.window_manager.snap
+        kb_icon = wm.libraries["Kitchen Bath Library"].icon
+        layout.label(text='', icon_value=snap.snap_icons[kb_icon].icon_id)        
 
     def draw_molding_options(self,layout):
         molding_box = layout.box()
@@ -733,15 +735,6 @@ class PROMPTS_Door_Prompts(bpy.types.Operator):
             if self.assembly.obj_bp.name in context.scene.objects:
                 draw_door_options(self.assembly,layout)
 
-def update_overall_width(self, context):
-    print("entering update_overall_width...")
-    if hasattr(self, "default_width"):
-        if not self.placement_on_wall == 'FILL':
-            self.width = self.default_width
-            self.closet.obj_x.location.x = self.width
-        else:
-            self.width = self.closet.obj_x.location.x
-
 class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
     bl_idname = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
     bl_label = "Frameless Cabinet Prompts" 
@@ -750,9 +743,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
     object_name: StringProperty(name="Object Name")
     
     width: FloatProperty(name="Width",unit='LENGTH',precision=4)
-
     height: EnumProperty(name="Default Hanging Panel Height", items=get_panel_heights)
-
     depth: FloatProperty(name="Depth",unit='LENGTH',precision=4)
 
     product_tabs: EnumProperty(name="Door Swing",items=[('CARCASS',"Carcass","Carcass Options"),
@@ -766,17 +757,12 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
                                                                  ('Right Swing',"Right Swing","Right Swing")])
 
     placement_on_wall: EnumProperty(
-        name="Placement on Wall",
-        items=[
-            ('SELECTED_POINT', "Selected Point", ""),
-            ('FILL', "Fill", ""),
-            ('FILL_LEFT', "Fill Left", ""),
-            ('LEFT', "Left", ""),
-            ('CENTER', "Center", ""),
-            ('RIGHT', "Right", ""),
-            ('FILL_RIGHT', "Fill Right", "")],
-        default='SELECTED_POINT',
-        update=update_overall_width)
+        name="Placement on Wall",items=[('SELECTED_POINT', "Selected Point", ""),
+                                        ('FILL', "Fill", ""),
+                                        ('LEFT', "Left", ""),
+                                        ('CENTER', "Center", ""),
+                                        ('RIGHT', "Right", "")],
+                                        default='SELECTED_POINT')
     
     left_offset: FloatProperty(name="Left Offset", default=0, subtype='DISTANCE', precision=4)
     right_offset: FloatProperty(name="Right Offset", default=0, subtype='DISTANCE', precision=4)
@@ -806,11 +792,20 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
 
     def reset_variables(self):
         self.product_tabs = 'CARCASS'
+        self.width = 0
         self.doors = []
         self.drawers = []
         self.splitters = []
         self.interiors = []
         self.calculators = []
+
+    def update_overall_width(self):
+
+        if not self.placement_on_wall == 'FILL':
+            # self.width = self.default_width
+            self.product.obj_x.location.x = self.width
+        else:
+            self.width = self.product.obj_x.location.x
 
     def update_product_size(self):
         self.product.obj_x.location.x = self.width
@@ -859,7 +854,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         left_x = product.get_collision_location('LEFT')
         right_x = product.get_collision_location('RIGHT')
         offsets = self.left_offset + self.right_offset
-       
+        
         if self.placement_on_wall == 'FILL':
             product.obj_bp.location.x = left_x + self.left_offset
             product.obj_x.location.x = right_x - left_x - offsets
@@ -874,14 +869,14 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
             product.obj_bp.location.x = (right_x - product.calc_width()) - self.right_offset
         if self.placement_on_wall == 'SELECTED_POINT' and self.last_placement != 'SELECTED_POINT':
                 product.obj_bp.location.x = self.selected_location
-        elif self.placement_on_wall == 'SELECTED_POINT' and self.placement_on_wall == 'SELECTED_POINT':
+        elif self.placement_on_wall == 'SELECTED_POINT' and self.last_placement == 'SELECTED_POINT':
             self.selected_location = product.obj_bp.location.x
 
         self.last_placement = self.placement_on_wall
 
-        # self.run_calculators(self.closet.obj_bp)
 
     def check(self, context):
+        self.update_overall_width()
         self.update_product_size()
         self.update_placement(context)
         self.run_calculators(self.product.obj_bp)
@@ -889,6 +884,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         self.update_door_dimensions()
         self.update_drawer_dimensions()
         self.update_carcass_dimensions()
+        
         return True
 
     def execute(self, context):
@@ -910,7 +906,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         self.inserts = sn_utils.get_insert_bp_list(self.product.obj_bp,[])
 
         self.selected_location = self.product.obj_bp.location.x
-        self.default_width = self.product.obj_x.location.x
+        self.default_width = math.fabs(self.product.obj_x.location.x)
         self.placement_on_wall = 'SELECTED_POINT'
         self.last_placement = 'SELECTED_POINT'
         self.left_offset = 0
@@ -996,7 +992,60 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
             row.label(text='Offset',icon='FORWARD')
             row.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right")          
         
+    def draw_product_size(self, layout, alt_height="", use_rot_z=True):
+        box = layout.box()
+        row = box.row()
 
+        col = row.column(align=True)
+        row1 = col.row(align=True)
+        if self.object_has_driver(self.product.obj_x):
+            row1.label(text='Width: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_x.location.x))))
+        elif self.placement_on_wall == 'FILL':
+            width = round(sn_unit.meter_to_inch(self.product.obj_x.location.x), 2)
+            label = str(width).replace(".0", "") + '"'
+            row1.label(text="Width:")
+            row1.label(text=label)
+        else:
+            row1.label(text='Width:')
+            row1.prop(self,'width',text="")
+
+        row1 = col.row(align=True)
+        if sn_utils.object_has_driver(self.product.obj_z):
+            row1.label(text='Height: ' + str(round(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_z.location.z)), 3)))
+        else:
+            row1.label(text='Height:')
+
+            if alt_height == "":
+                pass
+                row1.prop(self, 'height', text="")
+            else:
+                row1.prop(self, alt_height, text="")
+
+        row1 = col.row(align=True)
+        if sn_utils.object_has_driver(self.product.obj_y):
+            row1.label(text='Depth: ' + str(round(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_y.location.y)), 3)))
+        else:
+            row1.label(text='Depth:')
+            row1.prop(self, 'depth', text="")
+
+        col = row.column(align=True)
+        col.label(text="Location X:")
+        col.label(text="Location Y:")
+        col.label(text="Location Z:")
+
+        col = row.column(align=True)
+        col.prop(self.product.obj_bp, 'location', text="")
+
+        if use_rot_z:
+            row = box.row()
+            row.label(text='Rotation Z:')
+            row.prop(self.product.obj_bp, 'rotation_euler', index=2, text="")
+
+    def object_has_driver(self,obj):
+        if obj.animation_data:
+            if len(obj.animation_data.drivers) > 0:
+                return True
+                
     def draw_carcass_prompts(self,layout):
         if self.carcass:
             draw_carcass_options(self.carcass, layout)
@@ -1040,7 +1089,6 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
                 split = box.split(factor=.8)
                 split.label(text=self.product.obj_bp.snap.name_object, icon='LATTICE_DATA')
                 # split.menu('MENU_Current_Cabinet_Menu',text="Menu",icon='DOWNARROW_HLT')
-                
                 self.draw_product_size(box)
                 
                 prompt_box = box.box()

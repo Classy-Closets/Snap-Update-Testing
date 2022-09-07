@@ -233,17 +233,29 @@ class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
             r_filler_mesh.location.x = self.product.obj_x.location.x
             r_filler_mesh.location.y = self.product.obj_y.location.y
             
-        dim_lbl = dim = sn_types.Dimension()
+
+        wall_bp = sn_utils.get_wall_bp(self.product.obj_bp)
+        parent_rot = wall_bp.rotation_euler.z
+        
+        dim_lbl = sn_types.Dimension()
         dim_lbl.parent(assembly_mesh)
+        scene = bpy.context.scene
+        scene.snap.opengl_dim.gl_font_size = 15.5
+
+        dim_lbl.anchor.rotation_euler = (0, -parent_rot, 0)
         dim_lbl.start_x(value=assembly_mesh.dimensions.x/2)
 
-        product_name = format_name(self.product.obj_bp.name)
+        assembly_above = self.product.get_adjacent_assembly(direction='ABOVE')
         if self.product.obj_bp.location.z > 1:  # if this is an upper...
+            y_offset = 0.45
+        elif not assembly_above:
             y_offset = 0.5
         else:
-            y_offset = 0.75
+            y_offset = 0.73
         dim_lbl.start_y(value=-assembly_mesh.dimensions.y*y_offset)
         dim_lbl.start_z(value=math.fabs(assembly_mesh.dimensions.z))
+
+        product_name = format_name(self.product.obj_bp.name)
         dim_lbl.set_label(product_name)
 
         #TODO: Draw Fillers, Cabinet Shapes, Cabinet Text, Item Number
@@ -345,6 +357,9 @@ class OPERATOR_Auto_Add_Molding(bpy.types.Operator):
                                                       props.crown_molding_category,
                                                       props.crown_molding+".blend"))
 
+        self.profile['IS_MOLDING_PROFILE'] = True
+        bpy.context.scene.collection.objects.link(self.profile)
+
     def get_products(self):
         products = []
         for obj in bpy.context.scene.objects:
@@ -426,6 +441,27 @@ class OPERATOR_Auto_Add_Molding(bpy.types.Operator):
                 curve.location.z = product.obj_z.location.z
         else:
             curve.location.z = product.obj_z.location.z
+
+        empty_assembly = sn_types.Assembly()
+        empty_assembly.create_assembly()
+        empty_assembly.obj_bp.snap.type_mesh = 'CUTPART'
+        empty_assembly.obj_x.hide_set(True)
+        empty_assembly.obj_y.hide_set(True)
+        empty_assembly.obj_z.hide_set(True)
+        empty_assembly.obj_bp.parent = product.obj_bp
+        
+        curve.parent = empty_assembly.obj_bp
+        
+        wall_bp = sn_utils.get_wall_bp(empty_assembly.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(empty_assembly.obj_bp, wall_coll, recursive=True)
+            sn_utils.remove_assembly_from_collection(empty_assembly.obj_bp, scene_coll, recursive=True)
+            if "Collection" in bpy.data.collections:
+                default_coll = bpy.data.collections["Collection"]
+                sn_utils.remove_assembly_from_collection(empty_assembly.obj_bp, default_coll, recursive=True)
+
 
     def execute(self, context):
         self.is_base = True if self.molding_type == 'Base' else False

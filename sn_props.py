@@ -1986,7 +1986,7 @@ class SnapAddonPreferences(bpy.types.AddonPreferences):
     enable_kitchen_bath_lib: BoolProperty(
         name="Enable Kitchen Bath Library",
         description="If enabled, show Kitchen and Bath library",
-        default=False,
+        default=True if DEV_TOOLS_AVAILABLE else False,
         update=update_active_lib)
 
     franchise_location: EnumProperty(name="",

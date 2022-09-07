@@ -2582,7 +2582,7 @@ class OPS_Export_XML(Operator):
                 needed_full_lengths = 1
             else:
                 needed_full_lengths = (total_cover_cleat/96)/2 #96
-                if(mat_inventory_name == "Oxford White" or mat_inventory_name =="Cabinet Almond" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
+                if(mat_inventory_name == "Oxford White (Frost)" or mat_inventory_name =="Cabinet Almond (Cafe Au Lait)" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
                     needed_full_lengths = needed_full_lengths * 2
                 needed_full_lengths = math.ceil(needed_full_lengths)
                 if(needed_full_lengths < 3):
@@ -2766,7 +2766,7 @@ class OPS_Export_XML(Operator):
 
             mat_sku = closet_materials.get_mat_sku(cleat_assembly.obj_bp, cleat_assembly)
             mat_inventory_name = closet_materials.get_mat_inventory_name(sku=mat_sku)
-            if(mat_inventory_name == "Oxford White" or mat_inventory_name =="Cabinet Almond" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
+            if(mat_inventory_name == "Oxford White (Frost)" or mat_inventory_name =="Cabinet Almond (Cafe Au Lait)" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Duraply White"):
                 if self.is_wrap_around:
                     for child in cleat_assembly.obj_bp.children:
                         if child.snap.type_mesh == 'CUTPART':
@@ -4028,10 +4028,10 @@ class OPS_Export_XML(Operator):
             mat_inventory_name = closet_materials.get_mat_inventory_name(sku=mat_sku)
             
             if part_name == "Cover Cleat":
-                if mat_inventory_name == "Oxford White" or  mat_inventory_name =="Duraply White":
+                if mat_inventory_name == "Oxford White (Frost)" or  mat_inventory_name =="Duraply White":
                     mat_inventory_name = "White Paper 11300"
                     mat_sku = "PM-0000002"
-                elif mat_inventory_name == "Cabinet Almond" or mat_inventory_name =="Duraply Almond":
+                elif mat_inventory_name == "Cabinet Almond (Cafe Au Lait)" or mat_inventory_name =="Duraply Almond":
                     mat_inventory_name = "Almond Paper 11300"
                     mat_sku = "PM-0000001"
 
@@ -4311,9 +4311,9 @@ class OPS_Export_XML(Operator):
                         edge_2 = "L1"
                     else:
                         edge_2 = "S1"
-                    if(mat_inventory_name == "Oxford White" or mat_inventory_name =="Duraply White" or mat_inventory_name =="White Paper 11300"):
+                    if(mat_inventory_name == "Oxford White (Frost)" or mat_inventory_name =="Duraply White" or mat_inventory_name =="White Paper 11300"):
                         edge_2_sku = "EB-0000316"
-                    elif(mat_inventory_name == "Cabinet Almond" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Almond Paper 11300"):
+                    elif(mat_inventory_name == "Cabinet Almond (Cafe Au Lait)" or mat_inventory_name =="Duraply Almond" or mat_inventory_name =="Almond Paper 11300"):
                         edge_2_sku = "EB-0000315"
                     else:
                         edge_2_sku = closet_materials.get_edge_sku(obj, assembly, part_name)

@@ -87,7 +87,7 @@ class Wood_Drawer_Box(sn_types.Assembly):
             'IF(Use_Dovetail_Construction,IF(Override_Depth>0,Override_Depth,Drawer_Depth)-INCH(.25),IF(Override_Depth>0,Override_Depth,Drawer_Depth))',
             [Override_Depth, Drawer_Depth, Use_Dovetail_Construction, Drawer_Depth])
         left_side.dim_y(
-            'IF(Use_Dovetail_Construction,CHECK(DFH,Four_Hole,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45),Drawer_Height)',
+            'IF(Use_Dovetail_Construction,IF(DFH==Four_Hole,INCH(2.75),CHECK(DFH,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45)),Drawer_Height)',
             [Use_Dovetail_Construction, Drawer_Height, DFH, Four_Hole, Five_Hole, Six_Hole, Seven_Hole, Eight_Hole, Nine_Hole, Ten_Hole])
         left_side.dim_z('Drawer_Side_Thickness', [Drawer_Side_Thickness])
         left_side.get_prompt('Hide').set_formula('Hide', [Hide])
@@ -103,7 +103,7 @@ class Wood_Drawer_Box(sn_types.Assembly):
             'IF(Use_Dovetail_Construction,IF(Override_Depth>0,Override_Depth,Drawer_Depth)-INCH(.25),IF(Override_Depth>0,Override_Depth,Drawer_Depth))',
             [Override_Depth, Drawer_Depth, Use_Dovetail_Construction, Drawer_Depth])
         right_side.dim_y(
-            'IF(Use_Dovetail_Construction,CHECK(DFH,Four_Hole,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45),Drawer_Height)',
+            'IF(Use_Dovetail_Construction,IF(DFH==Four_Hole,INCH(2.75),CHECK(DFH,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45)),Drawer_Height)',
             [Use_Dovetail_Construction, Drawer_Height, DFH, Four_Hole, Five_Hole, Six_Hole, Seven_Hole, Eight_Hole, Nine_Hole, Ten_Hole])
         right_side.dim_z('-Drawer_Side_Thickness', [Drawer_Side_Thickness])
         right_side.get_prompt('Hide').set_formula('Hide', [Hide])
@@ -115,7 +115,7 @@ class Wood_Drawer_Box(sn_types.Assembly):
         front.rot_x(value=math.radians(90))
         front.dim_x('Drawer_Width-IF(Use_Dovetail_Construction,IF(Slide_Type==0,INCH(.05),-INCH(0.375)),(Drawer_Side_Thickness*2))',
                     [Use_Dovetail_Construction, Drawer_Width, Drawer_Side_Thickness, Slide_Type])
-        front.dim_y('IF(Use_Dovetail_Construction,CHECK(DFH,Four_Hole,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45),Drawer_Height)',
+        front.dim_y('IF(Use_Dovetail_Construction,IF(DFH==Four_Hole,INCH(2.75),CHECK(DFH,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45)),Drawer_Height)',
                     [Use_Dovetail_Construction, Drawer_Height, DFH, Four_Hole, Five_Hole, Six_Hole, Seven_Hole, Eight_Hole, Nine_Hole, Ten_Hole])
         front.dim_z('-Front_Back_Thickness', [Front_Back_Thickness])
         front.get_prompt('Hide').set_formula('IF(HSF,True,Hide)', [HSF, Hide])
@@ -130,7 +130,7 @@ class Wood_Drawer_Box(sn_types.Assembly):
         back.dim_x('Drawer_Width-IF(Use_Dovetail_Construction,IF(Slide_Type==0,INCH(.05),-INCH(0.375)),(Drawer_Side_Thickness*2))',
                    [Use_Dovetail_Construction, Drawer_Width, Drawer_Side_Thickness, Slide_Type])
         back.dim_y(
-            'IF(Use_Dovetail_Construction,CHECK(DFH,Four_Hole,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45),Drawer_Height)',
+            'IF(Use_Dovetail_Construction,IF(DFH==Four_Hole,INCH(2.75),CHECK(DFH,Five_Hole,Six_Hole,Seven_Hole,Eight_Hole,Nine_Hole,Ten_Hole)-INCH(1.45)),Drawer_Height)',
             [Use_Dovetail_Construction, Drawer_Height, DFH, Four_Hole, Five_Hole, Six_Hole, Seven_Hole, Eight_Hole, Nine_Hole, Ten_Hole])
         back.dim_z('Front_Back_Thickness', [Front_Back_Thickness])
         back.get_prompt('Hide').set_formula('Hide', [Hide])

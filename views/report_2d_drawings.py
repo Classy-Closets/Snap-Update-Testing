@@ -19,6 +19,7 @@ except ModuleNotFoundError:
     sys.path.append(python_lib_path)
 from PIL import Image as PImage
 from PIL import ImageChops
+from PIL import ImageOps
 
 from snap.views.pdf_builder.pdf_director import PDF_Director
 from snap.views.pdf_builder.query_form_data import Query_PDF_Form_Data
@@ -309,7 +310,9 @@ class OPERATOR_create_pdf(bpy.types.Operator):
         diff = ImageChops.add(diff, diff, 2.0, 0)
         bbox = diff.getbbox()
         if bbox:
-            return image.crop(bbox)
+            original = image.crop(bbox)
+            grayscale = ImageOps.grayscale(original)
+            return grayscale
         return None
 
     """

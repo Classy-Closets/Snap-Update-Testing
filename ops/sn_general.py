@@ -9,6 +9,7 @@ from bpy.props import (
     )
 from snap import sn_utils, sn_types, sn_unit
 import math
+from snap.libraries.closets.ui.closet_prompts_ui import get_panel_heights
 
 
 class SN_GEN_OT_change_file_browser_path(Operator):
@@ -222,66 +223,100 @@ class SNAP_MT_viewport_shade_mode(Menu):
         layout.operator("sn_general.change_shade_mode", text="")
 
 
-class SNAP_GEN_OT_place_product(bpy.types.Operator):
+class SNAP_GEN_OT_place_product(sn_types.Prompts_Interface):
     bl_idname = "sn_general.product_placement_options"
     bl_label = "Product Placement Options"
     bl_options = {'UNDO'}
     
-    #READONLY
     object_name: StringProperty(name="Object Name")
+
+    width: FloatProperty(name="Width",unit='LENGTH',precision=4)
+    height: EnumProperty(name="Default Hanging Panel Height", items=get_panel_heights)
+    depth: FloatProperty(name="Depth",unit='LENGTH',precision=4)
     
     placement_on_wall: EnumProperty(name="Placement on Wall",items=[('SELECTED_POINT',"Selected Point",""),
-                                                                     ('FILL',"Fill",""),
-                                                                     ('FILL_LEFT',"Fill Left",""),
-                                                                     ('LEFT',"Left",""),
-                                                                     ('CENTER',"Center",""),
-                                                                     ('RIGHT',"Right",""),
-                                                                     ('FILL_RIGHT',"Fill Right","")],default = 'SELECTED_POINT')
+                                                                    ('FILL',"Fill",""),
+                                                                    ('LEFT',"Left",""),
+                                                                    ('CENTER',"Center",""),
+                                                                    ('RIGHT',"Right","")],
+                                                                    default = 'SELECTED_POINT')
     
-    quantity: IntProperty(name="Quantity",default=1)
     left_offset: FloatProperty(name="Left Offset", default=0,subtype='DISTANCE')
     right_offset: FloatProperty(name="Right Offset", default=0,subtype='DISTANCE')
-    product_width: FloatProperty(name="Product Width", default=0,subtype='DISTANCE')
+    quantity: IntProperty(name="Quantity",default=1)
+
     
-    library_type = 'PRODUCT'
-    product = None
-    default_width = 0
     selected_location = 0
-    
+    last_placement = 'SELECTED_POINT'
+    default_width = 0
     allow_quantites = True
     allow_fills = True
+    allow_height_above_floor = False
     
-    def set_product_defaults(self):
-        self.product.obj_bp.location.x = self.selected_location + self.left_offset
-        self.product.obj_x.location.x = self.default_width - (self.left_offset + self.right_offset)
-    
-    def check(self,context):
+    product = None
+
+    def update_overall_width(self):
+ 
+        if not self.placement_on_wall == 'FILL':
+            # self.width = self.default_width
+            self.product.obj_x.location.x = self.width
+        else:
+            self.width = self.product.obj_x.location.x
+
+    def update_product_size(self):
+        self.product.obj_x.location.x = self.width
+        toe_kick_offset = 0
+
+        if self.carcass:
+            toe_kick_ppt = self.carcass.get_prompt("Toe Kick Height")
+            if toe_kick_ppt:
+                toe_kick_offset = toe_kick_ppt.get_value()
+
+        if 'IS_MIRROR' in self.product.obj_y:
+            self.product.obj_y.location.y = -self.depth
+        else:
+            self.product.obj_y.location.y = self.depth
+
+        if 'IS_MIRROR' in self.product.obj_z:
+            self.product.obj_z.location.z = sn_unit.millimeter(-float(self.height))+toe_kick_offset
+        else:
+            self.product.obj_z.location.z = sn_unit.millimeter(float(self.height))+toe_kick_offset
+
+        sn_utils.run_calculators(self.product.obj_bp)
+
+    def update_placement(self):
         left_x = self.product.get_collision_location('LEFT')
         right_x = self.product.get_collision_location('RIGHT')
         offsets = self.left_offset + self.right_offset
-        self.set_product_defaults()
+
         if self.placement_on_wall == 'FILL':
             self.product.obj_bp.location.x = left_x + self.left_offset
             self.product.obj_x.location.x = (right_x - left_x - offsets) / self.quantity
-        if self.placement_on_wall == 'FILL_LEFT':
-            self.product.obj_bp.location.x = left_x + self.left_offset
-            self.product.obj_x.location.x = (self.default_width + (self.selected_location - left_x) - offsets) / self.quantity
         if self.placement_on_wall == 'LEFT':
             if self.product.obj_bp.snap.placement_type == 'Corner':
                 self.product.obj_bp.rotation_euler.z = math.radians(0)
             self.product.obj_bp.location.x = left_x + self.left_offset
-            self.product.obj_x.location.x = self.product_width
+            self.product.obj_x.location.x = self.width
         if self.placement_on_wall == 'CENTER':
-            self.product.obj_x.location.x = self.product_width
+            self.product.obj_x.location.x = self.width
             self.product.obj_bp.location.x = left_x + (right_x - left_x)/2 - ((self.product.calc_width()/2) * self.quantity)
         if self.placement_on_wall == 'RIGHT':
             if self.product.obj_bp.snap.placement_type == 'Corner':
                 self.product.obj_bp.rotation_euler.z = math.radians(-90)
-            self.product.obj_x.location.x = self.product_width
+            self.product.obj_x.location.x = self.width
             self.product.obj_bp.location.x = (right_x - self.product.calc_width()) - self.right_offset
-        if self.placement_on_wall == 'FILL_RIGHT':
-            self.product.obj_bp.location.x = self.selected_location + self.left_offset
-            self.product.obj_x.location.x = ((right_x - self.selected_location) - offsets) / self.quantity
+        if self.placement_on_wall == 'SELECTED_POINT' and self.last_placement != 'SELECTED_POINT':
+                self.product.obj_bp.location.x = self.selected_location
+        elif self.placement_on_wall == 'SELECTED_POINT' and self.last_placement == 'SELECTED_POINT':
+            self.selected_location = self.product.obj_bp.location.x
+
+        self.last_placement = self.placement_on_wall
+
+    def check(self,context):
+        self.update_overall_width()
+        self.update_product_size()
+        self.update_placement()
+
         sn_utils.run_calculators(self.product.obj_bp)
         self.update_quantity_cage()
         return True
@@ -325,7 +360,6 @@ class SNAP_GEN_OT_place_product(bpy.types.Operator):
         cage = self.product.get_cage()
         cage.hide_viewport = False
         cage.hide_select = False
-        # cage.select = True
         if 'QTY ARRAY' in cage.modifiers:
             mod = cage.modifiers['QTY ARRAY']
         else:
@@ -341,10 +375,26 @@ class SNAP_GEN_OT_place_product(bpy.types.Operator):
     def invoke(self, context, event):
         obj = bpy.data.objects[self.object_name]
         self.product = sn_types.Assembly(sn_utils.get_bp(obj,'PRODUCT'))
+        self.inserts = sn_utils.get_insert_bp_list(self.product.obj_bp,[])
+
+        if 'IS_MIRROR' in self.product.obj_z:
+            self.allow_height_above_floor = True 
+
+        for insert in self.inserts:
+            if "IS_BP_CARCASS" in insert:
+                self.carcass = sn_types.Assembly(insert) 
+                toe_kick_ppt = self.carcass.get_prompt("Toe Kick Height")
+                if toe_kick_ppt:
+                    self.height = str(round(math.fabs(sn_unit.meter_to_millimeter(self.product.obj_z.location.z-toe_kick_ppt.get_value()))))
+                else:
+                    self.height = str(round(math.fabs(sn_unit.meter_to_millimeter(self.product.obj_z.location.z))))
+        self.width = math.fabs(self.product.obj_x.location.x)
+        self.depth = math.fabs(self.product.obj_y.location.y)
+
         self.selected_location = self.product.obj_bp.location.x
-        self.default_width = self.product.obj_x.location.x
-        self.product_width = self.product.obj_x.location.x
+        self.default_width = math.fabs(self.product.obj_x.location.x)
         self.placement_on_wall = 'SELECTED_POINT'
+        self.last_placement = 'SELECTED_POINT'
         self.left_offset = 0
         self.right_offset = 0
         self.quantity = 1
@@ -393,44 +443,111 @@ class SNAP_GEN_OT_place_product(bpy.types.Operator):
             
         return {'FINISHED'}
     
+    def draw_product_placment(self,layout):
+        box = layout.box()
+
+        
+        row = box.row(align=True)
+        row.label(text="Quantity:")
+        if self.allow_quantites:
+            row.prop(self,'quantity', text="")
+        else:
+            row.label(text='Quantity: 1')
+
+        box = layout.box()
+        row = box.row(align=True)
+        row.label(text='Placement',icon='LATTICE_DATA')
+        row.prop_enum(self, "placement_on_wall", 'SELECTED_POINT', icon='RESTRICT_SELECT_OFF', text="Selected")
+        row.prop_enum(self, "placement_on_wall", 'FILL', icon='ARROW_LEFTRIGHT', text="Fill")
+        row.prop_enum(self, "placement_on_wall", 'LEFT', icon='TRIA_LEFT', text="Left") 
+        row.prop_enum(self, "placement_on_wall", 'CENTER', icon='TRIA_UP_BAR', text="Center") 
+        row.prop_enum(self, "placement_on_wall", 'RIGHT', icon='TRIA_RIGHT', text="Right") 
+        
+        if self.placement_on_wall == 'FILL':
+            row = box.row()
+            row.label(text='Offset',icon='ARROW_LEFTRIGHT')
+            row.prop(self, "left_offset", icon='TRIA_LEFT', text="Left") 
+            row.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right") 
+        
+        if self.placement_on_wall in 'LEFT':
+            row = box.row()
+            row.label(text='Offset',icon='BACK')
+            row.prop(self, "left_offset", icon='TRIA_LEFT', text="Left")
+ 
+        if self.placement_on_wall in {'SELECTED_POINT','CENTER'}:
+            row = box.row()
+        
+        if self.placement_on_wall in 'RIGHT':
+            row = box.row()
+            row.label(text='Offset',icon='FORWARD')
+            row.prop(self, "right_offset", icon='TRIA_RIGHT', text="Right")  
+    
+    def draw_product_size(self, layout, alt_height="", use_rot_z=True):
+        box = layout.box()
+        row = box.row()
+
+        col = row.column(align=True)
+        row1 = col.row(align=True)
+        if self.object_has_driver(self.product.obj_x):
+            row1.label(text='Width: ' + str(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_x.location.x))))
+        elif self.placement_on_wall == 'FILL':
+            width = round(sn_unit.meter_to_inch(self.product.obj_x.location.x), 2)
+            label = str(width).replace(".0", "") + '"'
+            row1.label(text="Width:")
+            row1.label(text=label)
+        else:
+            row1.label(text='Width:')
+            row1.prop(self,'width',text="")
+
+        row1 = col.row(align=True)
+        if sn_utils.object_has_driver(self.product.obj_z):
+            row1.label(text='Height: ' + str(round(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_z.location.z)), 3)))
+        else:
+            row1.label(text='Height:')
+
+            if alt_height == "":
+                pass
+                row1.prop(self, 'height', text="")
+            else:
+                row1.prop(self, alt_height, text="")
+
+        row1 = col.row(align=True)
+        if sn_utils.object_has_driver(self.product.obj_y):
+            row1.label(text='Depth: ' + str(round(sn_unit.meter_to_active_unit(math.fabs(self.product.obj_y.location.y)), 3)))
+        else:
+            row1.label(text='Depth:')
+            row1.prop(self, 'depth', text="")
+
+        col = row.column(align=True)
+        col.label(text="Location X:")
+        col.label(text="Location Y:")
+        col.label(text="Location Z:")
+
+        col = row.column(align=True)
+        col.prop(self.product.obj_bp, 'location', text="")
+
+        if use_rot_z:
+            row = box.row()
+            row.label(text='Rotation Z:')
+            row.prop(self.product.obj_bp, 'rotation_euler', index=2, text="")
+
+    def object_has_driver(self,obj):
+        if obj.animation_data:
+            if len(obj.animation_data.drivers) > 0:
+                return True
+
     def draw(self, context):
         layout = self.layout
         if self.product.obj_bp.snap.placement_type == 'Corner':
             self.allow_fills = False
             self.allow_quantites = False
-        
         if self.product.obj_x.lock_location[0]:
             self.allow_fills = False
+
         box = layout.box()
-        row = box.row(align=False)
-        row.label(text='Placement Options',icon='LATTICE_DATA')
+        self.draw_product_size(box)
+        self.draw_product_placment(box)
 
-        row = box.row(align=True)
-        row.prop_enum(self, "placement_on_wall", 'SELECTED_POINT', icon='RESTRICT_SELECT_OFF', text="Selected")
-        if self.allow_fills:
-            row.prop_enum(self, "placement_on_wall", 'FILL', icon='ARROW_LEFTRIGHT', text="Fill")
-        row.prop_enum(self, "placement_on_wall", 'LEFT', icon='TRIA_LEFT', text="Left") 
-        row.prop_enum(self, "placement_on_wall", 'CENTER', icon='TRIA_DOWN', text="Center")
-        row.prop_enum(self, "placement_on_wall", 'RIGHT', icon='TRIA_RIGHT', text="Right") 
-
-        # if self.allow_quantites:
-        #     row = box.row(align=True)
-        #     row.prop(self,'quantity')
-        # split = box.split(factor=0.5)
-        # col = split.column(align=True)
-        # col.label(text="Dimensions:")
-        # if self.placement_on_wall in {'LEFT','RIGHT','CENTER'}:
-        #     col.prop(self,"product_width",text="Width")
-        # else:
-        #     col.label(text='Width: ' + str(round(sn_unit.meter_to_active_unit(self.product.obj_x.location.x),4)))
-        # col.prop(self.product.obj_y,"location",index=1,text="Depth")
-        # col.prop(self.product.obj_z,"location",index=2,text="Height")
-
-        # col = split.column(align=True)
-        # col.label(text="Offset:")
-        # col.prop(self,"left_offset",text="Left")
-        # col.prop(self,"right_offset",text="Right")
-        # col.prop(self.product.obj_bp,"location",index=2,text="Height From Floor")
 
 
 classes = (
@@ -440,8 +557,9 @@ classes = (
     SN_GEN_OT_select_all_elevation_scenes,
     SN_GEN_OT_project_info,
     SNAP_GEN_OT_viewport_shade_mode,
-    SNAP_GEN_OT_enable_ruler_mode,
-    SNAP_MT_viewport_shade_mode
+    SNAP_MT_viewport_shade_mode,
+    SNAP_GEN_OT_place_product,
+    SNAP_GEN_OT_enable_ruler_mode
 )
 
 register, unregister = bpy.utils.register_classes_factory(classes)

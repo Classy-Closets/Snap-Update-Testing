@@ -157,7 +157,12 @@ class SN_OT_Place_Countertop_Appliance(bpy.types.Operator, PlaceApplianceAsset):
     def search_for_countertops(self, obj):
         counter_list = []
         for child in obj.children:
-            parts = ('IS_BP_COUNTERTOP' in child, 'IS_BP_HPL_TOP' in child, 'IS_BP_TOP_KD_SHELF' in child)
+            parts = (
+                'IS_BP_COUNTERTOP' in child,
+                'IS_BP_CABINET_COUNTERTOP' in child,
+                'IS_BP_HPL_TOP' in child,
+                'IS_BP_TOP_KD_SHELF' in child)
+
             if any(parts):
                 counter_list.append(child)
             else:
@@ -184,29 +189,42 @@ class SN_OT_Place_Countertop_Appliance(bpy.types.Operator, PlaceApplianceAsset):
         if sel_product_bp and sel_assembly_bp:
             countertop_bps = self.search_for_countertops(sel_product_bp)
             sel_assembly = sn_types.Assembly(sel_assembly_bp)
-            if 'IS_BP_COUNTERTOP' in sel_assembly_bp:
-                assembly_depth = math.fabs(self.asset.obj_y.location.y)
-                sel_assembly_width = sel_assembly.obj_x.location.x
-                dim_z = sel_assembly.obj_z.snap.get_var('location.z', 'dim_z')
+            closet_countertop = 'IS_BP_COUNTERTOP' in sel_assembly_bp
+            cabinet_countertop = 'IS_BP_CABINET_COUNTERTOP' in sel_assembly_bp
 
-                self.asset.obj_bp.parent = sel_assembly.obj_bp
-                self.asset.obj_bp.location.x = math.fabs(sel_assembly_width / 2 - self.asset.obj_x.location.x / 2)
-                self.asset.obj_bp.location.y = (-sel_assembly_width + assembly_depth) / 2
-                self.asset.loc_z("dim_z", [dim_z])
+            if sel_assembly.obj_bp.rotation_euler.x == 0:
+                if closet_countertop or cabinet_countertop:
+                    assembly_width = self.asset.obj_x.location.x
+                    assembly_depth = self.asset.obj_y.location.y
+                    sel_assembly_width = sel_assembly.obj_x.location.x
+                    sel_assembly_depth = sel_assembly.obj_y.location.y
+                    dim_z = sel_assembly.obj_z.snap.get_var('location.z', 'dim_z')
 
-            if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
-                for countertop_bp in countertop_bps:
-                    for child in countertop_bp.children:
-                        if child.type == 'MESH':
-                            self.assign_boolean(selected_obj)
-                            self.assign_boolean(child)
-                sn_utils.set_wireframe(self.asset.obj_bp, False)
-                bpy.context.window.cursor_set('DEFAULT')
-                bpy.ops.object.select_all(action='DESELECT')
-                context.view_layer.objects.active = self.asset.obj_bp
-                self.asset.obj_bp.select_set(True)
-                self.finish(context)
-                return {'FINISHED'}
+                    self.asset.obj_bp.parent = sel_assembly.obj_bp
+                    self.asset.obj_bp.location.x = math.fabs(sel_assembly_width / 2 - assembly_width / 2)
+                    self.asset.obj_bp.location.y = sel_assembly_depth / 2 - assembly_depth / 2
+                    self.asset.loc_z("dim_z", [dim_z])
+
+                if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+                    if closet_countertop:
+                        for countertop_bp in countertop_bps:
+                            for child in countertop_bp.children:
+                                if child.type == 'MESH':
+                                    self.assign_boolean(selected_obj)
+                                    self.assign_boolean(child)
+                    if cabinet_countertop:
+                        for child in sel_assembly.obj_bp.children:
+                            if child.type == 'MESH':
+                                self.assign_boolean(selected_obj)
+                                self.assign_boolean(child)
+
+                    sn_utils.set_wireframe(self.asset.obj_bp, False)
+                    bpy.context.window.cursor_set('DEFAULT')
+                    bpy.ops.object.select_all(action='DESELECT')
+                    context.view_layer.objects.active = self.asset.obj_bp
+                    self.asset.obj_bp.select_set(True)
+                    self.finish(context)
+                    return {'FINISHED'}
 
         return {'RUNNING_MODAL'}
 

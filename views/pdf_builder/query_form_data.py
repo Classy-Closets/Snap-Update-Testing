@@ -465,7 +465,7 @@ class Query_PDF_Form_Data:
             data_dict["int_almond"] = True
         if material_type.name == 'Garage Material':
             data_dict["int_white"] = True
-            data_dict["int_color"] = "Oxford White"
+            data_dict["int_color"] = "Oxford White (Frost)"
             self.ext_colors = color.name
         return data_dict
 
@@ -496,6 +496,9 @@ class Query_PDF_Form_Data:
         for page, walls in page_walls_dict.items():
             paging = f'{str(page + 1)} of {str(len(page_walls_dict))}'
             self.data_dict[page] = {}
+            # -> Wallbed Data 
+            wallbeds_door_dict = self.__get_wallbed_door_data(walls)
+            wallbeds_drw_dict = self.__get_wallbed_drawers_data(walls)
             # Job Info
             self.__write_job_info(page, paging, walls)
             # Materials 
@@ -504,13 +507,24 @@ class Query_PDF_Form_Data:
             self.__write_install_info(page, walls)
             # Part Queries (Door, Drawes, Options and Counter Sections)
             # -> Door Section
-            self.__write_door_section_info(page, walls)
+            self.__write_door_section_info(page, walls, wallbeds_door_dict)
             # -> Drawer Section
-            self.__write_drawer_section_info(page, walls)
+            self.__write_drawer_section_info(page, walls, wallbeds_drw_dict)
             # -> Options Section
             self.__write_options_info(page, walls)
             # -> Countertop Section
             self.__write_countertop_info(page, walls)
+
+    def __get_hooks_counting(self, walls):
+        hooks = []
+        for obj in self.main_sc_objs:
+            if obj.get('IS_BP_ACCESSORY'):
+                wall_bp = sn_utils.get_wall_bp(obj)
+                wall = wall_bp.snap.name_object.replace("Wall ", "")
+                pmpt = sn_types.Assembly(obj).get_prompt("Hook Qty")
+                if pmpt and wall in walls:
+                    hooks.append(pmpt.get_value())
+        return sum(hooks)
 
     def __write_options_info(self, page, walls):
         ji_results = {}
@@ -599,7 +613,10 @@ class Query_PDF_Form_Data:
         rod_result = self.etl_object.part_walls_query("hanging rod", walls)
         vrod_result = self.etl_object.part_walls_query("valet rod", walls)
         tie_result = self.etl_object.part_walls_query("tie", walls)
-        hook_result = self.etl_object.part_walls_query("hook", walls)
+        hooks_qty = self.__get_hooks_counting(walls)
+        hooks_qty_str = str(hooks_qty) if hooks_qty > 0 else ""
+        self.data_dict[page]["hooks_qty"] = hooks_qty_str
+        self.data_dict[page]["hooks_style"] = ''
         belt_result = self.etl_object.part_walls_query("belt", walls)
         self.data_dict[page]["jewelry_qty"] = ''
         self.data_dict[page]["jewelry"] = ''
@@ -625,8 +642,6 @@ class Query_PDF_Form_Data:
         self.data_dict[page]["valet_style"] = ''
         self.data_dict[page]["legs_qty"] = ''
         self.data_dict[page]["legs"] = ''
-        self.data_dict[page]["hooks_qty"] = ''
-        self.data_dict[page]["hooks_style"] = ''
         self.data_dict[page]["misc_qty"] = ''
         self.data_dict[page]["misc_style"] = ''
         # Hamper basket / bags
@@ -678,10 +693,6 @@ class Query_PDF_Form_Data:
             qty = str(value.get("qty", 0))
             self.data_dict[page]["tie_rack_qty"] = qty
             self.data_dict[page]["tie_rack_style"] = key
-        for key, value in hook_result.items():
-            qty = str(value.get("qty", 0))
-            self.data_dict[page]["hooks_qty"] = qty
-            self.data_dict[page]["hooks_style"] = key
         for key, value in belt_result.items():
             qty = str(value.get("qty", 0))
             self.data_dict[page]["belt_rack_qty"] = qty
@@ -728,10 +739,10 @@ class Query_PDF_Form_Data:
                     self.data_dict[page]["misc_style"] += item
 
 
-    def __write_drawer_section_info(self, page, walls):
+    def __write_drawer_section_info(self, page, walls, wallbed_drawers):
         dovetail = 0
         melamine = 0
-        drawers_doors = self.__get_drawer_face_types(walls)
+        drawers_doors = self.__get_drawer_face_types(walls, wallbed_drawers)
         drw_boxes_result = self.etl_object.part_walls_query("Drawer Bottom", walls)
         file_result = self.etl_object.part_walls_query("file rail", walls)
         # Sliders queries
@@ -898,7 +909,89 @@ class Query_PDF_Form_Data:
                             doors["wood"][mat_type]["color"] = mat_name
         return doors
 
-    def __get_walls_doors_types(self, walls):
+    def __get_wallbed_pmpts(self, wallbed):
+        doors, decor, second_doors = False, False, False
+        wb = sn_types.Assembly(wallbed)
+        doors_pmpt = wb.get_prompt("Add Doors And Drawers")
+        decor_pmpt = wb.get_prompt("Decorative Melamine Doors")
+        second_doors_pmpt = wb.get_prompt("Second Row Of Doors")
+        if doors_pmpt:
+            doors = doors_pmpt.get_value()
+        if decor_pmpt:
+            decor = decor_pmpt.get_value()
+        if second_doors_pmpt:
+            second_doors = second_doors_pmpt.get_value()
+        return (doors, decor, second_doors)
+
+    def wood_door_type(self, door):
+        mesh = self.__get_obj_mesh(door)
+        if mesh:
+            mesh_slots = mesh.snap.material_slots
+            for slot in mesh_slots:
+                if "Wood_Door_Surface" == slot.pointer_name:
+                    wood_style = door.name.replace(" Door", "")
+                    wood_style = door.name.replace(" Drawer", "")
+                    material_re = re.findall(r'\.\d{3}', wood_style)
+                    if material_re:
+                        wood_style = wood_style.replace(material_re[0], "")
+                    return wood_style
+        return None
+            
+    def __get_wallbed_door_data(self, walls):
+        wallbed_doors = sn_utils.get_wallbed_doors()
+        result = {
+            "melamine": {
+                "Slab": {"qty" : 0}, 
+                "Decorative Melamine": {"qty" : 0}
+            }, 
+            "wood": {}
+        }
+        for door in wallbed_doors:
+            door_wall = sn_utils.get_wall_bp(door)
+            wall_letter = door_wall.snap.name_object.replace("Wall ", "")
+            if wall_letter in walls:
+                wallbed_dad = sn_utils.get_wallbed_bp(door)
+                wallbed_pmpts = self.__get_wallbed_pmpts(wallbed_dad)
+                has_doors, decor, _ = wallbed_pmpts
+                if has_doors:
+                    if decor:
+                        result["melamine"]["Decorative Melamine"]["qty"] += 1
+                    elif not decor:
+                        wood_type = self.wood_door_type(door)
+                        if not wood_type:
+                            result["melamine"]["Slab"]["qty"] += 1
+                        elif wood_type:
+                            has_wood_entry = result["wood"].get(wood_type)
+                            if has_wood_entry:
+                                result["wood"][wood_type]["qty"] += 1
+                            elif not has_wood_entry:
+                                result["wood"][wood_type] = {"qty" : 1}
+        return result
+
+    def __get_wallbed_drawers_data(self, walls):
+        wallbed_drawers = sn_utils.get_wallbed_drawers()
+        result = {
+            "melamine": {
+                "Slab": {"qty" : 0}
+            }, 
+            "wood": {}
+        }
+        for drawer in wallbed_drawers:
+            door_wall = sn_utils.get_wall_bp(drawer)
+            wall_letter = door_wall.snap.name_object.replace("Wall ", "")
+            if wall_letter in walls:
+                wood_type = self.wood_door_type(drawer)
+                if wood_type:
+                    has_wood_entry = result["wood"].get(wood_type)
+                    if has_wood_entry:
+                        result["wood"][wood_type]["qty"] += 1
+                    elif not has_wood_entry:
+                        result["wood"][wood_type] = {"qty" : 1}
+                elif not wood_type:
+                    result["melamine"]["Slab"]["qty"] += 1 
+        return result
+
+    def __get_walls_doors_types(self, walls, wallbeds_dict):
         result = {
             "glass_inset_qty": "",
             "glass_inset": "",
@@ -909,11 +1002,26 @@ class Query_PDF_Form_Data:
         }
         scene_doors = (o for o in self.main_sc_objs\
             if o.sn_closets.is_door_bp and not sn_utils.get_wallbed_bp(o))
-        door_styled_data = self.__get_obj_styling(
-            walls, scene_doors)
+        door_styled_data = self.__get_obj_styling(walls, scene_doors)
+        wallbed_melamine_doors = wallbeds_dict["melamine"]
+        wallbed_wood_doors = wallbeds_dict["wood"]
         melamine = door_styled_data["melamine"]
         glass = door_styled_data["glass"]
         wood = door_styled_data["wood"]
+        for k, v in wallbed_wood_doors.items():
+            if v["qty"] > 0:
+                has_entry = wood.get(k)
+                if has_entry:
+                    wood[k]["qty"] += v["qty"]
+                elif not has_entry:
+                    wood[k] = v
+        for k, v in wallbed_melamine_doors.items():
+            if v["qty"] > 0:
+                has_entry = melamine.get(k)
+                if has_entry:
+                    melamine[k]["qty"] += v["qty"]
+                elif not has_entry:
+                    melamine[k] = v
         for k, v in melamine.items():
             if result["door_mel_qty"] == "":
                 result["door_mel_qty"] = str(v["qty"])
@@ -933,7 +1041,7 @@ class Query_PDF_Form_Data:
                 result["wood_door_qty"] = str(v["qty"])
                 result["wood_door"] = k
             elif result["wood_door_qty"] != "":
-                result["wood_door_qty"] += "/" + str(v["qty"])
+                result["wood_door_qty"] += "/" + str( v["qty"])
                 result["wood_door"] += " / " + k
         return result
 
@@ -956,7 +1064,7 @@ class Query_PDF_Form_Data:
                     result["hamper_face"] += " / " + k
         return result
 
-    def __get_drawer_face_types(self, walls):
+    def __get_drawer_face_types(self, walls, wallbed_drawers):
         result = {
             "drawer_mel_qty" : "",
             "drawer_mel" : "",
@@ -964,9 +1072,23 @@ class Query_PDF_Form_Data:
             "wood_drawer" : "",
         }
         scene_drawer_doors = (o for o in self.main_sc_objs\
-            if o.sn_closets.is_drawer_front_bp)
-        drawer_styled_data = self.__get_obj_styling(
-            walls, scene_drawer_doors)
+            if o.sn_closets.is_drawer_front_bp \
+            and not sn_utils.get_wallbed_bp(o))
+        drawer_styled_data = self.__get_obj_styling(walls, scene_drawer_doors)
+        for k, v in wallbed_drawers["wood"].items():
+            if v["qty"] > 0:
+                has_entry = drawer_styled_data["wood"].get(k)
+                if has_entry:
+                    drawer_styled_data["wood"][k]["qty"] += v["qty"]
+                elif not has_entry:
+                    drawer_styled_data["wood"][k] = v
+        for k, v in wallbed_drawers["melamine"].items():
+            if v["qty"] > 0:
+                has_entry = drawer_styled_data["melamine"].get(k)
+                if has_entry:
+                    drawer_styled_data["melamine"][k]["qty"] += v["qty"]
+                elif not has_entry:
+                    drawer_styled_data["melamine"][k] = v
         for drw_type, drawers in drawer_styled_data.items():
             if drw_type == "glass":
                 continue
@@ -988,8 +1110,8 @@ class Query_PDF_Form_Data:
                         result["wood_drawer"] += " / " + drw_key
         return result
 
-    def __write_door_section_info(self, page, walls):
-        doors = self.__get_walls_doors_types(walls)
+    def __write_door_section_info(self, page, walls, wallbeds_dict):
+        doors = self.__get_walls_doors_types(walls, wallbeds_dict)
         hampers_doors = self.__get_hamper_doors_types(walls)
         hinge_result = self.etl_object.part_walls_query("hinge", walls)
         self.data_dict[page]["glass_inset_qty"] = doors["glass_inset_qty"]
@@ -1015,7 +1137,6 @@ class Query_PDF_Form_Data:
                 self.data_dict[page]["hinge"] += " / "
             self.data_dict[page]["hinge_qty"] += qty
             self.data_dict[page]["hinge"] += key
-        
 
     def __write_countertop_info(self, page, walls):
         mel = self.etl_object.part_walls_query("melamine countertop", walls)

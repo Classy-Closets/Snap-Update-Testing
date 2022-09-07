@@ -1,4 +1,5 @@
 import bpy
+from snap import sn_utils
 
 def get_dimension_props():
     """
@@ -70,7 +71,7 @@ class VIEW_PT_2d_views(bpy.types.Panel):
         sn_wm = context.window_manager.snap
         accordions_only = props.views_option == 'ACCORDIONS'
         elevations_only = props.views_option == 'ELEVATIONS'
-        wall_qty = sn_wm.main_scene_wall_qty
+        wall_qty = sn_utils.get_wall_quantity()
         if room_type == 'SINGLE' or wall_qty == 1:
             accordions_only = False
             elevations_only = True

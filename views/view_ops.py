@@ -272,6 +272,9 @@ class VIEW_OT_generate_2d_views(Operator):
 
     pv_pad: FloatProperty(name="Plan View Padding",
                           default=5)
+    
+    isl_pad: FloatProperty(name="Island View Padding",
+                          default=2)
 
     ac_pad: FloatProperty(name="Accordion View Padding",
                           default=3.5)
@@ -547,6 +550,7 @@ class VIEW_OT_generate_2d_views(Operator):
             utils.copy_world_rot(cover_mesh, glass_label.anchor)
             glass_label.set_label("Glass")
             glass_label.anchor.rotation_euler[1] += math.radians(45)
+            cover_mesh["GLASS_SHADING_MESH"] = True
 
     def group_children(self, grp, obj):
         not_cage = not bool(obj.get('IS_CAGE'))
@@ -1980,6 +1984,7 @@ class VIEW_OT_generate_2d_views(Operator):
 
     def create_plan_view_scene(self, context):
         WIDE_ROOM_THRES = 200 # 200 inches
+        SMALL_ROOM_THRES = 100
         room_type = context.scene.sn_roombuilder.room_type
         bpy.ops.scene.new('INVOKE_DEFAULT', type='EMPTY')
         pv_scene = context.scene
@@ -2106,6 +2111,7 @@ class VIEW_OT_generate_2d_views(Operator):
         floor_length = unit.meter_to_inch(x_axis_len)
         floor_height = unit.meter_to_inch(y_axis_len)
         wide_room = floor_length > WIDE_ROOM_THRES or floor_height > WIDE_ROOM_THRES
+        small_room = floor_length <= SMALL_ROOM_THRES or floor_height <= SMALL_ROOM_THRES
         camera = self.create_camera(pv_scene)
         bpy.ops.object.select_all(action="SELECT")
         bpy.ops.view3d.camera_to_view_selected()
@@ -2115,6 +2121,8 @@ class VIEW_OT_generate_2d_views(Operator):
         square_tall = room_type == 'SQUARE' and floor_height > floor_length 
         if room_type == 'USHAPE':
             camera.data.ortho_scale += 1
+        elif not custom_wide and small_room:
+            camera.data.ortho_scale = self.pv_pad
         elif custom_wide or square_tall:
             width_ratio = 1
             wider_measure = max([x_axis_len, y_axis_len])
@@ -2837,24 +2845,65 @@ class VIEW_OT_generate_2d_views(Operator):
     def width_breakdown(self, data_dict, accordions, indexes):
         break_width = data_dict['settings']['break_width']
         final_accordions = []
+        positive_overlays = []
+        any_overlay = False
         for i, index in enumerate(indexes):
             curr_acc_width = 0
             for idx in index:
                 width = data_dict['data'][idx]['width_inches']
+                pos_overlay = data_dict['data'][idx]['overlay']
                 curr_acc_width += width
-            # 1st case, walls under break limit
-            if curr_acc_width <= break_width:
+                positive_overlays.append(pos_overlay)
+            any_overlay = any(positive_overlays)
+            # 1st case, walls under break limit, no positive overlays 
+            if curr_acc_width <= break_width and not any_overlay:
                 final_accordions.append(accordions[i])
-            # 2nd case, walls beyond break limit
+            # 2nd case, walls under break limit, positive overlays
+            elif curr_acc_width <= break_width and any_overlay:
+                final_acc = []
+                for j, idx in enumerate(index):
+                    prvs_over = None
+                    will_overlay = False
+                    width = data_dict['data'][idx]['width_inches']
+                    overlay = data_dict['data'][idx]['overlay']
+                    left_overlay = data_dict['data'][idx]['left_overlay']
+                    if left_overlay:
+                        prvs_over = data_dict['data'][idx - 1]['overlay_side'] 
+                    overlay_side = data_dict['data'][idx]['overlay_side']
+                    starting = overlay_side == "start"
+                    ending = prvs_over == "end"
+                    start_overlay = overlay and overlay_side and starting
+                    end_overlay = left_overlay and ending
+                    will_overlay = (overlay and start_overlay) or (left_overlay and end_overlay)
+                    if will_overlay:
+                        final_accordions.append(final_acc)
+                        final_acc = []
+                        final_acc.append(accordions[i][j])
+                    elif not will_overlay:
+                        final_acc.append(accordions[i][j])
+                final_accordions.append(final_acc)
+            # 3rd case, walls beyond break limit having or not positive overlay
             elif break_width <= curr_acc_width:
                 final_acc = []
                 curr_break = break_width
                 for j, idx in enumerate(index):
+                    prvs_over = None
+                    will_overlay = False
                     width = data_dict['data'][idx]['width_inches']
-                    if width <= curr_break:
+                    overlay = data_dict['data'][idx]['overlay']
+                    left_overlay = data_dict['data'][idx]['left_overlay']
+                    if left_overlay:
+                        prvs_over = data_dict['data'][idx - 1]['overlay_side'] 
+                    overlay_side = data_dict['data'][idx]['overlay_side']
+                    starting = overlay_side == "start"
+                    ending = prvs_over == "end"
+                    start_overlay = overlay and overlay_side and starting
+                    end_overlay = left_overlay and ending
+                    will_overlay = (overlay and start_overlay) or (left_overlay and end_overlay)
+                    if width <= curr_break and not will_overlay:
                         final_acc.append(accordions[i][j])
                         curr_break -= width
-                    elif width > curr_break:
+                    elif width > curr_break or will_overlay:
                         curr_break = break_width
                         final_accordions.append(final_acc)
                         final_acc = []
@@ -2935,6 +2984,63 @@ class VIEW_OT_generate_2d_views(Operator):
     def hide_accordion_wall(self, wall):
         self.hide_every_children(wall)
 
+    def wall_assys_has_positive_overlay(self, wall):
+        overlay_result = []
+        for child in wall.children:
+            overlay = self.has_positive_overlay(child)
+            overlay_result.append(overlay)
+        return any(overlay_result)
+
+    def has_positive_overlay(self, item):
+        if not item.get("IS_BP_ASSEMBLY"):
+            return False
+        wall_length, item_length = math.inf, 0
+        wall_assy = None
+        wall_bp = utils.get_wall_bp(item)
+        if wall_bp:
+            wall_assy = sn_types.Assembly(wall_bp)
+            item_assy = sn_types.Assembly(item)
+            if not wall_assy and not item_assy:
+                return
+            wall_length = wall_assy.obj_x.location.x
+            item_length = item_assy.obj_x.location.x
+        negative_x_loc = item.location[0] < 0
+        positive_x_loc = (item_length + item.location[0]) > wall_length
+        if negative_x_loc or positive_x_loc:
+            return True
+        return False
+
+    def positive_overlay(self, wall_bp):
+        overlays = []
+        for item in wall_bp.children:
+            if self.has_positive_overlay(item):
+                assy = sn_types.Assembly(item)
+                height = assy.obj_z.location.z
+                overlays.append((item.location[0], height))
+        if len(overlays) > 0:
+            higher_overlay = sorted(
+                overlays, key=lambda tup: tup[0], reverse=True)[0]
+            return higher_overlay
+        return (0, 0)
+
+    def overlay_side(self, wall_bp):
+        START, END = "start", "end"
+        wall_assy = sn_types.Assembly(wall_bp)
+        if not wall_assy:
+            return None
+        for item in wall_bp.children:
+            if item.get("IS_BP_ASSEMBLY"):
+                item_assy = sn_types.Assembly(item)
+                wall_length = wall_assy.obj_x.location.x
+                item_length = item_assy.obj_x.location.x
+                start_x_loc = item.location[0] < 0
+                end_x_loc = (item_length + item.location[0]) > wall_length
+                if start_x_loc:
+                    return START
+                elif end_x_loc:
+                    return END
+        return None
+
 
     def fetch_accordions_walls_data(self, scene, walls):
         main_acc_walls = [o for o in scene.objects if o.get("IS_BP_WALL")]
@@ -2950,10 +3056,20 @@ class VIEW_OT_generate_2d_views(Operator):
         walls_data['data'] = walls_dict
         for i, wall in enumerate(walls):
             idx = i + 1
+            left_overlay, right_overlay = False, False
+            left_wall = wall.get_connected_wall('LEFT')
+            right_wall = wall.get_connected_wall('RIGHT')
+            if left_wall:
+                left_overlay = self.wall_assys_has_positive_overlay(
+                    left_wall.obj_bp)
+            if right_wall:
+                right_overlay = self.wall_assys_has_positive_overlay(
+                    right_wall.obj_bp)
             width = sn_types.Assembly(wall.obj_bp).obj_x.location.x
             just_doors = self.is_just_door_wall(wall.obj_bp)
             is_empty = self.empty_wall(wall.obj_bp)
             has_lsh_csh = self.next_wall_has_lsh_csh(walls_list, wall.obj_bp)
+            has_overlay = self.wall_assys_has_positive_overlay(wall.obj_bp)
             within_iw = width <= intermediate_space_metric
             walls_dict[idx] = {}
             walls_dict[idx]['wall_bp'] = main_acc_walls[i]
@@ -2964,6 +3080,11 @@ class VIEW_OT_generate_2d_views(Operator):
             walls_dict[idx]['within_intermediate_space'] = within_iw
             walls_dict[idx]['has_lsh_csh'] = has_lsh_csh
             walls_dict[idx]['show'] = True
+            walls_dict[idx]['left_overlay'] = left_overlay
+            walls_dict[idx]['overlay'] = has_overlay
+            walls_dict[idx]['overlay_side'] = self.overlay_side(wall.obj_bp)
+            walls_dict[idx]['right_overlay'] = right_overlay
+
         if enable_intermediate is False:
             intermediate_qty = 0
         walls_data['settings'] = {}
@@ -3017,6 +3138,7 @@ class VIEW_OT_generate_2d_views(Operator):
         new_scene.render.resolution_x = 1800
         new_scene.render.resolution_y = 900
         new_scene.render.resolution_percentage = 100
+        self.remove_accordion_scene_material_pointers(new_scene)
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.view3d.camera_to_view_selected()
         camera.data.type = 'ORTHO'
@@ -3251,23 +3373,11 @@ class VIEW_OT_generate_2d_views(Operator):
                 oclusion.rotation_euler[2] = math.radians(180)
                 group.objects.link(oclusion)
 
-    def accordion_obstacles(self, grp):
-        for item in grp.objects:
-            obstacle = item.get('IS_OBSTACLE')
-            on_acc = item.get('SHOW_ON_ACCORDIONS')
-            hidden_on_accordions = item.get('SHOW_ON_ACCORDIONS', True) == False
-            # NOTE Seems odd, but if the obstacle isn't explicitely hidden
-            # it will be shown, also dealing with older projects
-            if obstacle and hidden_on_accordions:
-                for child in item.children:
-                    grp.objects.unlink(child)
-                grp.objects.unlink(item)
-    
-    def apply_build_height_label(self, wall_bp, position, multiplier):
+    def apply_build_height_label(self, wall_bp, position, multiplier, ovrly_x_offset):
         position_metric = position * unit.inch(1)
         wall_mesh = [m for m in wall_bp.children if m.type == 'MESH' and 'wall' in m.name.lower()][0]
         curr_wall_glb_x = self.get_object_global_location(wall_mesh)[0]
-        offset = unit.inch(-7) + (unit.inch(-4) * multiplier)
+        offset = unit.inch(-7) + (unit.inch(-4) * multiplier) + ovrly_x_offset
         dim = sn_types.Dimension()
         dim.parent = wall_bp
         dim.start_x(value=offset + curr_wall_glb_x)
@@ -3276,11 +3386,13 @@ class VIEW_OT_generate_2d_views(Operator):
         dim.end_z(value=position_metric)
         dim.set_label(str(position) + "\"")
 
-    def apply_toe_kick_label(self, wall_bp, position, multiplier):
+    def apply_toe_kick_label(self, wall_bp, position, multiplier, 
+                                ovrly_x_offset):
         position_metric = position * unit.inch(1)
-        wall_mesh = [m for m in wall_bp.children if m.type == 'MESH' and 'wall' in m.name.lower()][0]
+        wall_mesh = [m for m in wall_bp.children \
+            if m.type == 'MESH' and 'wall' in m.name.lower()][0]
         curr_wall_glb_x = self.get_object_global_location(wall_mesh)[0]
-        offset = unit.inch(-6) + (unit.inch(-2) * multiplier)
+        offset = unit.inch(-6) + (unit.inch(-2) * multiplier) + ovrly_x_offset
         dim = sn_types.Dimension()
         dim.parent = wall_bp
         dim.start_x(value=offset + curr_wall_glb_x)
@@ -3295,7 +3407,8 @@ class VIEW_OT_generate_2d_views(Operator):
         text.set_label(str(position) + "\"")
     
     def ceiling_height_dimension(self, item, bheight_offset):
-        wall_mesh = [m for m in item.children if m.type == 'MESH' and 'wall' in m.name.lower()][0]
+        wall_mesh = [m for m in item.children \
+            if m.type == 'MESH' and 'wall' in m.name.lower()][0]
         curr_wall_glb_x = self.get_object_global_location(wall_mesh)[0]
         assy = sn_types.Assembly(item)
         height = assy.obj_z.location.z
@@ -3307,6 +3420,13 @@ class VIEW_OT_generate_2d_views(Operator):
         dim.end_z(value=height)
         wall_height = self.to_inch_lbl(height)
         dim.set_label(wall_height)
+
+    def overlay_label(self, wall_bp, x_loc, z_loc, side):
+        dim = sn_types.Dimension()
+        dim.parent(wall_bp)
+        dim.start_x(value=x_loc / 2)
+        dim.start_z(value=z_loc + unit.inch(6))
+        dim.set_label("Positive|Overlay")
 
     def accordion_build_hight_n_ceiling_dimensions(self, context, 
                                                    accordion, existing_dims,
@@ -3360,6 +3480,7 @@ class VIEW_OT_generate_2d_views(Operator):
                     assy = sn_types.Assembly(item)
                     bh_dims.append(assy.obj_z.location.z)
         first_wall = self.get_first_acc_wall(accordion)
+        last_wall = accordion[-1]
         bh_dims = [self.to_inch(bh) for bh in bh_dims]
         bh_dims = list(set(bh_dims)) 
         bh_dims = sorted(bh_dims)
@@ -3368,13 +3489,35 @@ class VIEW_OT_generate_2d_views(Operator):
                 bh_dims.remove(bh)
         existing_dims += bh_dims
         if len(bh_dims) > 0:
+            overlay_x_offset = 0
+            overlay_z_offset = 0
+            first_overlay = self.wall_assys_has_positive_overlay(first_wall)
+            last_overlay = self.wall_assys_has_positive_overlay(last_wall)
+            ov_side_first_wall = self.overlay_side(first_wall)
+            ov_side_last_wall = self.overlay_side(last_wall)
+            if first_overlay and ov_side_first_wall == "start":
+                overlay_result = self.positive_overlay(first_wall)
+                overlay_x_offset, overlay_z_offset = overlay_result
+                self.overlay_label(
+                    first_wall, overlay_x_offset, overlay_z_offset, "")
+            if last_overlay and ov_side_last_wall == "end":
+                overlay_result = self.positive_overlay(last_wall)
+                x_offset, z_offset = overlay_result
+                wall_length = sn_types.Assembly(last_wall).obj_x.location.x
+                x_offset = (x_offset + wall_length) * 2
+                x_offset += unit.inch(6)
+                self.overlay_label(
+                    last_wall, x_offset, z_offset, "")
+                overlay_x_offset = 0
             for i, value in enumerate(bh_dims):
                 if value > small_dim_height_value:
-                    self.apply_build_height_label(first_wall, value, i )
+                    self.apply_build_height_label(
+                        first_wall, value, i, overlay_x_offset)
                 elif value <= small_dim_height_value:
-                    self.apply_toe_kick_label(first_wall, value, i)
+                    self.apply_toe_kick_label(
+                        first_wall, value, i, overlay_x_offset)
             dims_offset = (unit.inch(-4) * len(bh_dims))
-            max_offset = unit.inch(-7) + dims_offset
+            max_offset = unit.inch(-7) + dims_offset + overlay_x_offset
             if first_wall is not None:
                 self.ceiling_height_dimension(first_wall, max_offset)
             return max_offset
@@ -3995,6 +4138,174 @@ class VIEW_OT_generate_2d_views(Operator):
                 self.cross_sect_lshcsh_elvs_kds(sh_assy, wall_assy, floor)
                 self.cross_sect_lshcsh_elvs_panel(sh_assy, wall_assy, floor)
 
+    def accordion_obstacles(self, grp, walls_list, wall):
+        for item in grp.objects:
+            is_obstacle = item.get('IS_OBSTACLE')
+            hidden_on_accordions = item.get('SHOW_ON_ACCORDIONS', True) == False
+            if is_obstacle and not hidden_on_accordions:
+                self.pick_n_place_obstacles_cross_sections(
+                    walls_list, wall, item)
+                for child in item.children:
+                    if child.name in grp.objects:
+                        grp.objects.unlink(child)
+                if sn_utils.get_wall_bp(item) == wall:
+                    self.place_wall_obstacle_mesh(wall, item)
+            if is_obstacle and hidden_on_accordions:
+            # NOTE Seems odd, but if the obstacle isn't explicitely hidden
+            # it will be shown, also dealing with older projects
+                for child in item.children:
+                    grp.objects.unlink(child)
+                grp.objects.unlink(item)
+
+    def obstacles_shading(self, accordion_scene):
+        shading = self.get_shading_material()
+        if shading:
+            obstacle_to_shade = [o for o in accordion_scene.objects \
+                if o.get("OBSTACLE_SHADING_MESH") or o.get("GLASS_SHADING_MESH")]
+            for obj in obstacle_to_shade:
+                obj.data.materials.append(shading)
+
+    def get_shading_material(self):
+        CLASSY_CLOSETS_RGBA = (0.275,0.056,0.087,1)
+        shading = None
+        has_material = [m for m in bpy.data.materials \
+            if m.name == "ShadingColor"]
+        if len(has_material) == 0:
+            bpy.data.materials.new(name="ShadingColor")
+        shading = bpy.data.materials["ShadingColor"]
+        shading.use_nodes = True
+        node = shading.node_tree.nodes['Principled BSDF']
+        color = node.inputs['Base Color'].default_value = CLASSY_CLOSETS_RGBA
+        return shading
+
+    def place_wall_obstacle_mesh(self, wall, item):
+        obs_assy = sn_types.Assembly(item)
+        dim_x = obs_assy.obj_x.location.x
+        dim_z = obs_assy.obj_z.location.z
+        loc_x, _, loc_z = item.location
+        [wall_mesh] = [m for m in wall.children if m.type == "MESH"]
+        obs_mesh = utils.create_cube_mesh(
+                        "obstacle_mesh", (dim_x, unit.inch(2), dim_z))
+        obs_mesh.parent = wall_mesh
+        obs_mesh.location = (loc_x, unit.inch(-2), loc_z)
+        obs_mesh["OBSTACLE_SHADING_MESH"] = True
+        label = re.sub(r'\d{3}', '', item.name)
+        label = re.sub(r'\w*.\d{1,3}.', '', label)
+        label = label.replace(".", "")
+        obs_dim = sn_types.Dimension()
+        obs_dim.parent(obs_mesh)
+        obs_dim.set_label(label)
+        obs_dim.start_x(value=dim_x / 2)
+        obs_dim.start_z(value=dim_z / 2)
+
+    def sqrooms_obstacl_neighbor_walls(self, walls_list, wall):
+        curr_idx = walls_list.index(wall.name)
+        prvs_wall, next_wall = None, None
+        if curr_idx == 0:
+            prvs_wall = bpy.data.objects[walls_list[-1]]
+            next_wall = bpy.data.objects[walls_list[1]]
+        elif curr_idx in [1, 2]:
+            prvs_wall = bpy.data.objects[walls_list[curr_idx - 1]]
+            next_wall = bpy.data.objects[walls_list[curr_idx + 1]]
+        elif curr_idx == 3:
+            prvs_wall = bpy.data.objects[walls_list[curr_idx - 1]]
+            next_wall = bpy.data.objects[walls_list[0]]
+        return (prvs_wall, next_wall)
+
+    def open_end_obstacl_neighbor_walls(self, walls_list, wall):
+        curr_idx = walls_list.index(wall.name)
+        walls_qty = len(walls_list) - 1
+        prvs_wall, next_wall = None, None
+        if curr_idx == 0:
+            next_wall = bpy.data.objects[walls_list[curr_idx + 1]]
+        elif curr_idx == walls_qty:
+            prvs_wall = bpy.data.objects[walls_list[curr_idx - 1]]
+        elif curr_idx < walls_qty:
+            if curr_idx != 0:
+                prvs_wall = bpy.data.objects[walls_list[curr_idx - 1]]
+            if curr_idx != len(walls_list) - 1:
+                next_wall = bpy.data.objects[walls_list[curr_idx + 1]]
+        return (prvs_wall, next_wall)
+    
+    # TODO change function signature to be more intuitive for later use
+    def place_obstacl_cs_mesh(self, parent, dim_y, dim_z, loc_z, position):
+        if self.empty_wall(parent):
+            return
+        wall_length = sn_types.Assembly(parent).obj_x.location.x
+        [wall_mesh] = [m for m in parent.children if m.type == "MESH"]
+        x, y, z = dim_y, unit.inch(2), dim_z
+        x_pos, z_pos = 0, loc_z
+        if position == "left":
+            x_pos = wall_length - x
+        elif position == "right":
+            pass
+        cs_mesh = utils.create_cube_mesh(
+            "obstcl_cross_section", (x, y, z))
+        cs_mesh["OBSTACLE_SHADING_MESH"] = True
+        utils.copy_world_loc(wall_mesh, cs_mesh, (x_pos, unit.inch(-2), z_pos))
+
+    def place_obstacl_cross_sections(self, obstacle, walls):
+        CS_THRESHOLD = unit.inch(6)
+        assy = sn_types.Assembly(obstacle)
+        obstacle_wall = utils.get_wall_bp(obstacle)
+        dim_x = abs(assy.obj_x.location.x)
+        dim_y = abs(assy.obj_y.location.y)
+        dim_z = abs(assy.obj_z.location.z)
+        wall_length = sn_types.Assembly(obstacle_wall).obj_x.location.x
+        left, right = walls
+        loc_x, loc_y, loc_z = obstacle.location
+        left_cs = left and loc_x < CS_THRESHOLD
+        right_cs = right and (wall_length - (loc_x + dim_x)) < CS_THRESHOLD 
+        if left_cs:
+            self.place_obstacl_cs_mesh(left, dim_y, dim_z, loc_z, "left")
+        if right_cs:
+            self.place_obstacl_cs_mesh(right, dim_y, dim_z, loc_z, "right")
+
+    def pick_n_place_obstacles_cross_sections(self, walls_list, wall, obstacle):
+        type = bpy.context.scene.sn_roombuilder.room_type
+        scene_name = bpy.context.scene.name.lower()
+        accordion_sc = "accordion" in scene_name
+        elevation_sc = "cswall-wall" in scene_name
+        obstacle_same_wall = wall == utils.get_wall_bp(obstacle)
+        acc_rule = accordion_sc and obstacle_same_wall and type != 'SINGLE'
+        elv_rule = elevation_sc
+        if acc_rule or elv_rule:
+            walls = None, None
+            if type == 'SQUARE':
+                walls = self.sqrooms_obstacl_neighbor_walls(walls_list, wall)
+            if type == 'LSHAPE' or type == 'CUSTOM' or type == 'USHAPE':
+                walls = self.open_end_obstacl_neighbor_walls(walls_list, wall)
+            if accordion_sc:
+                self.place_obstacl_cross_sections(obstacle, walls)
+            elif elevation_sc:
+                return walls
+
+    def add_obstacles_cs_on_elvs(self, context, main_sc_objs, wall_groups):
+        CS_THRESHOLD = unit.inch(6)
+        walls_list = [w.name for w in main_sc_objs if w.get("IS_BP_WALL")]
+        obstacles = [o for o in main_sc_objs if o.get("IS_OBSTACLE")]
+        for obstacle in obstacles:
+            obst_ch = obstacle.children
+            obstacle_meshes = [m for m in obst_ch if m.type == "MESH"]
+            left_elv_coll, right_elv_coll = None, None
+            wall = utils.get_wall_bp(obstacle)
+            wall_length = sn_types.Assembly(wall).obj_x.location.x
+            left, right = self.pick_n_place_obstacles_cross_sections(
+                walls_list, wall, obstacle)
+            assy = sn_types.Assembly(obstacle)
+            dim_x = abs(assy.obj_x.location.x)
+            loc_x = obstacle.location[0]
+            left_cs = left and loc_x < CS_THRESHOLD
+            right_cs = right and (wall_length - (loc_x + dim_x)) < CS_THRESHOLD
+            if left_cs and left.name in wall_groups.keys():
+                left_elv_coll = wall_groups[left.name]
+                for mesh in obstacle_meshes:
+                    left_elv_coll.objects.link(mesh)
+            if right_cs and left.name in wall_groups.keys():
+                right_elv_coll = wall_groups[right.name]
+                for mesh in obstacle_meshes:
+                    right_elv_coll.objects.link(mesh)
+
     def add_remaining_space_lbl_elv(self, wall_grp, wall, value, position):
         x_loc = 0
         scene_name = f'{wall_grp.name}'
@@ -4015,6 +4326,27 @@ class VIEW_OT_generate_2d_views(Operator):
         spdim.set_label(label)
         self.ignore_obj_list.append(spdim)
         return spdim
+
+    def remove_accordion_scene_material_pointers(self, accordion_scene):
+        to_avoid = []
+        for obj in accordion_scene.objects:
+            skippable_meshes = [c for c in obj.children \
+                if c.type == 'MESH' and not c.hide_viewport]
+            shown = len(skippable_meshes) > 0
+            is_door = obj.sn_closets.is_door_bp
+            is_hamper_door = obj.sn_closets.is_hamper_front_bp
+            is_drawer_door = obj.sn_closets.is_drawer_front_bp
+            skippable = (is_door or is_hamper_door or is_drawer_door) and shown
+            if skippable:
+                to_avoid += skippable_meshes
+        for obj in accordion_scene.objects:
+            if obj not in to_avoid:
+                not_hidden = not obj.hide_render and not obj.hide_viewport
+                for mat_slot in obj.snap.material_slots:
+                    obj.snap.material_slots.remove(0)
+                obj.snap.type_mesh = 'NONE'
+                if obj.type == 'MESH' and not_hidden:
+                    obj.data.materials.clear()
 
     def add_accordion_views(self, context):        
         main_sc_objs = bpy.data.scenes["_Main"].objects
@@ -4069,7 +4401,6 @@ class VIEW_OT_generate_2d_views(Operator):
                 if (just_door or empty) and not has_lsh_csh:
                     continue
                 self.group_every_children_on_acc(grp, wall)
-                self.accordion_obstacles(grp)
                 # NOTE wall height / building height need to be added just 
                 # at the first wall of each accordion. So we 
                 # remove the existing ones and apply as desired
@@ -4084,13 +4415,15 @@ class VIEW_OT_generate_2d_views(Operator):
                         on_accordions = obj.get('SHOW_ON_ACCORDIONS', True)
                         if on_accordions:
                             self.add_obstacle_height_width_dim(obj)
-                            for child in obj.children:
-                                new_scene.collection.objects.link(child)
-                                child.hide_render = False
+                            # NOTE check if it will be delete or re-included
+                            # for child in obj.children:
+                            #     new_scene.collection.objects.link(child)
+                            #     child.hide_render = False
 
                 new_scene.collection.objects.link(wall)
                 # left_space, right_space = walls_rem_spaces.get(wall, (0, 0))
                 self.link_tagged_dims_to_scene(new_scene, wall)
+                self.accordion_obstacles(grp, walls_list, wall)
                 target = targets.get(wall)
                 has_target = target is not None
                 if has_target:
@@ -4132,6 +4465,7 @@ class VIEW_OT_generate_2d_views(Operator):
             instance.instance_collection = grp
             new_scene.name = grp_name
             new_scene.collection.objects.link(instance)
+            self.obstacles_shading(new_scene)
             new_scene.render.resolution_x = 3600
             new_scene.render.resolution_y = 1800
             new_scene.snap.scene_type = 'ACCORDION'
@@ -4263,7 +4597,6 @@ class VIEW_OT_generate_2d_views(Operator):
 
 
     def create_elv_view_scene(self, context, assembly, grp):
-        main_sc_objs = [o for o in bpy.data.scenes["_Main"].objects]
         if assembly.obj_bp and assembly.obj_x and assembly.obj_y and assembly.obj_z:
             new_scene = self.create_new_scene(context, grp, assembly.obj_bp)
 
@@ -4537,7 +4870,8 @@ class VIEW_OT_generate_2d_views(Operator):
         tk_height = island_assembly.get_prompt("Toe Kick Height").get_value()
         top_thickness = island_assembly.get_prompt("Top Thickness").get_value()
         dim_z = abs(island_assembly.obj_z.location.z)
-        height = tk_height + dim_z + 2*top_thickness
+        # height = tk_height + dim_z + 2*top_thickness
+        height = tk_height + dim_z
         CT_label = sn_types.Dimension()
         CT_label.start_x(value=x_loc)
         CT_label.start_z(value=height + unit.inch(6))
@@ -4906,49 +5240,47 @@ class VIEW_OT_generate_2d_views(Operator):
             depth_label.set_label(label)
 
     def write_island_overhang(self, island, x_loc, z_off, type, width_rot):
+        left = ["Back Overhang", "Right Overhang"]
+        right = ["Front Overhang", "Left Overhang"]
+        valid = left + right
+        if type not in valid:
+            return
         island_assembly = sn_types.Assembly(obj_bp=island)
+        tk_height = island_assembly.get_prompt("Toe Kick Height").get_value()
+        top_thickness = island_assembly.get_prompt("Top Thickness").get_value()
         deck_overhang =\
             island_assembly.get_prompt(type).get_value()
+        overhang_val = self.to_inch_lbl(deck_overhang)
+        label = f"{overhang_val}|overhang"
         dim_z = abs(island_assembly.obj_z.location.z)
         dim_y = abs(island_assembly.obj_y.location.y)
         dim_x = abs(island_assembly.obj_x.location.x)
-        x_dims = {
-            "x": dim_x,
-            "y": dim_y}
-        hsh_lens = {
-            "x": 0.19,
-            "y": 0.1}
-        hsh_rots = {
-            "x": 60,
-            "y": 30}
-        width = x_dims[width_rot]
-        x_0 = x_loc - unit.inch(6) - width/2
-        x_1 = x_loc + unit.inch(6) + width/2
-        tk_height = island_assembly.get_prompt("Toe Kick Height").get_value()
-        top_thickness = island_assembly.get_prompt("Top Thickness").get_value()
-        height = tk_height + dim_z + 2*top_thickness
-        z_0 = height + z_off
+        x_dims = {"x": dim_x, "y": dim_y}
+        hsh_lens = {"x": 0.19, "y": 0.1}
+        hsh_rots = {"x": 60, "y": 30}
         hsh_len = hsh_lens[width_rot]
-        hsh_rot = math.radians(180 - hsh_rots[width_rot])
-        label = self.to_inch_lbl(deck_overhang)
-        hsh_x = x_loc - width/2
-        for i in range(2):
-            deck_overhang_label = sn_types.Dimension()
-            deck_overhang_label.start_x(value=x_0)
-            deck_overhang_label.start_z(value=z_0)
-            deck_overhang_label.set_label(label)
-            overhang_label = sn_types.Dimension()
-            overhang_label.start_x(value=x_0)
-            overhang_label.start_z(value=z_0 - unit.inch(4))
-            overhang_label.set_label("overhang")
-            hashmark = sn_types.Line(length=hsh_len, axis='X')
-            hashmark.anchor.name = 'Hashmark_Overhang'
-            hashmark.anchor.location.x = hsh_x
-            hashmark.anchor.location.z = height
-            hashmark.anchor.rotation_euler.y = hsh_rot
+        width = x_dims[width_rot]
+        height = tk_height + dim_z
+        z_0 = height + z_off
+        if type in left:
+            hsh_x = (x_loc - width/2) + deck_overhang
+            x_0 = x_loc - unit.inch(6) - width/2
+            hsh_start = hsh_x + (deck_overhang * -2)
+            hsh_rot = math.radians(180 - hsh_rots[width_rot])
+        elif type in right:
+            hsh_x = (x_loc - width/2)
+            x_0 = hsh_x + width + deck_overhang
+            hsh_start = x_0
             hsh_rot = math.radians(hsh_rots[width_rot])
-            x_0 = x_1
-            hsh_x += width
+        hashmark = sn_types.Line(length=hsh_len, axis='X')
+        hashmark.anchor.location.x = hsh_start
+        hashmark.anchor.name = 'Hashmark_Overhang'
+        hashmark.anchor.location.z = height
+        hashmark.anchor.rotation_euler.y = hsh_rot
+        ovhg_dim = sn_types.Dimension()
+        ovhg_dim.start_y(value=unit.inch(4))
+        ovhg_dim.parent(hashmark.end_point)
+        ovhg_dim.set_label(label)
 
     def write_front_back_depth(self, island, x_loc, view):
         depth_index = {"Front": 1, "Back": 2}
@@ -5037,7 +5369,9 @@ class VIEW_OT_generate_2d_views(Operator):
             self.write_island_depths(island, x_loc, "B")
         if dimprops.ct_overhang:
             self.write_island_overhang(
-                island, x_loc, -unit.inch(1), "Deck Overhang", "y")
+                island, x_loc, -unit.inch(1), "Back Overhang", "y")
+            self.write_island_overhang(
+                island, x_loc, -unit.inch(1), "Front Overhang", "y")
         self.write_elv_label(label, x_loc, -unit.inch(8))
 
     def write_view_C(self, island, dimprops):
@@ -5052,7 +5386,9 @@ class VIEW_OT_generate_2d_views(Operator):
             self.write_island_opening_width(island, x_loc)
         if dimprops.ct_overhang: 
             self.write_island_overhang(
-                island, x_loc, -unit.inch(8), "Side Deck Overhang", "x")
+                island, x_loc, -unit.inch(8), "Right Overhang", "x")
+            self.write_island_overhang(
+                island, x_loc, -unit.inch(8), "Left Overhang", "x")
         if dimprops.label_drawer_front_height:
             self.write_obj_drawers(island, x_loc + dim_x/2, 0, 0, np.pi)
         if dimprops.double_jewelry:
@@ -5080,7 +5416,7 @@ class VIEW_OT_generate_2d_views(Operator):
         name_split = name.split(" ")
         return name_split[0]
 
-    def add_camera_to_scene(self, scene,
+    def add_camera_to_island_scene(self, scene,
                             rotation=(0, 0, 0),
                             location=(0, 0, 0)):
         camera = self.create_camera(scene)
@@ -5089,14 +5425,14 @@ class VIEW_OT_generate_2d_views(Operator):
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.view3d.camera_to_view_selected()
         camera.data.type = 'ORTHO'
-        camera.data.ortho_scale += self.pv_pad
+        camera.data.ortho_scale += self.isl_pad
         bpy.ops.object.select_all(action='DESELECT')
 
     def get_island_view_x_loc(self, island):
         island_assembly = sn_types.Assembly(obj_bp=island)
         x_dim = abs(island_assembly.obj_x.location.x)
         y_dim = abs(island_assembly.obj_y.location.y)
-        space = unit.inch(20)
+        space = unit.inch(35)
         return (3*space/2 + y_dim + x_dim/2)
 
     def get_instance_location(self, obj, view):
@@ -5161,11 +5497,11 @@ class VIEW_OT_generate_2d_views(Operator):
                     instance_name, grp, island, z_rot, location)
             new_scene.collection.objects.link(instance)
             view = chr(ord(view) + 1)
-        self.add_camera_to_scene(new_scene, (np.pi/2, 0, 0))
         self.write_view_A(island, dimprops)
         self.write_view_B(island, dimprops)
         self.write_view_C(island, dimprops)
         self.write_view_D(island, dimprops)
+        self.add_camera_to_island_scene(new_scene, (np.pi/2, 0, 0))
         return grp
 
     def hide_annotation_objects(self):
@@ -5377,9 +5713,11 @@ class VIEW_OT_generate_2d_views(Operator):
             virtual = self.create_virtual_scene()
             if len(walls) > 0:
                 if elevations_only and room_type != 'SINGLE' and wall_qty > 1:
+                    main_sc_objs = [o for o in self.main_scene.objects]
                     assy_dict = self.add_cross_sections(walls, wall_groups)
                     self.add_remaining_space_dims(assy_dict, wall_groups)
                     self.add_corner_cross_sections_dims(walls, wall_groups)
+                    self.add_obstacles_cs_on_elvs(context, main_sc_objs, wall_groups)
                 elif accordions_only:
                     self.add_accordion_views(context)
 
@@ -5463,7 +5801,22 @@ class VIEW_OT_render_2d_views(Operator):
         context.scene.snap.opengl_dim.gl_default_color[2] = self.b
         context.scene.snap.opengl_dim.gl_default_color[3] = self.a
 
+    def swap_colors(self, context, revert=False):
+        scene = context.window.scene
+        if revert:
+            print(f"Reverted Colors back - Scene :{scene.name}")
+        elif not revert:
+            print(f"Changing to Oxford White (Frost) for Rendering - Scene: {scene.name}")
+        return True
+
     def render_scene(self, context, scene):
+        swaped_colors = False
+        shaded_sc_types = ['ELEVATION', 'ACCORDION']
+        valid_shaded_sc_type = scene.snap.scene_type in shaded_sc_types
+        is_elevation = scene.snap.scene_type == 'ELEVATION'
+        scene_setup_props = scene.snap_closet_dimensions
+        shading_kill_switch = scene_setup_props.disable_2dviews_shading
+        is_shaded_scene = valid_shaded_sc_type
         context.window.scene = scene
 
         self.save_dim_color(scene.snap.opengl_dim.gl_default_color)
@@ -5506,12 +5859,39 @@ class VIEW_OT_render_2d_views(Operator):
         for node in tree.nodes:
             tree.nodes.remove(node)
 
-        view2d_rl_node = tree.nodes.new(type='CompositorNodeRLayers')
-        a_over_node = tree.nodes.new(type='CompositorNodeAlphaOver')
-        comp_node = tree.nodes.new(type='CompositorNodeComposite')
+        if shading_kill_switch or not is_shaded_scene:
+            view2d_rl_node = tree.nodes.new(type='CompositorNodeRLayers')
+            a_over_node = tree.nodes.new(type='CompositorNodeAlphaOver')
+            comp_node = tree.nodes.new(type='CompositorNodeComposite')
 
-        tree.links.new(view2d_rl_node.outputs['Freestyle'], a_over_node.inputs[2])
-        tree.links.new(a_over_node.outputs[0], comp_node.inputs[0])
+            tree.links.new(view2d_rl_node.outputs['Freestyle'], a_over_node.inputs[2])
+            tree.links.new(a_over_node.outputs[0], comp_node.inputs[0])
+
+        elif not shading_kill_switch and is_shaded_scene:
+            if is_elevation:
+                swaped_colors = self.swap_colors(context)
+            # View layer just for the coloring
+            color_layer_name = "shading"
+            shading_layer = scene.view_layers.new(color_layer_name)
+            shading_layer.use_freestyle = False
+
+            # Nodes for coloring the desired materials
+            shading_layer = tree.nodes.new(type='CompositorNodeRLayers')
+            shading_layer.layer = color_layer_name
+            color_node = tree.nodes.new(type='CompositorNodeMixRGB')
+            color_node.blend_type = "COLOR"
+            color_dial = 0.8
+            color_node.inputs[0].default_value = color_dial
+            # Nodes for Freestyle edge lines rendering
+            view2d_rl_node = tree.nodes.new(type='CompositorNodeRLayers')
+            a_over_node = tree.nodes.new(type='CompositorNodeAlphaOver')
+            comp_node = tree.nodes.new(type='CompositorNodeComposite')
+
+            tree.links.new(view2d_rl_node.outputs['Freestyle'], a_over_node.inputs[2])
+            tree.links.new(shading_layer.outputs['Image'], color_node.inputs[2])
+            tree.links.new(color_node.outputs[0], a_over_node.inputs[1])
+            tree.links.new(a_over_node.outputs[0], comp_node.inputs[0])
+
 
         # Prevent Main Accordion from being rendered
         if "Z_Main Accordion" in bpy.data.scenes:
@@ -5526,6 +5906,7 @@ class VIEW_OT_render_2d_views(Operator):
         self.check_file(img_path)
 
         img_result = opengl_dim.render_opengl(self, context)
+
         image_view = context.window_manager.snap.image_views.add()
         image_view.name = img_result.name
         image_view.image_name = img_result.name
@@ -5552,6 +5933,8 @@ class VIEW_OT_render_2d_views(Operator):
             tree.nodes.remove(node)
         scene.use_nodes = False
         self.reset_dim_color(context)
+        if swaped_colors:
+            self.swap_colors(context, True)
 
     def get_project_xml(self):
         props = bpy.context.window_manager.sn_project

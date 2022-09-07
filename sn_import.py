@@ -210,7 +210,7 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
                     ProductType IN ('PM','VN') AND\
                     TypeCode IN ('{type_code}') AND\
                     Thickness = 0.75 AND\
-                    DisplayName != 'Graphite Spectrum'\
+                    DisplayName NOT IN ('Graphite Spectrum', 'Dura White Fog Grey', 'Duraply White')\
                 ORDER BY\
                     DisplayName ASC\
                         ;\
@@ -272,6 +272,11 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
             color.color_code = 0
             color.description = "None"
 
+        # Insert "Dura White Fog Grey" after "Duraply Almond" to maintain index of older "Fog Grey" display name
+        idx_1 = rows.index(rows[0])
+        idx_2 = rows.index(rows[1])
+        rows[idx_1], rows[idx_2] = rows[idx_2], rows[idx_1]
+
         for row in rows:
             type_code = int(row[0])
             display_name = row[1]
@@ -297,7 +302,7 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
                 {CCItems}\
             WHERE\
                 ProductType IN ('PM') AND\
-                DisplayName LIKE 'Oxford White' AND\
+                DisplayName LIKE 'Oxford White (Frost)' AND\
                 Thickness = 0.75 AND\
                 TypeCode = 15200\
             ORDER BY\
@@ -312,7 +317,6 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
 
             if display_name not in mat_type.colors:
                 if self.render_material_exists(display_name):
-                    print("Adding Oxford White to Garage Material List")
                     color = mat_type.colors.add()
                     color.name = display_name
                     color.color_code = int(type_code)
@@ -443,6 +447,7 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
     def create_stain_color_collection(self):
         props = bpy.context.scene.closet_materials
         props.stain_colors.clear()
+        exclude = ["Absolute Acajou"]
 
         rows = sn_db.query_db(
             "SELECT\
@@ -470,15 +475,16 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
             display_name = row[1]
             description = row[2]
 
-            if display_name not in props.stain_colors:
-                if self.render_material_exists(display_name):
-                    color = props.stain_colors.add()
-                    color.name = display_name.strip()
-                    color.sku = sku
-                    color.description = description
+            if display_name not in exclude:
+                if display_name not in props.stain_colors:
+                    if self.render_material_exists(display_name):
+                        color = props.stain_colors.add()
+                        color.name = display_name.strip()
+                        color.sku = sku
+                        color.description = description
 
-                elif display_name not in self.missing_render_mats:
-                    self.missing_render_mats.append(display_name)
+                    elif display_name not in self.missing_render_mats:
+                        self.missing_render_mats.append(display_name)
 
     def create_five_piece_melamine_door_color_collection(self):
         props = bpy.context.scene.closet_materials
@@ -507,7 +513,6 @@ class SN_DB_OT_Import_Csv(bpy.types.Operator):
             sku = row[0]
             display_name = row[1]
             description = row[2]
-            print(display_name)
             if display_name not in props.five_piece_melamine_door_colors:
                 if self.render_material_exists(display_name):
                     color = props.five_piece_melamine_door_colors.add()

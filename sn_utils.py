@@ -143,7 +143,7 @@ def get_part_thickness(obj):
             closet_materials = bpy.context.scene.closet_materials
             mat_sku = closet_materials.get_mat_sku(obj.parent, cover_cleat)
             mat_inventory_name = closet_materials.get_mat_inventory_name(sku=mat_sku)
-            mat_names = ["Oxford White", "Cabinet Almond", "Duraply Almond", "Duraply White"]
+            mat_names = ["Oxford White (Frost)", "Cabinet Almond (Cafe Au Lait)", "Duraply Almond", "Duraply White"]
 
             if mat_inventory_name in mat_names:
                 return math.fabs(sn_unit.inch(0.38))
@@ -159,6 +159,13 @@ def get_part_thickness(obj):
                         if 'obj_z' in child:
                             print("Returning Garage Shelf Thickness")
                             return math.fabs(child.location.z)
+            
+        if obj.get('IS_BP_ASSEMBLY'):
+            assembly = sn_types.Assembly(obj_bp=obj)
+            part_name = assembly.obj_bp.snap.name_object if assembly.obj_bp.snap.name_object != "" else assembly.obj_bp.name
+            if 'Shelf Lip' in part_name:
+                return math.fabs(sn_unit.inch(0.75))
+
 
     if obj.snap.type_mesh == 'CUTPART':
         spec_group = bpy.context.scene.snap.spec_groups[obj.snap.spec_group_index]
@@ -2340,3 +2347,51 @@ def set_prompt_if_exists(assembly, prompt_name, value):
     prompt = assembly.get_prompt(prompt_name)
     if prompt:
         prompt.set_value(value)
+
+def get_wall_quantity():
+    main_scene = "_Main"
+    if "_Main" not in bpy.data.scenes and "Scene" in bpy.data.scenes:
+        main_scene = "Scene"
+    wall_qty = 0
+    main_sc = bpy.data.scenes[main_scene]
+    main_sc = main_sc.objects
+    main_sc_walls = [o for o in main_sc if o.get("IS_BP_WALL")]
+    wall_qty = len(main_sc_walls)
+    return wall_qty 
+    
+def get_wallbed_doors():
+    wallbed_doors = []
+    main_scene = "_Main"
+    if "_Main" not in bpy.data.scenes and "Scene" in bpy.data.scenes:
+        main_scene = "Scene"
+    wallbed_doors_candidates = (o for o in bpy.data.scenes[main_scene].objects \
+            if o.get('IS_DOOR') and get_wallbed_bp(o))
+    for door in wallbed_doors_candidates:
+        for child in door.children:
+            wallbed_bp = get_wallbed_bp(door)
+            is_mesh = child.type == 'MESH'
+            not_hidden = not child.hide_render
+            not_seen = door not in wallbed_doors
+            has_doors = sn_types.Assembly(
+                wallbed_bp).get_prompt("Add Doors And Drawers")
+            backdoor = 'backing' in door.name.lower()
+            is_wallbed_door = is_mesh and not_hidden and not_seen and has_doors
+            if is_wallbed_door and has_doors.get_value() and not backdoor:
+                wallbed_doors.append(door)
+            elif is_wallbed_door and not has_doors.get_value() and backdoor:
+                wallbed_doors.append(door)
+    return wallbed_doors
+
+def get_wallbed_drawers():
+    wallbed_drawers = []
+    main_scene = "_Main"
+    if "_Main" not in bpy.data.scenes and "Scene" in bpy.data.scenes:
+        main_scene = "Scene"
+    main_scene_objects = bpy.data.scenes[main_scene].objects
+    wallbed_drawers_candidates = [o for o in main_scene_objects \
+            if o.get('IS_BP_DRAWER_FRONT') and get_wallbed_bp(o)]
+    for drawer in wallbed_drawers_candidates:
+        for child in drawer.children:
+            if child.type == 'MESH' and not child.hide_render:
+                wallbed_drawers.append(drawer)
+    return wallbed_drawers

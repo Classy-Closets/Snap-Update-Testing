@@ -37,7 +37,7 @@ class CsvFileInfo:
         return "text"
 
     def process_file(self):
-        with open(self.path, encoding="utf8") as csvfile:
+        with open(self.path, encoding="utf-8-sig") as csvfile:
             reader = csv.reader(csvfile, delimiter=self.options.delimiter)
             self.column_names = [name for name in next(reader)]
             cols = len(self.column_names)

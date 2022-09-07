@@ -300,6 +300,20 @@ class Assembly:
         obj_bp.parent = self.obj_bp
         return obj_bp
 
+    def add_to_wall_collection(self, obj_bp=None):
+        obj_bp = obj_bp if obj_bp else self.obj_bp
+        wall_bp = sn_utils.get_wall_bp(obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(self.obj_bp, wall_coll)
+            sn_utils.remove_assembly_from_collection(self.obj_bp, scene_coll)
+
+            if obj_bp.children:
+                for obj in obj_bp.children:
+                    if "IS_BP_ASSEMBLY" in obj:
+                        self.add_to_wall_collection(obj)
+
     def set_name(self, name):
         self.obj_bp.name = name
         self.obj_bp.snap.name_object = name
@@ -683,7 +697,21 @@ class Assembly:
                 for obj_bp in list_obj_left_bp:
                     prev_group = Assembly(obj_bp)
                     if self.has_height_collision(prev_group):
-                        return obj_bp.location.x + prev_group.calc_width()
+                        prev_group_depth = prev_group.calc_width()
+                        right_filler = prev_group.get_prompt("Add Right Filler")
+                        right_filler_amt = prev_group.get_prompt("Right Side Wall Filler")
+                        corner_product = False
+
+                        if "IS_BP_L_SHELVES" in prev_group.obj_bp:
+                            corner_product = True
+                        if "IS_BP_CORNER_SHELVES" in prev_group.obj_bp:
+                            corner_product = True
+
+                        if right_filler:
+                            if corner_product:
+                                prev_group_depth += right_filler_amt.get_value()
+
+                        return obj_bp.location.x + prev_group_depth
 
                 # CHECK NEXT WALL
                 left_wall = wall.get_connected_wall('LEFT')
@@ -703,7 +731,31 @@ class Assembly:
                                 if self.has_height_collision(prev_group):
                                     if "IS_BP_ENTRY_DOOR" in prev_group.obj_bp:
                                         return 0
-                                    return prev_group.calc_depth()
+
+                                    prev_group_depth = prev_group.calc_depth()
+
+                                    right_filler = prev_group.get_prompt("Add Right Filler")
+                                    right_filler_amt = prev_group.get_prompt("Right Side Wall Filler")
+                                    right_blind_corner = prev_group.get_prompt("Blind Corner Right")
+                                    opening_qty = prev_group.get_prompt("Opening Quantity")
+                                    corner_product = False
+
+                                    if "IS_BP_L_SHELVES" in prev_group.obj_bp:
+                                        corner_product = True
+                                    if "IS_BP_CORNER_SHELVES" in prev_group.obj_bp:
+                                        corner_product = True
+
+                                    if right_filler and prev_group_depth > 0:
+                                        if corner_product:
+                                            prev_group_depth += right_filler_amt.get_value()
+                                        else:
+                                            prev_group_depth = prev_group.get_prompt(
+                                                "Opening {} Depth".format(opening_qty.get_value())).get_value()
+
+                                            if right_blind_corner.get_value():
+                                                prev_group_depth += sn_unit.inch(0.75)
+
+                                    return prev_group_depth
                 return 0
 
             if direction == 'RIGHT':
@@ -730,8 +782,27 @@ class Assembly:
                                     wall_length = wall.obj_x.location.x
                                     if "IS_BP_ENTRY_DOOR" in next_group.obj_bp:
                                         return wall_length
-                                    product_depth = next_group.calc_depth()
-                                    return wall_length - product_depth
+
+                                    next_group_depth = next_group.calc_depth()
+                                    left_filler = next_group.get_prompt("Add Left Filler")
+                                    left_filler_amt = next_group.get_prompt("Left Side Wall Filler")
+                                    left_blind_corner = next_group.get_prompt("Blind Corner Left")
+                                    corner_product = False
+
+                                    if "IS_BP_L_SHELVES" in next_group.obj_bp:
+                                        corner_product = True
+                                    if "IS_BP_CORNER_SHELVES" in next_group.obj_bp:
+                                        corner_product = True
+
+                                    if left_filler and next_group_depth > 0:
+                                        if corner_product:
+                                            next_group_depth += left_filler_amt.get_value()
+                                        else:
+                                            next_group_depth = next_group.get_prompt("Opening 1 Depth").get_value()
+                                            if left_blind_corner.get_value():
+                                                next_group_depth += sn_unit.inch(0.75)
+
+                                    return wall_length - next_group_depth
 
                 return wall.obj_x.location.x
         else:
@@ -794,11 +865,19 @@ class Assembly:
                     return Assembly(obj_bp)
 
         if direction == 'ABOVE':
-            colliding_products = [
-                Assembly(obj_bp) for obj_bp in list_obj_bp if self.has_width_collision(Assembly(obj_bp))]
-            for assy in colliding_products:
-                if self.is_closet_wall_mounted(assy):
-                    return assy
+            if not "IS_BP_CABINET" in self.obj_bp:
+                colliding_products = [
+                    Assembly(obj_bp) for obj_bp in list_obj_bp if self.has_width_collision(Assembly(obj_bp))]
+                for assy in colliding_products:
+                    if self.is_closet_wall_mounted(assy):
+                        return assy
+            else:
+                colliding_products = [
+                    Assembly(obj_bp) for obj_bp in list_obj_bp if self.has_width_collision(Assembly(obj_bp))]
+                for assy in colliding_products:
+                    if assy.obj_bp.parent == self.obj_bp.parent and assy.obj_bp.name != self.obj_bp.name:
+                        if not self.has_height_collision(assy):
+                            return assy
 
         if direction == 'BELOW':
             for obj_bp in list_obj_below_bp:

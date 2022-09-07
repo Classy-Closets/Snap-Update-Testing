@@ -4,12 +4,12 @@ from bpy.types import Panel, UIList
 
 from snap import sn_types, sn_unit
 
-EXPOSED_MATERIAL = ("Closet Materials", "Oxford White")
+EXPOSED_MATERIAL = ("Closet Materials", "Oxford White (Frost)")
 CHROME_MATERIAL = ("Finished Metals", "Chrome")
 GLASS_MATERIAL = ("Glass", "Glass")
 MIRROR_MATERIAL = ("Glass", "Mirror")
 LUCITE_MATERIAL = ("Glass", "Lucite")
-COUNTER_TOP_MATERIAL = ("Closet Materials", "Oxford White")
+COUNTER_TOP_MATERIAL = ("Closet Materials", "Oxford White (Frost)")
 COUNTER_TOP_HPL_MATERIAL = ("Countertop Materials", "Butterum Granite")
 COUNTER_TOP_GRANITE_MATERIAL = ("Countertop Materials", "Alpine White")
 CORE = ("Wood Core", "PB")
@@ -21,10 +21,10 @@ NICKEL_MATERIAL = ("Finished Metals", "Matte Nickel")
 ALUMINUM_MATERIAL = ("Finished Metals", "Aluminum")
 GOLD_MATERIAL = ("Finished Metals", "Matte Gold")
 SLATE_MATERIAL = ("Finished Metals", "Gray Anodized Metal")
-WHITE = ("Closet Materials", "Oxford White")
+WHITE = ("Closet Materials", "Oxford White (Frost)")
 CEDAR_AROMATIC_VENEER = ("Closet Materials", "CEDAR AROMATIC VEN250 G1")
 
-EXPOSED_INTERIOR_MATERIAL = ("Closet Materials", "Oxford White")
+EXPOSED_INTERIOR_MATERIAL = ("Closet Materials", "Oxford White (Frost)")
 EXPOSED_EXTERIOR_MATERIAL = ("Closet Materials", "Duraply Almond")
 
 

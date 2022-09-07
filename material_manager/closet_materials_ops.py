@@ -147,11 +147,11 @@ class SN_MAT_OT_Assign_Materials(Operator):
                 box_type = self.closet_props.closet_options.box_type
 
                 if box_type == 'MEL':
-                    obj.snap.cutpart_material_name = "Oxford White 12200"
+                    obj.snap.cutpart_material_name = "Oxford White (Frost) 12200"
                 else:
                     obj.snap.cutpart_material_name = "Baltic Birch 32200"
 
-                obj.snap.edgeband_material_name_l1 = "Oxford White 1030"
+                obj.snap.edgeband_material_name_l1 = "Oxford White (Frost) 1030"
                 obj.snap.edgeband_material_name_l2 = ""
                 obj.snap.edgeband_material_name_w1 = ""
                 obj.snap.edgeband_material_name_w2 = ""
@@ -189,13 +189,13 @@ class SN_MAT_OT_Assign_Materials(Operator):
             garage_panel_edge_pointer.item_name = mat_props.edges.get_edge_color().name
 
             garage_interior_edge_pointer.category_name = "Closet Materials"
-            garage_interior_edge_pointer.item_name = "Oxford White"
+            garage_interior_edge_pointer.item_name = "Oxford White (Frost)"
 
 
             # Construction Defaults
             if default_props.box_type == 'MEL':
                 drawer_surface.category_name = "Closet Materials"
-                drawer_surface.item_name = "Oxford White"
+                drawer_surface.item_name = "Oxford White (Frost)"
             else:
                 drawer_surface.category_name = "Closet Materials"
                 drawer_surface.item_name = "Birch"
@@ -205,7 +205,7 @@ class SN_MAT_OT_Assign_Materials(Operator):
 
             garage_interior_pointer.category_name = "Closet Materials"
             if mat_props.materials.get_mat_type().name == "Garage Material":
-                garage_interior_pointer.item_name = "Oxford White"
+                garage_interior_pointer.item_name = "Oxford White (Frost)"
             else:
                 garage_interior_pointer.item_name = mat_props.materials.get_mat_color().name
 

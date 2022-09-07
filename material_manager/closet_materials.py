@@ -30,11 +30,11 @@ def update_stain_color(self, context):
         if mat_color_name in stain_colors:
             self.stain_color_index = self.stain_colors.find(mat_color_name)
             return
-        if mat_color_name == "Cabinet Almond":
+        if mat_color_name == "Cabinet Almond (Cafe Au Lait)":
             self.stain_color_index = self.stain_colors.find("Almond")
             return
         else:
-            self.stain_color_index = self.stain_colors.find("Oxford White")
+            self.stain_color_index = self.stain_colors.find("Oxford White (Frost)")
             bpy.ops.snap.message_box(
                 'INVOKE_DEFAULT',
                 message='"{}" is not an available stain color!'.format(mat_color_name),
@@ -60,11 +60,11 @@ def update_material_and_edgeband_colors(self, context):
         if mat_color_name in stain_colors:
             self.stain_color_index = self.stain_colors.find(mat_color_name)
             return
-        if mat_color_name == "Cabinet Almond":
+        if mat_color_name == "Cabinet Almond (Cafe Au Lait)":
             self.stain_color_index = self.stain_colors.find("Almond")
             return
         else:
-            self.stain_color_index = self.stain_colors.find("Oxford White")
+            self.stain_color_index = self.stain_colors.find("Oxford White (Frost)")
     elif mat_type.name == 'Textured Melamine':
         if mat_color_name in stain_colors and mat_color_name == "TL Opto Printatre":
             self.stain_color_index = self.stain_colors.find(mat_color_name)
@@ -168,8 +168,8 @@ class SnapMaterialSceneProps(PropertyGroup):
         default=False,
         update=update_material_and_edgeband_colors)
 
-    default_color = "Oxford White"
-    default_edge_color = "Oxford White"
+    default_color = "Oxford White (Frost)"
+    default_edge_color = "Oxford White (Frost)"
     default_mat_type = "Melamine"
     default_edge_type = "1mm Dolce"
     default_kb_countertop_color = "Calacatta Blanco"
@@ -288,7 +288,9 @@ class SnapMaterialSceneProps(PropertyGroup):
                 return sku
 
             elif not custom_colors:
-                color_name = self.materials.get_mat_color().name
+                # Remove unicode characters from color name
+                color_name_clean = self.materials.get_mat_color().name.encode("ascii", "ignore").lstrip()
+                color_name = color_name_clean.decode()
                 if color_name == "Duraply Almond":
                     return "EB-0000311"
                 elif color_name == "Dura White Fog Grey":
@@ -340,7 +342,9 @@ class SnapMaterialSceneProps(PropertyGroup):
             sku = self.get_garage_edge_sku(obj, assembly, part_name)
             if sku != "Unknown":
                 return sku
-            color_name = self.materials.get_mat_color().name
+            # Remove unicode characters from color name
+            color_name_clean = self.materials.get_mat_color().name.encode("ascii", "ignore").lstrip()
+            color_name = color_name_clean.decode()
             if color_name == "Duraply Almond":
                 return "EB-0000311"
             elif color_name == "Dura White Fog Grey":
@@ -434,13 +438,13 @@ class SnapMaterialSceneProps(PropertyGroup):
             )
             if len(sku) == 0:
                 print(
-                    "No SKU found for - Edgeband Type Code: {} Oxford White".format(type_code))
+                    "No SKU found for - Edgeband Type Code: {} Oxford White (Frost)".format(type_code))
                 return "Unknown"
             elif len(sku) == 1:
                 return sku[0][0]
             else:
                 print(
-                    "Multiple SKUs found for - Edgeband Type Code: {} Oxford White".format(type_code))
+                    "Multiple SKUs found for - Edgeband Type Code: {} Oxford White (Frost)".format(type_code))
                 print(sku)
                 return "Unknown"
 
@@ -451,18 +455,18 @@ class SnapMaterialSceneProps(PropertyGroup):
                     SKU\
                 FROM\
                     {CCItems}\
-                WHERE ProductType = 'EB' AND TypeCode = '{type_code}' AND DisplayName LIKE 'Oxford White';\
+                WHERE ProductType = 'EB' AND TypeCode = '{type_code}' AND DisplayName LIKE 'Oxford White (Frost)';\
                 ".format(type_code=type_code, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
             )
             if len(sku) == 0:
                 print(
-                    "No SKU found for - Edgeband Type Code: {} Oxford White".format(type_code))
+                    "No SKU found for - Edgeband Type Code: {} Oxford White (Frost)".format(type_code))
                 return "Unknown"
             elif len(sku) == 1:
                 return sku[0][0]
             else:
                 print(
-                    "Multiple SKUs found for - Edgeband Type Code: {} Oxford White".format(type_code))
+                    "Multiple SKUs found for - Edgeband Type Code: {} Oxford White (Frost)".format(type_code))
                 print(sku)
                 return "Unknown"
         else:
@@ -483,7 +487,7 @@ class SnapMaterialSceneProps(PropertyGroup):
                 return sku
             type_code = 15200
 
-        if type_code == 15225 and (color_name != "Oxford White" and color_name != "Cabinet Almond"):  # Need to change type code for oversized materials that are not White or Almond to the Textured Type Code
+        if type_code == 15225 and (color_name != "Oxford White (Frost)" and color_name != "Cabinet Almond (Cafe Au Lait)"):  # Need to change type code for oversized materials that are not White or Almond to the Textured Type Code
             type_code = 15150
 
         if obj:
@@ -669,8 +673,8 @@ class SnapMaterialSceneProps(PropertyGroup):
         if part_thickness == 0.25:
             if any(backing_parts) or obj_props.is_toe_kick_skin_bp:
                 shared_sku_colors = [
-                    'Oxford White',
-                    'Cabinet Almond',
+                    'Oxford White (Frost)',
+                    'Cabinet Almond (Cafe Au Lait)',
                     'Duraply White',
                     'Duraply Almond'
                 ]
@@ -844,18 +848,18 @@ class SnapMaterialSceneProps(PropertyGroup):
                 FROM\
                     {CCItems}\
                 WHERE ProductType in ('PM', 'WD') AND TypeCode = '{type_code}' AND DisplayName LIKE '{display_name}' AND Thickness = '{part_thickness}';\
-                ".format(type_code=type_code, display_name="Oxford White", part_thickness=part_thickness, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
+                ".format(type_code=type_code, display_name="Oxford White (Frost)", part_thickness=part_thickness, CCItems="CCItems_" + bpy.context.preferences.addons['snap'].preferences.franchise_location)
             )
 
             if len(sku) == 0:
                 print(
-                    "No SKU found for - Material Type Code: {} Display Name: {} Part Thickness: {}".format(type_code, "Oxford White", part_thickness))
+                    "No SKU found for - Material Type Code: {} Display Name: {} Part Thickness: {}".format(type_code, "Oxford White (Frost)", part_thickness))
                 return "Unknown"
             elif len(sku) == 1:
                 return sku[0][0]
             else:
                 print(
-                    "Multiple SKUs found for - Material Type Code: {} Display Name: {} Part Thickness: {}".format(type_code, "Oxford White", part_thickness))
+                    "Multiple SKUs found for - Material Type Code: {} Display Name: {} Part Thickness: {}".format(type_code, "Oxford White (Frost)", part_thickness))
                 print(sku)
                 return "Unknown"
         else:
@@ -942,8 +946,8 @@ class SnapMaterialSceneProps(PropertyGroup):
     
     def set_edge_to_almond(self):
         for type_index, edge_type in enumerate(self.edges.edge_types):
-            if "Cabinet Almond" in edge_type.colors:
-                color_index = edge_type.colors.find("Cabinet Almond")
+            if "Cabinet Almond (Cafe Au Lait)" in edge_type.colors:
+                color_index = edge_type.colors.find("Cabinet Almond (Cafe Au Lait)")
                 self.edge_type_index = type_index
                 self.secondary_edge_type_index = type_index
                 self.door_drawer_edge_type_index = type_index

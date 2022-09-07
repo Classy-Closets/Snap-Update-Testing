@@ -151,7 +151,10 @@ class DoorDrawerEdgeType(PropertyGroup):
 
     def get_edge_color(self):
         scene_props = bpy.context.scene.closet_materials
-        return self.colors[scene_props.door_drawer_edge_color_index]          
+        try:
+            return self.colors[scene_props.door_drawer_edge_color_index]
+        except IndexError:
+            return self.colors[-1]
 
     def get_inventory_edge_name(self):
         return "EB {} {}".format(self.name, self.type_code)    

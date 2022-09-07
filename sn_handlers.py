@@ -41,11 +41,10 @@ def load_materials_from_db(scene=None):
 
 @persistent
 def assign_material_pointers(scene=None):
-    mat_props = bpy.context.scene.closet_materials
 
-    def get_part_mesh(obj_bp):
+    def get_part_mesh(obj_bp, mesh_type):
         for obj in obj_bp.children:
-            if obj.type == 'MESH' and obj.snap.type_mesh == 'CUTPART':
+            if obj.type == 'MESH' and obj.snap.type_mesh == mesh_type:
                 return obj
 
     if bpy.data.is_saved:
@@ -55,8 +54,12 @@ def assign_material_pointers(scene=None):
         else:
             scene = bpy.data.scenes["Scene"]
 
-        custom_colors = scene.closet_materials.use_custom_color_scheme
-        mat_type = scene.closet_materials.materials.get_mat_type()
+        mat_props = scene.closet_materials
+        custom_colors = mat_props.use_custom_color_scheme
+        mat_type = mat_props.materials.get_mat_type()
+
+        if mat_props.mat_color_index >= len(mat_type.colors):
+            mat_props.mat_color_index = len(mat_type.colors) - 1
 
         if not custom_colors:
             for obj in scene.objects:
@@ -64,11 +67,11 @@ def assign_material_pointers(scene=None):
                 room_mat_color = None
                 if mat_type.type_code == 1:
                     if "IS_BP_DRAWER_FRONT" in obj or "IS_DOOR" in obj:
-                        part_mesh = get_part_mesh(obj)
+                        part_mesh = get_part_mesh(obj, 'CUTPART')
 
                 else:
                     if "IS_BP_PANEL" in obj:
-                        part_mesh = get_part_mesh(obj)
+                        part_mesh = get_part_mesh(obj, 'CUTPART')
 
                 if part_mesh:
                     use_unique_material = part_mesh.sn_closets.use_unique_material
@@ -79,8 +82,30 @@ def assign_material_pointers(scene=None):
             if room_mat_color:
                 if mat_type.get_mat_color().name != room_mat_color:
                     for i, color in enumerate(mat_type.colors):
-                        if color.name == room_mat_color:
+                        if room_mat_color in color.name:
                             mat_type.set_color_index(i)
+        else:
+            for obj in scene.objects:
+                part_mesh = None
+                room_stain_color = None
+                color_exists = False
+                # Stain Color
+                if "IS_BP_DRAWER_FRONT" in obj or "IS_DOOR" in obj:
+                    part_mesh = get_part_mesh(obj, 'BUYOUT')
+
+                if part_mesh:
+                    room_stain_color = part_mesh.material_slots[0].material.name
+                    break
+
+            if room_stain_color:
+                if mat_props.get_stain_color().name != room_stain_color:
+                    for i, color in enumerate(mat_props.stain_colors):
+                        if color.name == room_stain_color:
+                            mat_props.stain_color_index = i
+                            color_exists = True
+                # If stain color no longer exists, set to "None"
+                if not color_exists:
+                    mat_props.stain_color_index = 0
 
     bpy.ops.closet_materials.assign_materials(only_update_pointers=True)
 

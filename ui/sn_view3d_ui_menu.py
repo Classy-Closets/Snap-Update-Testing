@@ -165,6 +165,12 @@ class VIEW3D_MT_object_context_menu(Menu):
                     text="Delete - {}".format(appliance_bp.snap.name_object),
                     icon='X')
 
+            if appliance_bp and appliance_bp.snap.type_group == 'INSERT':
+                layout.operator(
+                    'sn_closets.delete_closet_insert',
+                    text="Delete - {}".format(appliance_bp.snap.name_object),
+                    icon='X')
+
             if entry_door_bp or window_bp:
                 layout.operator(
                     'sn_closets.delete_closet',
