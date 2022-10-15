@@ -1,3 +1,4 @@
+from ctypes.wintypes import tagMSG
 import bpy
 from bpy.props import (
     StringProperty,
@@ -250,6 +251,8 @@ def draw_drawer_options(drawers,layout):
                 break
 
 def draw_interior_options(assembly,layout):
+    box = layout.box()
+    
     adj_shelf_qty = assembly.get_prompt("Adj Shelf Qty")
     fix_shelf_qty = assembly.get_prompt("Fixed Shelf Qty")
     shelf_qty = assembly.get_prompt("Shelf Qty")
@@ -262,40 +265,41 @@ def draw_interior_options(assembly,layout):
     fixed_shelf_rows = assembly.get_prompt("Fixed Shelf Rows")
     
     if shelf_qty:
-        row = layout.row()
+        row = box.row()
         shelf_qty.draw(row,allow_edit=False)    
     
     if shelf_setback:
-        shelf_setback.draw(row,allow_edit=False)    
+        row.label(text="Shelf Setback:")
+        row.prop(shelf_setback,'distance_value', text="")
     
     if adj_shelf_qty:
-        row = layout.row()
+        row = box.row()
         adj_shelf_qty.draw(row,allow_edit=False)
 
     if adj_shelf_setback:
         adj_shelf_setback.draw(row,allow_edit=False)
         
     if fix_shelf_qty:
-        row = layout.row()
+        row = box.row()
         fix_shelf_qty.draw(row,allow_edit=False)
 
     if fix_shelf_setback:
         fix_shelf_setback.draw(row,allow_edit=False)
         
     if div_qty_per_row:
-        row = layout.row()
+        row = box.row()
         div_qty_per_row.draw(row,allow_edit=False)
 
     if division_qty:
-        row = layout.row()
+        row = box.row()
         division_qty.draw(row,allow_edit=False)
 
     if adj_shelf_rows:
-        row = layout.row()
+        row = box.row()
         adj_shelf_rows.draw(row,allow_edit=False)
 
     if fixed_shelf_rows:
-        row = layout.row()
+        row = box.row()
         fixed_shelf_rows.draw(row,allow_edit=False)
 
 def draw_splitter_options(assembly,layout):
@@ -319,7 +323,6 @@ def draw_splitter_options(assembly,layout):
                 row.prop(opening,'equal',text="")
         else:
             break
-
 class SNAP_PT_Cabinet_Options(bpy.types.Panel):
     """Panel to Store all of the Cabinet Options"""
     bl_id = cabinet_properties.LIBRARY_NAME_SPACE + "_Advanced_Cabinet_Options"
@@ -899,11 +902,17 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
         self.width = math.fabs(product.obj_x.location.x)
         return product
 
+    def check_insert_tags(self, insert, tag_list):
+        for tag in tag_list:
+            if tag in insert and insert[tag]:
+                return True
+        return False
+
     def invoke(self,context,event):
         self.reset_variables()
         
         self.product = self.get_product(context)
-        self.inserts = sn_utils.get_insert_bp_list(self.product.obj_bp,[])
+        self.inserts = sn_utils.get_assembly_bp_list(self.product.obj_bp,[])
 
         self.selected_location = self.product.obj_bp.location.x
         self.default_width = math.fabs(self.product.obj_x.location.x)
@@ -939,7 +948,8 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
                 if calculator:
                     self.calculators.append(calculator)
 
-            if "IS_BP_SPLITTER" in insert and insert["IS_BP_SPLITTER"]:
+            # if "IS_BP_SPLITTER" in insert and insert["IS_BP_SPLITTER"]:
+            if self.check_insert_tags(insert, ["IS_BP_SPLITTER"]):
                 self.show_splitter_options = True
 
                 if insert not in self.splitters:
@@ -952,7 +962,7 @@ class PROMPTS_Frameless_Cabinet_Prompts(sn_types.Prompts_Interface):
                 if calculator:
                     self.calculators.append(calculator)
 
-            if "IS_BP_SHELVES" in insert and insert["IS_BP_SHELVES"]:
+            if self.check_insert_tags(insert, ["IS_BP_SHELVES","IS_BP_DIVIDER","IS_BP_DIVISION"]) :
                 self.show_interior_options = True
                 if insert not in self.interiors:
                     self.interiors.append(insert)

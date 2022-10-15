@@ -15,6 +15,135 @@ def get_carcass_insert(product):
             return carcass
     # pass
 
+def get_product_components(product):
+
+    lbl_text = ""
+    count_door = 0
+    count_drawer = 0
+    count_shelf = 0
+    count_false = 0
+    components = sn_utils.get_assembly_bp_list(product.obj_bp, [])
+    
+    for component in components:
+        if "IS_DOOR" in component:
+            door = sn_types.Assembly(component)
+            hide_ppt = door.get_prompt("Hide")
+            if hide_ppt:
+                if door.get_prompt("Hide").get_value() == False:
+                    count_door += 1
+        elif "IS_BP_DRAWER_FRONT" in component:
+            if "IS_BP_FALSE_FRONT" in component:
+                count_false += 1
+            else:
+                count_drawer += 1
+        elif "IS_BP_SHELVES" in component:
+            shelves = sn_types.Assembly(component)
+            shelf_ppt = shelves.get_prompt("Shelf Qty")
+            if shelf_ppt:
+                count_shelf += shelves.get_prompt("Shelf Qty").get_value()
+    
+    if count_door > 1:
+        lbl_text += str(count_door) + " Doors|"
+    elif count_door == 1:
+        lbl_text += "1 Door|"
+    
+    if count_drawer > 1:
+        lbl_text += str(count_drawer) + " Drws|"
+    elif count_drawer == 1:
+        lbl_text += "1 Drw|"
+
+    if count_shelf > 1:
+        lbl_text += str(count_shelf) + " Shlvs|"
+    elif count_shelf == 1:
+        lbl_text += "1 Shelf|"
+
+    if lbl_text.endswith("|"):
+        lbl_text = lbl_text[:-1]
+
+    return lbl_text
+
+def get_product_profile_mesh(carcass_shape, name, size):
+    x = size[0]
+    y = size[1]
+    z = size[2]
+    l = size[3]
+    r = -size[4]
+    verts = []
+    faces = {}
+
+   
+    if carcass_shape == 'DIAGONAL':
+        print("diagonal")
+        verts = [(0.0, 0.0, 0.0),
+             (0.0, y, 0.0),
+             (l, y, 0.0),
+             (x, r, 0.0),
+             (x, 0.0, 0.0),
+             (0.0, 0.0, z),
+             (0.0, y, z),
+             (l, y, z),
+             (x, r, z),
+             (x, 0.0, z),
+             ]
+
+        faces = [(0, 1, 2, 3, 4),
+                 (5, 6, 7, 8, 9),
+                 (0, 1, 6, 5),
+                 (1, 2, 7, 6),
+                 (2, 3, 8, 7),
+                 (3, 4, 9, 8),
+                 (4, 0, 9, 8),
+                ]
+
+    elif carcass_shape == 'NOTCHED':
+        print("notched")
+        verts = [(0.0, 0.0, 0.0),
+             (0.0, y, 0.0),
+             (l, y, 0.0),
+             (l, r, 0.0),
+             (x, r, 0.0),
+             (x, 0.0, 0.0),
+            
+             (0.0, 0.0, z),
+             (0.0, y, z),
+             (l, y, z),
+             (l, r, z),
+             (x, r, z),
+             (x, 0.0, z),
+             ]
+
+        faces = [(0, 1, 2, 3, 4, 5),
+                 (6, 7, 8, 9, 10, 11),
+                 (0, 1, 7, 6),
+                 (1, 2, 8, 7),
+                 (2, 3, 9, 8),
+                 (3, 4, 10, 9),
+                 (4, 5, 11, 10),
+                 (5, 0, 6, 11),
+                ]
+    else:
+        print("rectangle")
+        verts = [(0.0, 0.0, 0.0),
+             (0.0, y, 0.0),
+             (x, y, 0.0),
+             (x, 0.0, 0.0),
+             (0.0, 0.0, z),
+             (0.0, y, z),
+             (x, y, z),
+             (x, 0.0, z),
+             ]
+
+        faces = [(0, 1, 2, 3),
+                (4, 7, 6, 5),
+                (0, 4, 5, 1),
+                (1, 5, 6, 2),
+                (2, 6, 7, 3),
+                (4, 0, 3, 7),
+                ]
+
+
+    return sn_utils.create_object_from_verts_and_faces(verts, faces, name)
+
 def add_rectangle_molding(product,is_crown=True):
     carcass = get_carcass_insert(product)
     if carcass:
@@ -145,37 +274,6 @@ def add_transition_molding(product,is_crown=True):
         
         return points
 
-def format_name(product_name):
-    new_name = product_name.split('.', 1)[0]
-    new_name = new_name.replace("_", " ")
-    new_name = new_name.replace(" with ", " ")
-    new_name = new_name.replace(" and ", " ")
-
-    new_name = new_name.replace(" Base", "|Base")
-    new_name = new_name.replace(" Sink", "|Sink")
-    new_name = new_name.replace(" Tall", "|Tall")
-    new_name = new_name.replace(" Upper", "|Upper")
-    new_name = new_name.replace(" Suspended", "|Suspended")
-
-    new_name = new_name.replace("Blind Left Corner", "Blind Left")
-    new_name = new_name.replace("Blind Right Corner", "Blind Right")
-
-    new_name = new_name.replace(" Door ", " Door|")
-    new_name = new_name.replace(" Drawer ", " Drawer|")
-    new_name = new_name.replace("Double", " Dbl")
-
-    new_name = new_name.replace("Refrigerator", "2 Door|Refrigerator")
-    new_name = new_name.replace("Microwave ", "Microwave|")
-    new_name = new_name.replace("Micro ", "Microwave|")
-    new_name = new_name.replace(" Microwave", "|Microwave")
-    new_name = new_name.replace(" Vent", "|Vent")
-    new_name = new_name.replace(" Oven", "|Oven")
-
-    new_name = new_name.replace("Upper|Microwave", "Microwave|Upper")
-    new_name = new_name.replace("Upper|Vent", "Vent|Upper")
-    
-    return new_name
-
 class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
     bl_idname = "sn_cabinets.draw_plan"
     bl_label = "Draw Cabinet Plan View"
@@ -187,19 +285,39 @@ class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
 
     left_filler_amount = 0
     right_filler_amount = 0
+    cabinet_depth_left = 0
+    cabinet_depth_right = 0
+    carcass_shape = "RECTANGLE"
     
     def get_prompts(self):
         inserts = sn_utils.get_insert_bp_list(self.product.obj_bp,[])
+        carcass_shape = ""
         for insert in inserts:
             carcass = sn_types.Assembly(insert)
+
+            if "PROFILE_SHAPE_NOTCHED" in carcass.obj_bp:
+                carcass_shape = "NOTCHED"
+            elif "PROFILE_SHAPE_DIAGONAL" in carcass.obj_bp:
+                carcass_shape = "DIAGONAL"
+            elif "PROFILE_SHAPE_RECTANGLE" in carcass.obj_bp:
+                carcass_shape = "RECTANGLE"
+
             left_wall_filler = carcass.get_prompt("Left Side Wall Filler")
             right_wall_filler = carcass.get_prompt("Right Side Wall Filler")
+            cabinet_depth_left = carcass.get_prompt("Cabinet Depth Left")
+            cabinet_depth_right = carcass.get_prompt("Cabinet Depth Right")
+
+            if carcass_shape != "":
+                self.carcass_shape = carcass_shape
+
             if left_wall_filler:
                 self.left_filler_amount = left_wall_filler.get_value()
-            
             if right_wall_filler:
                 self.right_filler_amount = right_wall_filler.get_value()
-
+            if cabinet_depth_left:
+                self.cabinet_depth_left = cabinet_depth_left.get_value()
+            if cabinet_depth_right:
+                self.cabinet_depth_right = cabinet_depth_right.get_value()
 
                 
     def execute(self, context):
@@ -208,11 +326,13 @@ class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
         self.product = sn_types.Assembly(obj_bp)
         self.get_prompts()
         
-        assembly_mesh = sn_utils.create_cube_mesh(self.product.obj_bp.snap.name_object,
+        assembly_mesh = get_product_profile_mesh(self.carcass_shape, self.product.obj_bp.snap.name_object,
                                             (self.product.obj_x.location.x,
                                              self.product.obj_y.location.y,
-                                             self.product.obj_z.location.z))
-        
+                                            self.product.obj_z.location.z,
+                                             self.cabinet_depth_left,
+                                             self.cabinet_depth_right))
+
         assembly_mesh.matrix_world = self.product.obj_bp.matrix_world
         assembly_mesh.snap.type = 'CAGE'
         
@@ -255,10 +375,10 @@ class OPERATOR_Frameless_Standard_Draw_Plan(bpy.types.Operator):
         dim_lbl.start_y(value=-assembly_mesh.dimensions.y*y_offset)
         dim_lbl.start_z(value=math.fabs(assembly_mesh.dimensions.z))
 
-        product_name = format_name(self.product.obj_bp.name)
-        dim_lbl.set_label(product_name)
+        product_label = get_product_components(self.product)
+        dim_lbl.set_label(product_label)
 
-        #TODO: Draw Fillers, Cabinet Shapes, Cabinet Text, Item Number
+
         return {'FINISHED'}
 
 #region Old OPERATOR_Cabinet_Update

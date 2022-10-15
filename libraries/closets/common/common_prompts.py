@@ -114,17 +114,27 @@ def add_closet_carcass_prompts(assembly):
 
 
 def add_countertop_prompts(assembly):
+    default_ct_type = bpy.context.scene.closet_materials.ct_type_index
+
+    # 2.3.1
     assembly.add_prompt("Deck Overhang", 'DISTANCE', sn_unit.inch(1.5))
     assembly.add_prompt("Side Deck Overhang", 'DISTANCE', sn_unit.inch(0.75))
-    assembly.add_prompt("Countertop Type", 'COMBOBOX', 0, ['Melamine', 'HPL', 'Granite'])
+
+    assembly.add_prompt(
+        "Countertop Type",
+        'COMBOBOX',
+        default_ct_type,
+        ["Melamine", "Custom", "Granite", "HPL", "Quartz", "Wood"])
+
+    assembly.add_prompt("Front Overhang", 'DISTANCE', sn_unit.inch(1.5))
+    assembly.add_prompt("Back Overhang", 'DISTANCE', sn_unit.inch(1.5))
+    assembly.add_prompt("Left Overhang", 'DISTANCE', sn_unit.inch(0.75))
+    assembly.add_prompt("Right Overhang", 'DISTANCE', sn_unit.inch(0.75))
     assembly.add_prompt("Countertop Thickness", 'COMBOBOX', 0, ['.75', '1.0'])
     assembly.add_prompt("Edge Type", 'COMBOBOX', 1, ['Waterfall', 'Flat Front', '180 Degree', 'Alder Miter'])
     assembly.add_prompt("HPL Material Name", 'TEXT', "")
     assembly.add_prompt("HPL Material Number", 'TEXT', "")
-    assembly.add_prompt("Deck Thickness", 'DISTANCE', sn_unit.inch(1.5))
-    # Countertop_Type = assembly.get_prompt('Countertop Type').get_var('Countertop_Type')
-    # deck_thickness = assembly.get_prompt("Deck Thickness")
-    # deck_thickness.set_formula('IF(Countertop_Type==2,INCH(.75),INCH(1.5))', [Countertop_Type])
+    assembly.add_prompt("Deck Thickness", 'DISTANCE', sn_unit.inch(0.75))
 
 
 def add_front_overlay_prompts(assembly):

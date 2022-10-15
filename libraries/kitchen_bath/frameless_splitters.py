@@ -4,28 +4,33 @@ import bpy
 import math
 from os import path
 from snap import sn_types, sn_unit, sn_utils
-# from . import cabinet_machining
 from . import cabinet_properties
 from snap.libraries.closets import closet_paths
 
 LIBRARY_NAME_SPACE = "sn_kitchen_bath"
+LIBRARY_NAME = "Cabinets"
+INSERT_SPLITTER_CATEGORY_NAME = "Starter Splitters"
 
 ROOT_DIR = path.dirname(__file__)
 PART_WITH_EDGEBANDING = path.join(closet_paths.get_closet_assemblies_path(), "Part with Edgebanding.blend")
 
-#---------ASSEMBLY INSTRUCTIONS
         
 def add_part(assembly, path):
     part_bp = assembly.add_assembly_from_file(path)
     part = sn_types.Assembly(part_bp)
     part.obj_bp.sn_closets.is_panel_bp = True
     return part  
+
 class Vertical_Splitters(sn_types.Assembly):
     
-    library_name = "Frameless Cabinet Splitters"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_SPLITTER_CATEGORY_NAME
     type_assembly = "INSERT"
     placement_type = "SPLITTER"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
     mirror_y = False
 
     calculator = None
@@ -232,14 +237,18 @@ class Vertical_Splitters(sn_types.Assembly):
         self.add_prompts()
         self.add_splitters()
         self.update()
+
 class Horizontal_Splitters(sn_types.Assembly):
     
-    library_name = "Frameless Cabinet Splitters"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_SPLITTER_CATEGORY_NAME
     type_assembly = "INSERT"
     placement_type = "SPLITTER"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+    
     mirror_y = False
-  
     open_name = ""
 
     horizontal_openings = 2 #1-10
@@ -394,14 +403,12 @@ class Horizontal_Splitters(sn_types.Assembly):
         self.add_splitters()
         self.update()
         
-
-        
-#---------INSERTS        
-
+#---------SPLITTER INSERTS        
 class INSERT_2_Horizontal_Openings(Horizontal_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "2 Horizontal Openings"
         self.horizontal_openings = 2
         self.width = sn_unit.inch(18)
@@ -411,7 +418,8 @@ class INSERT_2_Horizontal_Openings(Horizontal_Splitters):
 class INSERT_3_Horizontal_Openings(Horizontal_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "3 Horizontal Openings"
         self.horizontal_openings = 3
         self.width = sn_unit.inch(18)
@@ -421,7 +429,8 @@ class INSERT_3_Horizontal_Openings(Horizontal_Splitters):
 class INSERT_4_Horizontal_Openings(Horizontal_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "4 Horizontal Openings"
         self.horizontal_openings = 4
         self.width = sn_unit.inch(18)
@@ -431,7 +440,8 @@ class INSERT_4_Horizontal_Openings(Horizontal_Splitters):
 class INSERT_5_Horizontal_Openings(Horizontal_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "5 Horizontal Openings"
         self.horizontal_openings = 5
         self.width = sn_unit.inch(18)
@@ -441,17 +451,19 @@ class INSERT_5_Horizontal_Openings(Horizontal_Splitters):
 class INSERT_2_Vertical_Openings(Vertical_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "2 Vertical Openings"
         self.vertical_openings = 2
         self.width = sn_unit.inch(18)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
-        
+
 class INSERT_3_Vertical_Openings(Vertical_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "3 Vertical Openings"
         self.vertical_openings = 3
         self.width = sn_unit.inch(18)
@@ -461,7 +473,8 @@ class INSERT_3_Vertical_Openings(Vertical_Splitters):
 class INSERT_4_Vertical_Openings(Vertical_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "4 Vertical Openings"
         self.vertical_openings = 4
         self.width = sn_unit.inch(18)
@@ -471,7 +484,8 @@ class INSERT_4_Vertical_Openings(Vertical_Splitters):
 class INSERT_5_Vertical_Openings(Vertical_Splitters):
     
     def __init__(self):
-        self.category_name = "Splitters"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SPLITTER_CATEGORY_NAME
         self.assembly_name = "5 Vertical Openings"
         self.vertical_openings = 5
         self.width = sn_unit.inch(18)

@@ -1,17 +1,29 @@
 import math
 
 import bpy
+from bpy.types import Operator
+
 import os
 from snap import sn_types, sn_unit, sn_utils
 from os import path
+
+from snap.libraries.kitchen_bath import cabinet_interiors
+
 from . import drawer_boxes
 from . import cabinet_properties
 from . import cabinet_pulls
+from . import frameless_splitters
 from snap.libraries.closets import closet_paths
 from snap.libraries.closets.common import common_lists
 from snap.views import opengl_dim
+from snap.libraries.closets.ops.drop_closet import PlaceClosetInsert
+
 
 LIBRARY_NAME_SPACE = "sn_kitchen_bath"
+LIBRARY_NAME = "Cabinets"
+INSERT_DOOR_CATEGORY_NAME = "Starter Inserts"
+INSERT_DRAWER_CATEGORY_NAME = "Starter Inserts"
+
 
 PART_WITH_FRONT_EDGEBANDING = path.join(closet_paths.get_closet_assemblies_path(), "Part with Front Edgebanding.blend")
 DOOR = path.join(closet_paths.get_closet_assemblies_path(), "Part with Edgebanding.blend")
@@ -21,7 +33,7 @@ DIVISION = path.join(closet_paths.get_closet_assemblies_path(), "Part with Edgeb
 
 
 def get_hole_size(obj_height_meters):
-    label = "NO MATCH"
+    label = ""
     # print("get_hole_size.obj_height_meters = " + str(obj_height_meters))
 
     obj_height = str(round(math.fabs(sn_unit.meter_to_millimeter(obj_height_meters + sn_unit.inch(0.25)))))
@@ -30,7 +42,7 @@ def get_hole_size(obj_height_meters):
     if obj_height in common_lists.HOLE_HEIGHTS.keys():
         label = common_lists.HOLE_HEIGHTS[obj_height]
     else: 
-        tolerance = 15   # millimeter allowance for variable door overlay values
+        tolerance = 20   # millimeter allowance for variable door overlay values
         for key, value in common_lists.HOLE_HEIGHTS.items():
             if abs(float(key) - float(obj_height)) <= tolerance:
                 label = value
@@ -117,11 +129,7 @@ def add_common_door_prompts(assembly):
     assembly.add_prompt("Pull Length", 'DISTANCE', 0)
     assembly.add_prompt("Door Thickness", 'DISTANCE', sn_unit.inch(.75))
     assembly.add_prompt("Edgebanding Thickness", 'DISTANCE', sn_unit.inch(.02))
-
-    # sgi = assembly.get_var('cabinetlib.spec_group_index', 'sgi')
-
     assembly.get_prompt('Door Thickness').set_value(sn_unit.inch(0.75))
-    # assembly.get_prompt('Edgebanding Thickness').set_formula('EDGE_THICKNESS(sgi,"Cabinet_Door_Edges")', [sgi])
 
 def add_common_drawer_prompts(assembly):
     props = cabinet_properties.get_scene_props().exterior_defaults
@@ -147,15 +155,11 @@ def add_common_drawer_prompts(assembly):
     
     assembly.add_prompt("Front Thickness", 'DISTANCE', sn_unit.inch(.75))
     assembly.add_prompt("Edgebanding Thickness", 'DISTANCE', sn_unit.inch(.02))
-    
-    # sgi = assembly.get_prompt('cabinetlib.spec_group_index').get_var('sgi')
-    # assembly.get_prompt('Front Thickness').set_formula('THICKNESS(sgi,"Cabinet_Door")',[sgi])
-    # assembly.get_prompt('Edgebanding Thickness').set_formula('EDGE_THICKNESS(sgi,"Cabinet_Door_Edges")',[sgi])
 
 def add_frameless_overlay_prompts(assembly):
     props = cabinet_properties.get_scene_props().exterior_defaults
-    assembly.add_prompt("Half Overlay Top", 'CHECKBOX', False)
-    assembly.add_prompt("Half Overlay Bottom", 'CHECKBOX', False)
+    assembly.add_prompt("Half Overlay Top", 'CHECKBOX', True)
+    assembly.add_prompt("Half Overlay Bottom", 'CHECKBOX', True)
     assembly.add_prompt("Half Overlay Left", 'CHECKBOX', False)
     assembly.add_prompt("Half Overlay Right", 'CHECKBOX', False)
 
@@ -215,13 +219,17 @@ def add_part(self, path):
 
 class Doors(sn_types.Assembly):
 
-    library_name = "Frameless Cabinet Inserts"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_DOOR_CATEGORY_NAME
     type_assembly = 'INSERT'
     placement_type = "EXTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    # drop_id = "sn_closets.drop_insert"
+    drop_id = "lm_cabinets.insert_doors_drop"
+
     door_type = ""  # {Base, Tall, Upper}
     door_swing = ""  # {Left Swing, Right Swing, Double Door, Flip up}
-
     false_front_qty = 0 # 0, 1, 2
 
     def update_dimensions(self):
@@ -320,6 +328,7 @@ class Doors(sn_types.Assembly):
             false_front = add_part(self, PART_WITH_FRONT_EDGEBANDING)
             false_front.set_name("False Front")
             false_front.obj_bp['IS_BP_DRAWER_FRONT'] = True
+            false_front.obj_bp['IS_BP_FALSE_FRONT'] = True
             false_front.loc_x('-Left_Overlay',[Left_Overlay])
             false_front.loc_z('Height+eta',[Height,eta])
             false_front.rot_x(value=math.radians(90))
@@ -330,9 +339,6 @@ class Doors(sn_types.Assembly):
                 false_front.dim_x('Width+Left_Overlay+Right_Overlay',[Width,Left_Overlay,Right_Overlay])
             false_front.dim_y('-False_Front_Height',[False_Front_Height])
             false_front.dim_z('Door_Thickness',[Door_Thickness])
-            # false_front.cutpart("Cabinet_Door")
-            # false_front.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-            # false_front.obj_bp.mv.is_cabinet_drawer_front = True
 
             if self.false_front_qty > 1:
                 false_front_2 = add_part(self, PART_WITH_FRONT_EDGEBANDING)
@@ -344,9 +350,6 @@ class Doors(sn_types.Assembly):
                 false_front_2.dim_x("(Width+Left_Overlay+Right_Overlay-Vertical_Gap)/2", [Width, Left_Overlay, Right_Overlay, Vertical_Gap])
                 false_front_2.dim_y('-False_Front_Height',[False_Front_Height])
                 false_front_2.dim_z('Door_Thickness',[Door_Thickness])
-                # false_front_2.cutpart("Cabinet_Door")
-                # false_front_2.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-                # false_front_2.obj_bp.mv.is_cabinet_drawer_front = True
 
         #LEFT DOOR
         left_door = add_part(self, DOOR)
@@ -362,9 +365,6 @@ class Doors(sn_types.Assembly):
             left_door.dim_y('(Width+Left_Overlay+Right_Overlay)*-1',[Width,Left_Overlay,Right_Overlay])
             left_door.get_prompt('Hide').set_formula('IF(Left_Swing,False,True)',[Left_Swing])
         add_door_height_dimension(left_door)
-        # left_door.cutpart("Cabinet_Door")
-        # left_door.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-        # left_door.obj_bp.mv.is_cabinet_door = True
 
         #LEFT PULL
         left_pull = cabinet_pulls.Standard_Pull()
@@ -396,10 +396,7 @@ class Doors(sn_types.Assembly):
             right_door.dim_y('Width+Left_Overlay+Right_Overlay',[Width,Left_Overlay,Right_Overlay])
             right_door.get_prompt('Hide').set_formula('IF(Left_Swing,True,False)',[Left_Swing])
         add_door_height_dimension(right_door)
-        # right_door.cutpart("Cabinet_Door")
-        # right_door.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-        # right_door.obj_bp.mv.is_cabinet_door = True
-
+      
         #RIGHT PULL
         right_pull = cabinet_pulls.Standard_Pull()
         right_pull.door_type = self.door_type
@@ -420,10 +417,15 @@ class Doors(sn_types.Assembly):
         self.update()
 
 class Pie_Cut_Doors(sn_types.Assembly):
-    library_name = "Frameless Cabinet Inserts"
+
+    library_name = LIBRARY_NAME
+    category_name = INSERT_DOOR_CATEGORY_NAME
     type_assembly = 'INSERT'
     placement_type = "EXTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
     door_type = ""  # {Base, Tall, Upper}
     door_swing = ""  # {Left Swing, Right Swing, Double Door, Flip up}
 
@@ -504,8 +506,6 @@ class Pie_Cut_Doors(sn_types.Assembly):
         left_door.rot_x(value=math.radians( 90))
         left_door.dim_y('(fabs(Depth)+Left_Overlay-IF(Inset_Front,0,Door_Thickness+Door_to_Cabinet_Gap))*-1',[Depth,Left_Overlay,Inset_Front,Right_Overlay,Door_Thickness,Door_to_Cabinet_Gap])
         add_door_height_dimension(left_door)
-        # left_door.cutpart("Cabinet_Door")
-        # left_door.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
         left_door.obj_bp.snap.is_cabinet_door = True
         
         #LEFT PULL
@@ -530,8 +530,6 @@ class Pie_Cut_Doors(sn_types.Assembly):
         right_door.loc_y('IF(Inset_Front,Door_Thickness,-Door_to_Cabinet_Gap)',[Inset_Front,Door_to_Cabinet_Gap,Door_Thickness])
         right_door.dim_y('(Width+Right_Overlay-IF(Inset_Front,0,Door_Thickness+Door_to_Cabinet_Gap))*-1',[Width,Inset_Front,Right_Overlay,Door_Thickness,Door_to_Cabinet_Gap])
         add_door_height_dimension(right_door)
-        # right_door.cutpart("Cabinet_Door")
-        # right_door.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
         right_door.obj_bp.snap.is_cabinet_door = True
         
         #RIGHT PULL
@@ -547,12 +545,17 @@ class Pie_Cut_Doors(sn_types.Assembly):
         right_pull.get_prompt('Hide').set_formula('IF(Left_Swing,IF(No_Pulls,True,False),True)',[Left_Swing,No_Pulls])
 
         self.update()
+
 class Vertical_Drawers(sn_types.Assembly):
-    library_name = "Frameless Cabinet Inserts"
+
+    library_name = LIBRARY_NAME
+    category_name = INSERT_DRAWER_CATEGORY_NAME
     type_assembly = 'INSERT'
     placement_type = "EXTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
-    
+    # drop_id = "sn_closets.drop_insert"
+    drop_id = "lm_cabinets.insert_drawers_drop"
     drawer_qty = 1
     
     front_heights = []
@@ -596,7 +599,6 @@ class Vertical_Drawers(sn_types.Assembly):
 
         height_prompt = eval("self.calculator.get_calculator_prompt('Drawer Front {} Height')".format(str(i)))
         Drawer_Front_Height = eval("height_prompt.get_var(self.calculator.name, 'Drawer_Front_Height')".format(str(i)))        
-        # Drawer_Front_Height = self.get_prompt("Drawer Front " + str(i) + " Height").get_var("Drawer_Front_Height")
         
         front_empty = self.add_empty("front_empty")
         if prev_drawer_empty:
@@ -624,10 +626,7 @@ class Vertical_Drawers(sn_types.Assembly):
                            [Horizontal_Grain,Drawer_Front_Height,Width,Left_Overlay,Right_Overlay])        
         drawer_front.dim_z('Front_Thickness',[Front_Thickness])
         add_drawer_height_dimension(drawer_front)
-        # drawer_front.cutpart("Cabinet_Drawer_Front")
-        # drawer_front.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-        # drawer_front.obj_bp.mv.is_cabinet_drawer_front = True
-        
+         
         if self.add_pull:
             pull = cabinet_pulls.Standard_Pull()
             pull.door_type = self.door_type
@@ -709,16 +708,18 @@ class Vertical_Drawers(sn_types.Assembly):
             z_loc_driver = df_empty.animation_data.drivers[0].driver
             data_path = z_loc_driver.variables["Drawer_Front_Height"].targets[0].data_path
             z_loc_driver.variables["Drawer_Front_Height"].targets[0].data_path = data_path
-
             
 class Horizontal_Drawers(sn_types.Assembly):
-    library_name = "Frameless Cabinet Inserts"
+    
+    library_name = LIBRARY_NAME
+    category_name = INSERT_DRAWER_CATEGORY_NAME
     type_assembly = 'INSERT'
     placement_type = "EXTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
-    
+    drop_id = "sn_closets.drop_insert"
+
     drawer_qty = 1
-    
     front_heights = []
     
     add_pull = True
@@ -786,9 +787,6 @@ class Horizontal_Drawers(sn_types.Assembly):
                            [Horizontal_Grain,Height,Width,Top_Overlay,Bottom_Overlay,Width,Vertical_Gap,Left_Overlay,Right_Overlay])       
         drawer_front.dim_z('Front_Thickness',[Front_Thickness])
         add_drawer_height_dimension(drawer_front)
-        # drawer_front.cutpart("Cabinet_Drawer_Front")
-        # drawer_front.edgebanding('Cabinet_Door_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-        # drawer_front.obj_bp.mv.is_cabinet_drawer_front = True
         
         if self.add_pull:
             pull = cabinet_pulls.Standard_Pull()
@@ -870,27 +868,184 @@ class Horizontal_Drawers(sn_types.Assembly):
                 division.dim_y('Height',[Height])
                 division.dim_z('Division_Thickness',[Division_Thickness])
 
-                # division.cutpart("Cabinet_Division")
-
         self.update()
 
-#---------INSERTS
+
+# Drop operators
+class OPS_KB_Doors_Drop(Operator, PlaceClosetInsert):
+    bl_idname = "lm_cabinets.insert_doors_drop"
+    bl_label = "Custom drag and drop for doors insert"
+
+    def execute(self, context):
+        return super().execute(context)    
+
+    def confirm_placement(self, context):
+        super().confirm_placement(context)
+
+        insert = sn_types.Assembly(self.insert.obj_bp)
+        product = sn_types.Assembly(self.insert.obj_bp.parent)
+
+        carcass = None
+        inserts = sn_utils.get_insert_bp_list(product.obj_bp, [])
+        for obj_bp in inserts:
+            if "IS_BP_CARCASS" in obj_bp:
+                carcass = sn_types.Assembly(obj_bp)
+            
+        if not carcass:
+            product = sn_types.Assembly(product.obj_bp.parent)
+            inserts = sn_utils.get_insert_bp_list(product.obj_bp, [])
+            for obj_bp in inserts:
+                if "IS_BP_CARCASS" in obj_bp:
+                    carcass = sn_types.Assembly(obj_bp)
+
+         # ALLOW DOOR TO EXTEND WHEN SUB FRONT IS FOUND
+        sub_front_height = carcass.get_prompt("Sub Front Height")
+        top_reveal = insert.get_prompt("Top Reveal")
+
+        if sub_front_height and top_reveal:
+            Sub_Front_Height = carcass.get_prompt("Sub Front Height").get_var()
+            Top_Reveal = top_reveal.get_var()
+
+            insert.get_prompt('Extend Top Amount').set_formula('Sub_Front_Height-Top_Reveal',[Sub_Front_Height,Top_Reveal])
+
+
+        # if door being dropped in opening with empty interior, add default shelves and mark interior filled
+        opening = self.selected_opening
+
+        if opening:
+            if opening.obj_bp.snap.interior_open == True:
+                shelf_insert = cabinet_interiors.INSERT_Shelves()
+                shelf_insert = product.add_assembly(shelf_insert)
+                shelf_insert.obj_bp.parent = opening.obj_bp
+                opening.obj_bp.snap.interior_open = False
+
+                Width = opening.obj_x.snap.get_var('location.x', 'Width')
+                Height = opening.obj_z.snap.get_var('location.z', 'Height')
+                Depth = opening.obj_y.snap.get_var('location.y', 'Depth')
+                Shelf_Qty = shelf_insert.get_prompt("Shelf Qty").get_var()
+                Shelf_Setback = shelf_insert.get_prompt("Shelf Setback").get_var()
+                Shelf_Thickness = shelf_insert.get_prompt("Shelf Thickness").get_var()
+
+                for child in shelf_insert.obj_bp.children:
+                    if "IS_CABINET_SHELF" in child:
+                        adj_shelf = sn_types.Assembly(child)
+                                 
+                if adj_shelf:
+                    adj_shelf.loc_y('Depth',[Depth])
+                    adj_shelf.loc_z('((Height-(Shelf_Thickness*Shelf_Qty))/(Shelf_Qty+1))',[Height,Shelf_Thickness,Shelf_Qty])
+                    adj_shelf.dim_x('Width',[Width])
+                    adj_shelf.dim_y('-Depth+Shelf_Setback',[Depth,Shelf_Setback])
+                    adj_shelf.dim_z('Shelf_Thickness',[Shelf_Thickness])
+                    adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False)',[Shelf_Qty])
+                    adj_shelf.get_prompt('Z Quantity').set_formula('Shelf_Qty',[Shelf_Qty])
+                    adj_shelf.get_prompt('Z Offset').set_formula('((Height-(Shelf_Thickness*Shelf_Qty))/(Shelf_Qty+1))',[Height,Shelf_Thickness,Shelf_Qty])
+
+                opening.run_all_calculators()
+
+bpy.utils.register_class(OPS_KB_Doors_Drop)
+
+
+class OPS_KB_Drawers_Drop(Operator, PlaceClosetInsert):
+    bl_idname = "lm_cabinets.insert_drawers_drop"
+    bl_label = "Custom drag and drop for drawers insert"
+
+    def execute(self, context):
+        return super().execute(context)    
+
+    def confirm_placement(self, context):
+        super().confirm_placement(context)
+
+        has_splitter = False
+        drawer_qty = 0
+        splitter = None
+        
+        insert = sn_types.Assembly(self.insert.obj_bp)
+        product = sn_types.Assembly(self.insert.obj_bp.parent)
+        carcass = None
+        opening = None
+
+        if "IS_BP_SPLITTER" in product.obj_bp:
+            has_splitter = True
+
+        for obj_bp in insert.obj_bp.children:
+            if "IS_BP_DRAWER_FRONT" in obj_bp:
+                drawer_qty += 1
+        
+        # if insert is single drawer and there is no splitter, create splitte and set size to default for top drawer...
+        if not has_splitter and drawer_qty == 1:
+            self.insert.obj_bp["DEFAULT_OVERRIDE"] = True
+
+            for obj_bp in product.obj_bp.children:
+                if "IS_BP_CARCASS" in obj_bp:
+                    carcass = sn_types.Assembly(obj_bp)
+                if "IS_BP_OPENING" in obj_bp:
+                    opening = sn_types.Assembly(obj_bp)
+
+            props = cabinet_properties.get_scene_props().size_defaults
+
+            splitter = frameless_splitters.INSERT_2_Vertical_Openings()
+            drawer = INSERT_1_Drawer()
+
+            splitter.opening_1_height = sn_unit.millimeter(float(props.top_drawer_front_height)) - sn_unit.inch(0.8)
+            splitter.exterior_1 = drawer
+            splitter.exterior_1.prompts = {'Half Overlay Bottom':True}
+
+            splitter = product.add_assembly(splitter)
+            opening.obj_bp.snap.interior_open = False
+            opening.obj_bp.snap.exterior_open = False
+            splitter.run_all_calculators()
+            
+            Width = product.obj_x.snap.get_var('location.x', 'Width')
+            Height = product.obj_z.snap.get_var('location.z', 'Height')
+            Depth = product.obj_y.snap.get_var('location.y', 'Depth')
+            Left_Side_Thickness = carcass.get_prompt("Left Side Thickness").get_var()
+            Right_Side_Thickness = carcass.get_prompt("Right Side Thickness").get_var()
+            Top_Thickness = carcass.get_prompt("Top Thickness").get_var()
+            Bottom_Thickness = carcass.get_prompt("Bottom Thickness").get_var()
+            Top_Inset = carcass.get_prompt("Top Inset").get_var()
+            Bottom_Inset = carcass.get_prompt("Bottom Inset").get_var()
+            Back_Inset = carcass.get_prompt("Back Inset").get_var()
+
+            splitter.loc_x('Left_Side_Thickness',[Left_Side_Thickness])
+            splitter.loc_y('Depth',[Depth])
+            splitter.loc_z('Bottom_Inset',[Bottom_Inset])
+            
+            splitter.dim_x('Width-(Left_Side_Thickness+Right_Side_Thickness)',[Width,Left_Side_Thickness,Right_Side_Thickness])
+            splitter.dim_y('fabs(Depth)-Back_Inset',[Depth,Back_Inset])
+            splitter.dim_z('fabs(Height)-Bottom_Inset-Top_Inset',[Height,Bottom_Inset,Top_Inset])
+
+            splitter.run_all_calculators()
+           
+    def finish(self, context):
+            super().finish(context)
+
+            if "DEFAULT_OVERRIDE" in self.insert.obj_bp:
+                sn_utils.delete_object_and_children(self.insert.obj_bp)
+
+            return {'FINISHED'}
+          
+bpy.utils.register_class(OPS_KB_Drawers_Drop)
+
+#---------DOOR INSERTS
 
 class INSERT_Base_Single_Door(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Base Single Door"
         self.door_type = "Base"
         self.door_swing = "Left Swing"
         self.width = sn_unit.inch(18)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
-class INSERT_Base_Single_Door_With_False_Front(Doors):
+class INSERT_Base_Single_Door_with_False_Front(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Base Single Door with False Front"
         self.door_type = "Base"
         self.door_swing = "Left Swing"
@@ -898,22 +1053,26 @@ class INSERT_Base_Single_Door_With_False_Front(Doors):
         self.width = sn_unit.inch(18)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
 class INSERT_Base_Double_Door(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Base Double Door"
         self.door_type = "Base"
         self.door_swing = "Double Door"
         self.width = sn_unit.inch(36)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
-class INSERT_Base_Double_Door_With_False_Front(Doors):
+class INSERT_Base_Double_Door_with_False_Front(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Base Double Door with False Front"
         self.door_type = "Base"
         self.door_swing = "Double Door"
@@ -921,11 +1080,13 @@ class INSERT_Base_Double_Door_With_False_Front(Doors):
         self.width = sn_unit.inch(36)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
-class INSERT_Base_Double_Door_With_2_False_Front(Doors):
+class INSERT_Base_Double_Door_with_2_False_Front(Doors):
 
      def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Base Double Door with 2 False Front"
         self.door_type = "Base"
         self.door_swing = "Double Door"
@@ -933,69 +1094,107 @@ class INSERT_Base_Double_Door_With_2_False_Front(Doors):
         self.width = sn_unit.inch(36)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
 class INSERT_Tall_Single_Door(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Tall Single Door"
         self.door_type = "Tall"
         self.door_swing = "Left Swing"
         self.width = sn_unit.inch(18)
         self.height = sn_unit.inch(84)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
 class INSERT_Tall_Double_Door(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Tall Double Door"
         self.door_type = "Tall"
         self.door_swing = "Double Door"
         self.width = sn_unit.inch(36)
         self.height = sn_unit.inch(84)
         self.depth = sn_unit.inch(23)
-
+        self.prompts = {'Half Overlay Top':True}
 
 class INSERT_Upper_Single_Door(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Upper Single Door"
         self.door_type = "Upper"
         self.door_swing = "Left Swing"
         self.width = sn_unit.inch(18)
         self.height = sn_unit.inch(42)
         self.depth = sn_unit.inch(23)
+        self.prompts = {'Half Overlay Top':True}
 
 class INSERT_Upper_Double_Door(Doors):
     
     def __init__(self):
-        self.category_name = "Doors"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
         self.assembly_name = "Upper Double Door"
         self.door_type = "Upper"
         self.door_swing = "Double Door"
         self.width = sn_unit.inch(36)
         self.height = sn_unit.inch(42)
+        self.prompts = {'Half Overlay Top':True}
 
+class INSERT_Base_Pie_Cut_Door(Pie_Cut_Doors):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
+        self.assembly_name = "Base Pie Cut Door"
+        self.door_type = "Base"
+        self.door_swing = "Left Swing"
+        self.width = sn_unit.inch(36)
+        self.height = sn_unit.inch(34)
+        self.depth = sn_unit.inch(23)
+        
+class INSERT_Upper_Pie_Cut_Door(Pie_Cut_Doors):
+    
+    def __init__(self):
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DOOR_CATEGORY_NAME
+        self.assembly_name = "Upper Pie Cut Door"
+        self.door_type = "Upper"
+        self.door_swing = "Left Swing"
+        self.width = sn_unit.inch(36)
+        self.height = sn_unit.inch(34)
+        self.depth = sn_unit.inch(23)
+
+#---------DRAWER INSERTS
 class INSERT_1_Drawer(Vertical_Drawers):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().exterior_defaults
-        self.category_name = "Drawers"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DRAWER_CATEGORY_NAME
         self.assembly_name = "1 Drawer"
         self.door_type = "Drawer"
+        self.direction = 'Vertical'
+        self.drawer_qty = 1
         self.width = sn_unit.inch(18)
-        self.height = sn_unit.inch(6)
+        self.height = sn_unit.inch(6*2)
         self.depth = sn_unit.inch(19)
         self.mirror_y = False
         self.use_buyout_box = props.use_buyout_drawer_boxes
+
         
 class INSERT_2_Drawer_Stack(Vertical_Drawers):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().exterior_defaults
-        self.category_name = "Drawers"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DRAWER_CATEGORY_NAME
         self.assembly_name = "2 Drawer Stack"
         self.door_type = "Drawer"
         self.direction = 'Vertical'
@@ -1010,7 +1209,8 @@ class INSERT_3_Drawer_Stack(Vertical_Drawers):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().exterior_defaults
-        self.category_name = "Drawers"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DRAWER_CATEGORY_NAME
         self.assembly_name = "3 Drawer Stack"
         self.door_type = "Drawer"
         self.direction = 'Vertical'
@@ -1025,7 +1225,8 @@ class INSERT_4_Drawer_Stack(Vertical_Drawers):
     
     def __init__(self):
         props = cabinet_properties.get_scene_props().exterior_defaults
-        self.category_name = "Drawers"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DRAWER_CATEGORY_NAME
         self.assembly_name = "4 Drawer Stack"
         self.door_type = "Drawer"
         self.direction = 'Vertical'
@@ -1039,32 +1240,12 @@ class INSERT_4_Drawer_Stack(Vertical_Drawers):
 class INSERT_Horizontal_Drawers(Horizontal_Drawers):
      
     def __init__(self):
-        self.category_name = "Drawers"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DRAWER_CATEGORY_NAME
         self.assembly_name = "Horizontal Drawers"
         self.width = sn_unit.inch(36)
         self.height = sn_unit.inch(6)
         self.depth = sn_unit.inch(20)
         self.mirror_y = False
         self.drawer_qty = 2
-
-class INSERT_Base_Pie_Cut_Door(Pie_Cut_Doors):
-    
-    def __init__(self):
-        self.category_name = "Doors"
-        self.assembly_name = "Base Pie Cut Door"
-        self.door_type = "Base"
-        self.door_swing = "Left Swing"
-        self.width = sn_unit.inch(36)
-        self.height = sn_unit.inch(34)
-        self.depth = sn_unit.inch(23)
         
-class INSERT_Upper_Pie_Cut_Door(Pie_Cut_Doors):
-    
-    def __init__(self):
-        self.category_name = "Doors"
-        self.assembly_name = "Upper Pie Cut Door"
-        self.door_type = "Upper"
-        self.door_swing = "Left Swing"
-        self.width = sn_unit.inch(36)
-        self.height = sn_unit.inch(34)
-        self.depth = sn_unit.inch(23)

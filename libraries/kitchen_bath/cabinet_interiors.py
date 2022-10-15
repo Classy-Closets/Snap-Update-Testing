@@ -1,54 +1,27 @@
 import bpy
-from snap import sn_unit, sn_types
+from snap import sn_unit, sn_types, sn_utils, sn_paths
 from . import drawer_boxes
-# from . import cabinet_machining
 from . import cabinet_properties
 from snap.libraries.closets import closet_paths
 from os import path
 import math
 
 LIBRARY_NAME_SPACE = "sn_kitchen_bath"
-ROOT_PATH = path.join(path.dirname(__file__),"Cabinet Assemblies")
+LIBRARY_NAME = "Cabinets"
+INSERT_SHELF_CATEGORY_NAME = "Starter Interiors"
+INSERT_DIVIDER_CATEGORY_NAME = "Starter Interiors"
+INSERT_ROLLOUT_CATEGORY_NAME = "Starter Interiors"
 
+ROOT_PATH = path.join(path.dirname(__file__),"Cabinet Assemblies")
 SHELVES = path.join(ROOT_PATH,"Shelves","Shelves.blend")
 SHELF = path.join(closet_paths.get_closet_assemblies_path(), "Part with Edgebanding.blend")
+CHAMFERED_SHELF = path.join(sn_paths.KITCHEN_BATH_ASSEMBLIES,"Chamfered Part.blend")
+CORNER_NOTCH_SHELF = path.join(sn_paths.KITCHEN_BATH_ASSEMBLIES,"Corner Notch Part.blend")
 DIVIDER = path.join(closet_paths.get_closet_assemblies_path(), "Part with Edgebanding.blend")
 DIVISION = path.join(closet_paths.get_closet_assemblies_path(), "Part with Edgebanding.blend")
-# ADJ_MACHINING = path.join(ROOT_PATH,"Machining","Adjustable Shelf Holes.blend")
 
-# def add_adj_shelf_machining(part,insert):
-    
-#     Height = insert.obj_z.snap.get_var('location.z','Height')
-#     Width = insert.obj_x.snap.get_var('location.x','Width')
-#     Depth = insert.obj_y.snap.get_var('location.y','Depth')
 
-#     Part_Width = part.get_prompt('dim_y').get_var('Part_Width')
-#     Part_Z_Loc = part.get_prompt('loc_z').get_var('Part_Z_Loc')
-#     Adj_Shelf_Setback = insert.get_prompt("Adj Shelf Setback").get_var()
-#     Space_From_Front = insert.get_prompt("Space From Front").get_var()
-#     Space_From_Rear = insert.get_prompt("Space From Rear").get_var()
-#     Space_From_Top = insert.get_prompt("Space From Top").get_var()
-#     Space_From_Bottom = insert.get_prompt("Space From Bottom").get_var()
-#     Shelf_Hole_Spacing = insert.get_prompt("Shelf Hole Spacing").get_var()
-#     Shelf_Clip_Gap = insert.get_prompt("Shelf Clip Gap").get_var()
-#     Adj_Shelf_Qty = insert.get_prompt("Adj Shelf Qty").get_var()
-    
-#     tokens = []
-#     tokens.append(part.add_machine_token('Left Shelf Drilling' ,'SHELF','3'))
-#     tokens.append(part.add_machine_token('Right Shelf Drilling' ,'SHELF','4'))
 
-#     for token in tokens:
-#         token[1].add_driver(token[0],'space_from_bottom','Part_Z_Loc-Space_From_Bottom',[Part_Z_Loc,Space_From_Bottom])
-#         token[1].add_driver(token[0],'dim_to_first_row','Space_From_Front',[Space_From_Front])
-#         token[1].face_bore_depth = sn_unit.inch(.5)
-#         token[1].add_driver(token[0],'space_from_top','Height-Part_Z_Loc-Space_From_Top',[Height,Part_Z_Loc,Space_From_Top])
-#         token[1].add_driver(token[0],'dim_to_second_row','fabs(Part_Width)-Space_From_Rear',[Part_Width,Space_From_Rear])
-#         token[1].face_bore_dia = 5
-#         token[1].shelf_hole_spacing = sn_unit.millimeter(32)
-#         token[1].add_driver(token[0],'shelf_clip_gap','Shelf_Clip_Gap',[Shelf_Clip_Gap])
-#         token[1].reverse_direction = False
-
-#---------ASSEMBLY INSTRUCTIONS
 def add_part(assembly, path):
     part_bp = assembly.add_assembly_from_file(path)
     part = sn_types.Assembly(part_bp)
@@ -57,13 +30,18 @@ def add_part(assembly, path):
 
 class Simple_Shelves(sn_types.Assembly):
     
-    library_name = "Cabinet Interiors"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_SHELF_CATEGORY_NAME
     type_assembly = 'INSERT'
-    placement_type = "EXTERIOR"
+    placement_type = "INTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
     mirror_y = False
-    
+
     carcass_type = "" # {Base, Tall, Upper, Sink, Suspended}
+    carcass_shape = "RECTANGLE"
     open_name = ""
     shelf_qty = 1
     
@@ -78,6 +56,16 @@ class Simple_Shelves(sn_types.Assembly):
         self.add_prompt("Shelf Qty", 'QUANTITY', self.shelf_qty)
         self.add_prompt("Shelf Setback", 'DISTANCE', props.adj_shelf_setback)
 
+    def add_corner_prompts(self):
+        props = cabinet_properties.get_scene_props().size_defaults
+
+        if self.carcass_type == 'Upper':
+            def_depth = props.upper_cabinet_depth
+        else:  # only base currently
+            def_depth = props.base_cabinet_depth
+        self.add_prompt("Left Depth", 'DISTANCE', def_depth)
+        self.add_prompt("Right Depth", 'DISTANCE', def_depth)
+
     def add_shelves(self):
         Width = self.obj_x.snap.get_var('location.x','Width')
         Height = self.obj_z.snap.get_var('location.z','Height')
@@ -85,20 +73,40 @@ class Simple_Shelves(sn_types.Assembly):
         Shelf_Qty = self.get_prompt("Shelf Qty").get_var()
         Shelf_Setback = self.get_prompt("Shelf Setback").get_var()
         Shelf_Thickness = self.get_prompt("Shelf Thickness").get_var()
+        # Left_Depth = self.get_prompt("Left Depth").get_var()
+        # Right_Depth = self.get_prompt("Right Depth").get_var()
 
-        adj_shelf = add_part(self, SHELF)
+        if self.carcass_shape == 'DIAGONAL':
+            adj_shelf = add_part(self, CHAMFERED_SHELF)
+            adj_shelf.obj_bp["PROFILE_SHAPE_DIAGONAL"] = True
+        elif self.carcass_shape == 'NOTCHED':
+            adj_shelf = add_part(self, CORNER_NOTCH_SHELF)
+            adj_shelf.obj_bp["PROFILE_SHAPE_NOTCHED"] = True
+        else:
+            adj_shelf = add_part(self, SHELF)
+            adj_shelf.obj_bp["PROFILE_SHAPE_RECTANGLE"] = True
+            
         adj_shelf.obj_bp["IS_CABINET_SHELF"] = True
         adj_shelf.set_name("Adjustable Shelf")
         adj_shelf.loc_y('Depth',[Depth])
         adj_shelf.loc_z('((Height-(Shelf_Thickness*Shelf_Qty))/(Shelf_Qty+1))',[Height,Shelf_Thickness,Shelf_Qty])
         adj_shelf.dim_x('Width',[Width])
-        adj_shelf.dim_y('-Depth+Shelf_Setback',[Depth,Shelf_Setback])
+
+        if self.carcass_shape == 'RECTANGLE':
+            adj_shelf.dim_y('-Depth+Shelf_Setback',[Depth,Shelf_Setback])
+        else:
+            adj_shelf.dim_y('-Depth',[Depth,Shelf_Setback])
+        
         adj_shelf.dim_z('Shelf_Thickness',[Shelf_Thickness])
         adj_shelf.get_prompt('Hide').set_formula('IF(Shelf_Qty==0,True,False)',[Shelf_Qty])
         adj_shelf.get_prompt('Z Quantity').set_formula('Shelf_Qty',[Shelf_Qty])
         adj_shelf.get_prompt('Z Offset').set_formula('((Height-(Shelf_Thickness*Shelf_Qty))/(Shelf_Qty+1))',[Height,Shelf_Thickness,Shelf_Qty])
-        # adj_shelf.cutpart("Cabinet_Shelf")
-        # adj_shelf.edgebanding('Cabinet_Interior_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
+
+        if self.carcass_shape == 'DIAGONAL' or self.carcass_shape == 'NOTCHED':
+            Left_Depth = self.get_prompt("Left Depth").get_var()
+            Right_Depth = self.get_prompt("Right Depth").get_var()
+            adj_shelf.get_prompt('Left Depth').set_formula('Left_Depth-Shelf_Setback-INCH(0.75)',[Left_Depth,Shelf_Setback])
+            adj_shelf.get_prompt('Right Depth').set_formula('Right_Depth-Shelf_Setback-INCH(0.75)',[Right_Depth,Shelf_Setback])
 
     def draw(self):
         self.create_assembly()
@@ -108,28 +116,30 @@ class Simple_Shelves(sn_types.Assembly):
         
         self.add_common_prompts()
         self.add_adj_prompts()
+        if self.carcass_shape != 'RECTANGLE':
+            self.add_corner_prompts()
+
         self.add_shelves()
 
         self.update()    
     
-class Shelves(sn_types.Assembly):
+class Shelves_Removed(sn_types.Assembly):
     
-    library_name = "Cabinet Interiors"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_SHELF_CATEGORY_NAME
     type_assembly = "INSERT"
     placement_type = "INTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
     mirror_y = False
-    
+
     carcass_type = "" # {Base, Tall, Upper, Sink, Suspended}
     open_name = ""
     shelf_qty = 1
     add_adjustable_shelves = True
     add_fixed_shelves = False
-    
-    def add_common_prompts(self):
-        sgi = self.get_prompt('cabinetlib.spec_group_index').get_var('sgi')
-        self.add_prompt("Edgebanding Thickness", 'DISTANCE', sn_unit.inch(.75))
-        self.get_prompt('Edgebanding Thickness').set_formula('EDGE_THICKNESS(sgi,"Cabinet_Interior_Edges' + self.open_name + '")',[sgi])
     
     def add_adj_prompts(self):
         props = cabinet_properties.get_scene_props().interior_defaults
@@ -145,9 +155,6 @@ class Shelves(sn_types.Assembly):
         self.add_prompt("Adjustable Shelf Thickness", 'DISTANCE', sn_unit.inch(.75))
         self.add_prompt("Shelf Pin Quantity", 'QUANTITY', 0)
 
-        sgi = self.get_prompt('cabinetlib.spec_group_index').get_var('sgi')
-        self.get_prompt('Adjustable Shelf Thickness').set_formula('THICKNESS(sgi,"Cabinet_Shelf' + self.open_name + '")',[sgi])
-
     def add_fixed_prompts(self):
         props = cabinet_properties.get_scene_props().interior_defaults
 
@@ -155,12 +162,10 @@ class Shelves(sn_types.Assembly):
         self.add_prompt("Fixed Shelf Setback", 'DISTANCE', props.fixed_shelf_setback)
         self.add_prompt("Fixed Shelf Thickness", 'DISTANCE', sn_unit.inch(.75))
         
-        sgi = self.get_prompt('cabinetlib.spec_group_index').get_var('sgi')
-        self.get_prompt('Fixed Shelf Thickness').set_formula('THICKNESS(sgi,"Cabinet_Shelf' + self.open_name + '")',[sgi])
-        
     def add_advanced_frameless_prompts(self):
-        self.add_prompt("Shelf Row Quantity", 'QUANTITY', 0)
-        
+        ppt_Shelf_Config = self.add_prompt_obj("Shelf Config")
+        self.add_prompt("Shelf Row Quantity", 'QUANTITY', 0, prompt_obj=ppt_Shelf_Config)
+
         adj_qty = self.get_prompt('Adj Shelf Qty').get_var()
         fixed_qty = self.get_prompt('Fixed Shelf Qty').get_var()
         
@@ -172,7 +177,7 @@ class Shelves(sn_types.Assembly):
         Depth = self.obj_y.snap.get_var('location.y','Depth')
         Adj_Shelf_Qty = self.get_prompt("Adj Shelf Qty").get_var()
         Adj_Shelf_Setback = self.get_prompt("Adj Shelf Setback").get_var()
-        Adjustable_Shelf_Thickness = self.prompt("Adjustable Shelf Thickness").get_var()
+        Adjustable_Shelf_Thickness = self.get_prompt("Adjustable Shelf Thickness").get_var()
         Shelf_Clip_Gap = self.get_prompt("Shelf Clip Gap").get_var()
 
         for i in range(1,6):
@@ -189,41 +194,7 @@ class Shelves(sn_types.Assembly):
             adj_shelf.dim_y('-Depth+Adj_Shelf_Setback',[Depth,Adj_Shelf_Setback])
             adj_shelf.dim_z('Adjustable_Shelf_Thickness',[Adjustable_Shelf_Thickness])
             adj_shelf.get_prompt('Hide').set_formula('IF(' + str(i) + '>Adj_Shelf_Qty,True,False)',[Adj_Shelf_Qty])
-            # adj_shelf.cutpart("Cabinet_Shelf")
-            # adj_shelf.edgebanding('Cabinet_Interior_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-            # if i == 1:
-            #     add_adj_shelf_machining(adj_shelf,self)
-            
-    # def add_adjustable_shelf_holes(self):
-    #     Width = self.obj_x.snap.get_var('location.x','Width')
-    #     Height =self.obj_z.snap.get_var('location.z','Height')
-    #     Depth = self.obj_y.snap.get_var('location.y','Depth')
-    #     Adj_Shelf_Setback = self.get_prompt("Adj Shelf Setback").get_var()
-    #     Space_From_Front = self.get_prompt("Space From Front").get_var()
-    #     Space_From_Rear = self.get_prompt("Space From Rear").get_var()
-    #     Space_From_Top = self.get_prompt("Space From Top").get_var()
-    #     Space_From_Bottom = self.get_prompt("Space From Bottom").get_var()
-    #     Shelf_Hole_Spacing = self.get_prompt("Shelf Hole Spacing").get_var()
-    #     Adj_Shelf_Qty = self.get_prompt("Adj Shelf Qty").get_var()
-        
-    #     shelf_holes_bp = self.add_assembly_from_file(ADJ_MACHINING)
-    #     shelf_holes = sn_types.Assembly(shelf_holes_bp)
-    #     shelf_holes.set_name("Adjustable Shelf Holes")
-
-    #     shelf_holes.loc_y('Adj_Shelf_Setback',[Adj_Shelf_Setback])
-    #     # shelf_holes.loc_z('',[])
-
-    #     shelf_holes.dim_x('Width',[Width])
-    #     shelf_holes.dim_y('Depth-Adj_Shelf_Setback',[Depth,Adj_Shelf_Setback])
-    #     shelf_holes.dim_z('Height',[Height])
-
-    #     shelf_holes.get_prompt('Hide').set_formula('IF(Adj_Shelf_Qty>0,False,True)',[Adj_Shelf_Qty])
-    #     shelf_holes.get_prompt('Space From Bottom').set_formula('Space_From_Bottom',[Space_From_Bottom])
-    #     shelf_holes.get_prompt('Space From Top').set_formula('Space_From_Top',[Space_From_Top])
-    #     shelf_holes.get_prompt('Space From Front').set_formula('Space_From_Front',[Space_From_Front])
-    #     shelf_holes.get_prompt('Space From Rear').set_formula('Space_From_Rear',[Space_From_Rear])
-    #     shelf_holes.get_prompt('Shelf Hole Spacing').set_formula('Shelf_Hole_Spacing',[Shelf_Hole_Spacing])
-        
+ 
     def add_fixed_shelves(self):
         Width = self.obj_x.snap.get_var('location.x','Width')
         Height =self.obj_z.snap.get_var('location.z','Height')
@@ -246,19 +217,12 @@ class Shelves(sn_types.Assembly):
             fix_shelf.dim_z('Fixed_Shelf_Thickness',[Fixed_Shelf_Thickness])
             fix_shelf.get_prompt('Hide').set_formula('IF(' + str(i) + '>Fixed_Shelf_Qty,True,False)',[Fixed_Shelf_Qty])
 
-            # fix_shelf.cutpart("Cabinet_Shelf")
-            # fix_shelf.edgebanding('Cabinet_Interior_Edges',l1 = True)
-            # cabinet_machining.add_drilling(fix_shelf)
-            
     def draw(self):
         self.create_assembly()
-        
-        self.add_common_prompts()
-        
+       
         if self.add_adjustable_shelves:
             self.add_adj_prompts()
             self.add_adjustable_shelves()
-            # self.add_adjustable_shelf_holes()
             
         if self.add_fixed_shelves:
             self.add_fixed_prompts()
@@ -267,7 +231,7 @@ class Shelves(sn_types.Assembly):
         if self.add_adjustable_shelves and self.add_fixed_shelves:
             self.add_advanced_frameless_prompts()
             
-        self.obj_bp["IS_BP_SHELVES"]
+        self.obj_bp["IS_BP_SHELVES"] = True
         props = self.obj_bp.sn_closets
         props.is_shelf_bp = True
         
@@ -275,10 +239,14 @@ class Shelves(sn_types.Assembly):
         
 class Dividers(sn_types.Assembly):
     
-    library_name = "Cabinet Interiors"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_DIVIDER_CATEGORY_NAME
     type_assembly = "INSERT"
     placement_type = "INTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
     mirror_y = False
     
     carcass_type = "" # {Base, Tall, Upper, Sink, Suspended}
@@ -297,11 +265,6 @@ class Dividers(sn_types.Assembly):
         self.add_prompt("Divider Thickness",'DISTANCE',sn_unit.inch(0.25))
 
         self.add_prompt("Edgebanding Thickness", 'DISTANCE', sn_unit.inch(.75))
-    
-        sgi = self.get_prompt('cabinetlib.spec_group_index').get_var('sgi')
-        self.get_prompt('Divider Thickness').set_formula('THICKNESS(sgi,"Cabinet_Divider' + self.open_name +'")',[sgi])
-        self.get_prompt('Shelf Thickness').set_formula('THICKNESS(sgi,"Cabinet_Shelf' + self.open_name +'")',[sgi])
-        self.get_prompt('Edgebanding Thickness').set_formula('EDGE_THICKNESS(sgi,"Cabinet_Interior_Edges' + self.open_name + '")',[sgi])
     
     def add_dividers(self):
         Width = self.obj_x.snap.get_var('location.x','Width')
@@ -330,9 +293,6 @@ class Dividers(sn_types.Assembly):
         divider.get_prompt('Z Offset').set_formula('Width/(Divider_Qty_Per_Row+1)',[Width,Divider_Qty_Per_Row])
         divider.get_prompt('X Quantity').set_formula('Fixed_Shelf_Qty+1',[Fixed_Shelf_Qty])
         divider.get_prompt('X Offset').set_formula('Height/(Fixed_Shelf_Qty+1)+(Shelf_Thickness/(Fixed_Shelf_Qty+1))',[Height,Fixed_Shelf_Qty,Shelf_Thickness])
-
-        # divider.cutpart("Cabinet_Divider")
-        # divider.edgebanding('Cabinet_Interior_Edges',l1 = True)
         
     def add_fixed_shelves(self):
         Width = self.obj_x.snap.get_var('location.x','Width')
@@ -356,9 +316,6 @@ class Dividers(sn_types.Assembly):
         fix_shelf.get_prompt('Z Quantity').set_formula('Fixed_Shelf_Qty',[Fixed_Shelf_Qty])
         fix_shelf.get_prompt('Z Offset').set_formula('Height/(Fixed_Shelf_Qty+1)+(Shelf_Thickness/(Fixed_Shelf_Qty+1))',[Height,Fixed_Shelf_Qty,Shelf_Thickness])
 
-        # fix_shelf.cutpart("Cabinet_Shelf")
-        # fix_shelf.edgebanding('Cabinet_Interior_Edges',l1 = True)
-
     def draw(self):
         self.create_assembly()
         
@@ -366,14 +323,21 @@ class Dividers(sn_types.Assembly):
         self.add_fixed_shelves()
         self.add_dividers()
         
+        self.obj_bp["IS_BP_DIVIDER"] = True
+   
         self.update()
         
 class Divisions(sn_types.Assembly):
     
-    library_name = "Cabinet Interiors"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_DIVIDER_CATEGORY_NAME
     type_assembly = "INSERT"
     placement_type = "INTERIOR"
-    id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".interior_prompts"
+    show_in_library = True
+    id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
+
     mirror_y = False
     
     carcass_type = "" # Base, Tall, Upper, Sink, Suspended
@@ -398,16 +362,13 @@ class Divisions(sn_types.Assembly):
         self.add_prompt("Fixed Shelf Thickness", 'DISTANCE', sn_unit.inch(0.75))
         self.add_prompt("Shelf Clip Gap", 'DISTANCE', sn_unit.inch(0.125))
         self.add_prompt("Shelf Hole Spacing", 'DISTANCE', sn_unit.inch(1.25))
-        self.add_prompt("Shelf Pin Quantity", 'QUANTITY', 0)
+
+        ppt_Shelf_Config = self.add_prompt_obj("Shelf Config")
+        self.add_prompt("Shelf Pin Quantity", 'QUANTITY', 0, prompt_obj=ppt_Shelf_Config)
         
-        sgi = self.get_prompt('cabinetlib.spec_group_index').get_var('sgi')
         Adj_Shelf_Rows = self.get_prompt('Adj Shelf Rows').get_var()
         Division_Qty = self.get_prompt('Division Qty').get_var()
-        
         self.get_prompt('Shelf Pin Quantity').set_formula('(Adj_Shelf_Rows*Division_Qty)*4',[Adj_Shelf_Rows,Division_Qty])
-        self.get_prompt('Division Thickness').set_formula('THICKNESS(sgi,"Cabinet_Division' + self.open_name +'")',[sgi])
-        self.get_prompt('Fixed Shelf Thickness').set_formula('THICKNESS(sgi,"Cabinet_Shelf' + self.open_name +'")',[sgi])
-        self.get_prompt('Adjustable Shelf Thickness').set_formula('THICKNESS(sgi,"Cabinet_Shelf' + self.open_name +'")',[sgi])
     
     def add_divisions(self):
         Width = self.obj_x.snap.get_var('location.x','Width')
@@ -432,9 +393,6 @@ class Divisions(sn_types.Assembly):
         division.get_prompt('Hide').set_formula('IF(Division_Qty==0,True,False)',[Division_Qty])
         division.get_prompt('Z Quantity').set_formula('Division_Qty',[Division_Qty])
         division.get_prompt('Z Offset').set_formula('((Width-(Division_Thickness*Division_Qty))/(Division_Qty+1))+Division_Thickness',[Division_Qty,Width,Division_Thickness])
-
-        # division.cutpart("Cabinet_Division")
-        # division.edgebanding('Cabinet_Interior_Edges',l1 = True)
 
     def add_fixed_shelves(self):
         Width = self.obj_x.snap.get_var('location.x','Width')
@@ -461,8 +419,6 @@ class Divisions(sn_types.Assembly):
         fix_shelf.get_prompt('Z Offset').set_formula('Height/(Fixed_Shelf_Rows+1)+(Fixed_Shelf_Thickness/(Fixed_Shelf_Rows+1))',[Height,Fixed_Shelf_Thickness,Fixed_Shelf_Rows])
         fix_shelf.get_prompt('X Quantity').set_formula('Division_Qty+1',[Division_Qty])
         fix_shelf.get_prompt('X Offset').set_formula('((Width-(Division_Thickness*Division_Qty))/(Division_Qty+1))+Division_Thickness',[Width,Division_Qty,Division_Thickness])
-        # fix_shelf.cutpart("Cabinet_Shelf")
-        # fix_shelf.edgebanding('Cabinet_Interior_Edges',l1 = True)
 
     def add_adj_shelves(self):
         Width = self.obj_x.snap.get_var("location.x","Width")
@@ -494,34 +450,6 @@ class Divisions(sn_types.Assembly):
         adj_shelf.get_prompt('X Quantity').set_formula('Division_Qty+1',[Division_Qty])
         adj_shelf.get_prompt('X Offset').set_formula('((Width-(Division_Thickness*Division_Qty)-((Shelf_Clip_Gap*2)*(Division_Qty+1)))/(Division_Qty+1))+(Shelf_Clip_Gap*2)+Division_Thickness',[Width,Division_Thickness,Division_Qty,Shelf_Clip_Gap])
         
-        # adj_shelf.cutpart("Cabinet_Shelf")
-        # adj_shelf.edgebanding('Cabinet_Interior_Edges',l1 = True, w1 = True, l2 = True, w2 = True)
-
-    # def add_adj_shelf_machining(self):
-    #     Width = self.get_var('dim_x','Width')
-    #     Height = self.get_var('dim_z','Height')
-    #     Depth = self.get_var('dim_y','Depth')
-    #     Division_Qty = self.get_var('Division Qty')   
-    #     Division_Thickness = self.get_var('Division Thickness')  
-    #     Division_Setback = self.get_var('Division Setback') 
-    #     Shelf_Setback = self.get_var('Shelf Setback')
-    #     Adj_Shelf_Rows = self.get_var('Adj Shelf Rows')
-
-    #     holes = self.add_assembly(ADJ_MACHINING)
-    #     holes.set_name("Adjustable Shelf Holes")
-    #     holes.x_loc(value = 0)
-    #     holes.y_loc("Division_Setback+Shelf_Setback",[Division_Setback,Shelf_Setback])
-    #     holes.z_loc(value = 0)
-    #     holes.x_rot(value = 0)
-    #     holes.y_rot(value = 0)
-    #     holes.z_rot(value = 0)
-    #     holes.x_dim("(Width-(Division_Thickness*Division_Qty))/(Division_Qty+1)",[Width,Division_Thickness,Division_Qty])
-    #     holes.y_dim("fabs(Depth)-Division_Setback-Shelf_Setback",[Depth,Division_Setback,Shelf_Setback])
-    #     holes.z_dim("Height",[Height])
-    #     holes.prompt('Hide','IF(Adj_Shelf_Rows==0,True,False)',[Adj_Shelf_Rows])
-    #     holes.prompt('Opening Quantity','Division_Qty+1',[Division_Qty])
-    #     holes.prompt('Opening X Offset','(Width-(Division_Thickness*Division_Qty))/(Division_Qty+1)+Division_Thickness',[Width,Division_Thickness,Division_Qty])
-
     def draw(self):
         self.create_assembly()
         
@@ -529,16 +457,22 @@ class Divisions(sn_types.Assembly):
         self.add_divisions()
         self.add_fixed_shelves()
         self.add_adj_shelves()
-#         self.add_adj_shelf_machining()
         
+        self.obj_bp["IS_BP_DIVISION"] = True
+
         self.update()
         
 class Rollouts(sn_types.Assembly):
     
-    library_name = "Cabinet Interiors"
+    library_name = LIBRARY_NAME
+    category_name = INSERT_ROLLOUT_CATEGORY_NAME
     type_assembly = "INSERT"
     placement_type = "INTERIOR"
+    show_in_library = True
     id_prompt = cabinet_properties.LIBRARY_NAME_SPACE + ".frameless_cabinet_prompts"
+    drop_id = "sn_closets.drop_insert"
+
+
     mirror_y = False
     
     rollout_qty = 3
@@ -667,33 +601,47 @@ class Rollouts(sn_types.Assembly):
         self.update()
         
 #---------INSERTS
-        
-class INSERT_Simple_Shelves(Simple_Shelves):
+class INSERT_Shelves(Simple_Shelves):
     
     def __init__(self):
-        self.category_name = "Standard"
-        self.assembly_name = "Simple Shelves"
-        self.carcass_type = "Base"
-        self.width = sn_unit.inch(18)
-        self.height = sn_unit.inch(34)
-        self.depth = sn_unit.inch(23)
-        self.shelf_qty = 1        
-        
-class INSERT_Shelves(Shelves):
-    
-    def __init__(self):
-        self.category_name = "Standard"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_SHELF_CATEGORY_NAME
         self.assembly_name = "Shelves"
         self.carcass_type = "Base"
         self.width = sn_unit.inch(18)
         self.height = sn_unit.inch(34)
         self.depth = sn_unit.inch(23)
-        self.shelf_qty = 1
+        self.shelf_qty = 1 
+
+# class INSERT_Simple_Shelves(Simple_Shelves):
+    
+#     def __init__(self):
+#         self.library_name = LIBRARY_NAME
+#         self.category_name = INSERT_SHELF_CATEGORY_NAME
+#         self.assembly_name = "Simple Shelves"
+#         self.carcass_type = "Base"
+#         self.width = sn_unit.inch(18)
+#         self.height = sn_unit.inch(34)
+#         self.depth = sn_unit.inch(23)
+#         self.shelf_qty = 1        
+        
+# class INSERT_Shelves(Shelves):
+    
+#     def __init__(self):
+#         self.library_name = LIBRARY_NAME
+#         self.category_name = INSERT_SHELF_CATEGORY_NAME
+#         self.assembly_name = "Shelves"
+#         self.carcass_type = "Base"
+#         self.width = sn_unit.inch(18)
+#         self.height = sn_unit.inch(34)
+#         self.depth = sn_unit.inch(23)
+#         self.shelf_qty = 1
         
 class INSERT_Base_Dividers(Dividers):
     
     def __init__(self):
-        self.category_name = "Standard"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DIVIDER_CATEGORY_NAME
         self.assembly_name = "Dividers"
         self.carcass_type = "Base"
         self.width = sn_unit.inch(18)
@@ -704,7 +652,8 @@ class INSERT_Base_Dividers(Dividers):
 class INSERT_Base_Divisions(Divisions):
     
     def __init__(self):
-        self.category_name = "Standard"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_DIVIDER_CATEGORY_NAME
         self.assembly_name = "Divisions"
         self.carcass_type = "Base"
         self.width = sn_unit.inch(18)
@@ -715,7 +664,8 @@ class INSERT_Base_Divisions(Divisions):
 class INSERT_Rollouts(Rollouts):
     
     def __init__(self):
-        self.category_name = "Standard"
+        self.library_name = LIBRARY_NAME
+        self.category_name = INSERT_ROLLOUT_CATEGORY_NAME
         self.assembly_name = "Rollouts"
         self.carcass_type = "Base"
         self.width = sn_unit.inch(18)

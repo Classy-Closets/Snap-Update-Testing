@@ -1,8 +1,0 @@
-[
-    { "label": "MATERIAL", "position": { "LEGAL": [18, 11], "ELEVENSEVENTEEN": [18, 11] } },
-    { "label": "DOORS", "position": { "LEGAL": [188, 11], "ELEVENSEVENTEEN": [188, 11] } },
-    { "label": "DRAWERS", "position": { "LEGAL": [338, 11], "ELEVENSEVENTEEN": [395, 11] } },
-    { "label": "OPTIONS", "position": { "LEGAL": [480, 11], "ELEVENSEVENTEEN": [574, 11] } },
-    { "label": "COUNTER", "position": { "LEGAL": [727, 11], "ELEVENSEVENTEEN": [921, 11] } },
-    { "label": "INSTALL", "position": { "LEGAL": [835, 11], "ELEVENSEVENTEEN": [1056, 11] } }
-]

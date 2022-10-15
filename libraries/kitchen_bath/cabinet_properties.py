@@ -1,4 +1,5 @@
 import bpy
+from bpy.utils import register_class, unregister_class
 import os
 from snap import sn_types, sn_unit, sn_utils
 from snap.libraries.closets.ui.closet_prompts_ui import get_panel_heights
@@ -260,7 +261,7 @@ class PROPERTIES_Cabinet_Sizes(bpy.types.PropertyGroup):
 
     height_above_floor: bpy.props.FloatProperty(name="Height Above Floor",
                                                  description="Default height above floor for upper cabinets",
-                                                 default=sn_unit.inch(83.64),
+                                                 default=sn_unit.inch(96.24),
                                                  unit='LENGTH',
                                                  precision=4)
 
@@ -275,8 +276,8 @@ class PROPERTIES_Cabinet_Sizes(bpy.types.PropertyGroup):
     def load_default_heights(self):
 
         self.base_cabinet_height = '787'
-        self.tall_cabinet_height = '2035'
-        self.upper_cabinet_height = '787'
+        self.tall_cabinet_height = '2355'  #73 H
+        self.upper_cabinet_height = '1011'   #31 H
         self.sink_cabinet_height = '787'
         self.suspended_cabinet_height = '211'
         self.top_drawer_front_height = '147'
@@ -518,6 +519,35 @@ class PROPERTIES_Interior_Defaults(bpy.types.PropertyGroup):
 
 bpy.utils.register_class(PROPERTIES_Interior_Defaults)
 
+class PROPERTIES_WM_Properties(bpy.types.PropertyGroup):
+
+    def update_library_category(self, context):
+        if self.cabinet_type == 'PRE_BUILT':
+            bpy.ops.sn_library.change_library_category(category="Base Cabinets")
+        if self.cabinet_type == 'STARTER':
+            bpy.ops.sn_library.change_library_category(category="Cabinets")
+
+    cabinet_type: bpy.props.EnumProperty(
+        name="Cabinet Type",
+        items=[
+            ('PRE_BUILT', "Pre-Built Cabinets", "Choose from pre-built cabinets"),
+            ('STARTER', "Starter Cabinets", "Choose from empty starter Cabinets")],
+        default='PRE_BUILT',
+        update=update_library_category)
+
+    @classmethod
+    def register(cls):
+        bpy.types.WindowManager.lm_cabinets = bpy.props.PointerProperty(
+            name="SNaP - Kitchen Bath Window Manager",
+            description="SNaP Kitchen Bath Window Manager Properties",
+            type=cls,
+        )
+
+    @classmethod
+    def unregister(cls):
+        del bpy.types.WindowManager.lm_cabinets
+
+register_class(PROPERTIES_WM_Properties)
 
 class PROPERTIES_Scene_Properties(bpy.types.PropertyGroup):
 

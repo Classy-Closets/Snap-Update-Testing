@@ -1823,33 +1823,34 @@ class OPERATOR_Closet_Standard_Draw_Plan(Operator):
     def add_parts(self, parts):
         for part in parts:
             assembly = sn_types.Assembly(part)
-            object_name = assembly.obj_bp.snap.name_object
+            if assembly.obj_bp and assembly.obj_x and assembly.obj_y:
+                object_name = assembly.obj_bp.snap.name_object
 
-            if assembly.obj_bp.snap.type_group == 'OPENING':
-                opening_num = assembly.obj_bp.sn_closets.opening_name
-                opening_width = self.product.get_prompt("Opening " + opening_num + " Width")
-                if opening_width:
-                    width = opening_width.get_value()
+                if assembly.obj_bp.snap.type_group == 'OPENING':
+                    opening_num = assembly.obj_bp.sn_closets.opening_name
+                    opening_width = self.product.get_prompt("Opening " + opening_num + " Width")
+                    if opening_width:
+                        width = opening_width.get_value()
+                    else:
+                        width = assembly.obj_x.location.x
+                    opening_depth = self.product.get_prompt("Opening " + opening_num + " Depth")
+                    if opening_depth:
+                        depth = opening_depth.get_value()
+                    else:
+                        depth = assembly.obj_y.location.y
                 else:
                     width = assembly.obj_x.location.x
-                opening_depth = self.product.get_prompt("Opening " + opening_num + " Depth")
-                if opening_depth:
-                    depth = opening_depth.get_value()
-                else:
-                    depth = assembly.obj_y.location.y
-            else:
-                width = assembly.obj_x.location.x
-                depth = assembly.obj_y.location.y                
+                    depth = assembly.obj_y.location.y                
 
-            mesh_dimensions = (
-                width,
-                depth,
-                assembly.obj_z.location.z)
-            assembly_mesh = sn_utils.create_cube_mesh(object_name, mesh_dimensions)
-            assembly_mesh.parent = part.parent
-            assembly_mesh.location = assembly.obj_bp.location
-            assembly_mesh.rotation_euler = assembly.obj_bp.rotation_euler
-            assembly_mesh['IS_CAGE'] = True
+                mesh_dimensions = (
+                    width,
+                    depth,
+                    assembly.obj_z.location.z)
+                assembly_mesh = sn_utils.create_cube_mesh(object_name, mesh_dimensions)
+                assembly_mesh.parent = part.parent
+                assembly_mesh.location = assembly.obj_bp.location
+                assembly_mesh.rotation_euler = assembly.obj_bp.rotation_euler
+                assembly_mesh['IS_CAGE'] = True
                 
     def execute(self, context):
         obj_bp = bpy.data.objects[self.object_name]

@@ -146,7 +146,7 @@ def add_shelf(assembly):
 
 def add_glass_shelf(assembly):
     defaults = bpy.context.scene.sn_closets.closet_defaults
-    shelf = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_FRONT_EDGEBANDING))
+    shelf = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_NO_EDGEBANDING))
     assembly.add_assembly(shelf)
     shelf.obj_bp['IS_SHELF'] = True
     shelf.obj_bp['IS_GLASS_SHELF'] = True
@@ -560,10 +560,43 @@ def add_granite_countertop(assembly):
     assembly.add_assembly(ctop)
     ctop.obj_bp.snap.comment_2 = "1605"
     ctop.obj_bp['IS_BP_COUNTERTOP'] = True
+    ctop.obj_bp['COUNTERTOP_GRANITE'] = True
     props = ctop.obj_bp.sn_closets
     props.is_countertop_bp = True
     ctop.set_name("Countertop Deck")
+    ctop.dim_z(value=sn_unit.inch(1.5))
     ctop.material("Countertop_Granite_Surface")
+    return ctop
+
+
+def add_quartz_countertop(assembly):
+    ctop = sn_types.Part(assembly.add_assembly_from_file(STRAIGHT_COUNTER_TOP))
+    assembly.add_assembly(ctop)
+    ctop.obj_bp.snap.comment_2 = "1605"
+    ctop.obj_bp['IS_BP_COUNTERTOP'] = True
+    ctop.obj_bp['COUNTERTOP_QUARTZ'] = True
+    props = ctop.obj_bp.sn_closets
+    props.is_countertop_bp = True
+    ctop.set_name("Countertop Deck")
+    ctop.dim_z(value=sn_unit.inch(1.5))
+    ctop.material("Countertop_Quartz_Surface")
+    return ctop
+
+
+def add_wood_countertop(assembly):
+    ctop = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_NO_EDGEBANDING))
+    assembly.add_assembly(ctop)
+    ctop.obj_bp.snap.comment_2 = "1605"
+    ctop.obj_bp['IS_BP_COUNTERTOP'] = True
+    ctop.obj_bp['COUNTERTOP_WOOD'] = True
+    props = ctop.obj_bp.sn_closets
+    props.is_countertop_bp = True
+    ctop.set_name("Countertop Deck")
+    ctop.dim_z(value=sn_unit.inch(1.25))
+    ctop.material("Countertop_Butcher_Block_Surface")
+    for child in ctop.obj_bp.children:
+        if child.type == 'MESH':
+            child.snap.type_mesh = 'BUYOUT'
     return ctop
 
 
@@ -572,9 +605,11 @@ def add_cc_countertop(assembly):
     assembly.add_assembly(ctop)
     ctop.obj_bp.snap.comment_2 = "1605"
     ctop.obj_bp['IS_BP_COUNTERTOP'] = True
+    ctop.obj_bp['COUNTERTOP_MELAMINE'] = True
     props = ctop.obj_bp.sn_closets
     props.is_countertop_bp = True
     ctop.set_name("Countertop")
+    ctop.dim_z(value=sn_unit.inch(0.75))
     ctop.material("Countertop_Surface")
     ctop.add_prompt("Exposed Left", 'CHECKBOX', False)
     ctop.add_prompt("Exposed Right", 'CHECKBOX', False)
@@ -642,18 +677,19 @@ def add_plant_on_top(assembly):
 def add_hpl_top(assembly):
     shelf = sn_types.Part(assembly.add_assembly_from_file(PART_WITH_ALL_EDGES))
     assembly.add_assembly(shelf)
-    shelf.obj_bp['IS_BP_HPL_TOP'] = True
+    shelf.obj_bp['COUNTERTOP_HPL'] = True
     shelf.obj_bp['IS_BP_COUNTERTOP'] = True
     props = shelf.obj_bp.sn_closets
     props.is_hpl_top_bp = True  # TODO: remove
     props.is_countertop_bp = True # TODO: remove
     for child in shelf.obj_bp.children:
         if child.type == 'MESH':
-            child.snap.type_mesh = 'BUYOUT'      
+            child.snap.type_mesh = 'BUYOUT'
+    shelf.dim_z(value=sn_unit.inch(0.75))
     shelf.add_prompt("Exposed Left", 'CHECKBOX', False)
     shelf.add_prompt("Exposed Right", 'CHECKBOX', False)    
     shelf.add_prompt("Exposed Back", 'CHECKBOX', False)  
-    shelf.set_name("Top") 
+    shelf.set_name("Top")
     shelf.edgebanding('Edge', l1=True, l2=True, w1=True, w2=True)
     shelf.material("Countertop_HPL_Surface")
     for child in shelf.obj_bp.children:
@@ -724,7 +760,7 @@ def add_deco_shelf_lip_1(assembly):
     deco_shelf_lip = sn_types.Part(assembly.add_assembly_from_file(DECO_100_LIP))
     assembly.add_assembly(deco_shelf_lip)
     deco_shelf_lip.obj_bp.snap.comment_2 = "1016"
-    deco_shelf_lip.set_name("Deco Shelf Lip #1")
+    deco_shelf_lip.set_name("Applied Flat Molding")
     deco_shelf_lip.material("Closet_Part_Surfaces")
     deco_shelf_lip.obj_bp['IS_BP_DECO_SHELF_LIP'] = True
     props = deco_shelf_lip.obj_bp.sn_closets
@@ -736,7 +772,7 @@ def add_deco_shelf_lip_2(assembly):
     deco_shelf_lip = sn_types.Part(assembly.add_assembly_from_file(DECO_200_LIP))
     assembly.add_assembly(deco_shelf_lip)
     deco_shelf_lip.obj_bp.snap.comment_2 = "1016"
-    deco_shelf_lip.set_name("Deco Shelf Lip #2")
+    deco_shelf_lip.set_name("Ogee Molding")
     deco_shelf_lip.material("Closet_Part_Surfaces")
     deco_shelf_lip.obj_bp['IS_BP_DECO_SHELF_LIP'] = True
     props = deco_shelf_lip.obj_bp.sn_closets
@@ -1145,7 +1181,7 @@ def add_round_hanging_rod(assembly):
     assembly.add_assembly(rod)
     rod.obj_bp["IS_BP_ASSEMBLY"] = True
     rod.obj_bp.snap.comment_2 = "1015"
-    rod.set_name("Round Hang Rod")
+    rod.set_name("Round Hanging Rod")
     rod.solid_stock("Round Hanging Rod")
     rod.material("Rod_Finish")
     rod.loc_z(value=sn_unit.inch(1)) # SET MATERIAL THICKNESS

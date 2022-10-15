@@ -31,6 +31,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
     show_in_library = True
     category_name = ""
 
+    countertop = None
     opening_qty = 4
     calculator = None
     is_double_sided = False
@@ -45,6 +46,22 @@ class Closet_Island_Carcass(sn_types.Assembly):
             self.depth = defaults.panel_depth * 2
         else:
             self.depth = defaults.panel_depth
+
+        if obj_bp:
+            self.get_assemblies()
+
+    def get_assemblies(self):
+        for child in self.obj_bp.children:
+            if "IS_BP_COUNTERTOP" in child and child["IS_BP_COUNTERTOP"]:
+                self.countertop = sn_types.Assembly(child)
+
+    def add_to_wall_collection(self, obj_bp):
+        wall_bp = sn_utils.get_wall_bp(self.obj_bp)
+        if wall_bp:
+            wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+            scene_coll = bpy.context.scene.collection
+            sn_utils.add_assembly_to_collection(obj_bp, wall_coll)
+            sn_utils.remove_assembly_from_collection(obj_bp, scene_coll)
 
     def add_opening_prompts(self):
         for i in range(1, self.opening_qty + 1):
@@ -312,67 +329,86 @@ class Closet_Island_Carcass(sn_types.Assembly):
 
         backing.dim_z('Panel_Thickness',[Panel_Thickness])
         
-    def add_counter_top(self):
+    def set_child_properties(self, obj):
+        obj["ID_PROMPT"] = self.obj_bp["ID_PROMPT"]
+        for child in obj.children:
+            if child.type == 'MESH':
+                child["ID_PROMPT"] = self.obj_bp["ID_PROMPT"]
+            if child.children:
+                self.set_child_properties(child)
+
+    def add_countertop(self):
         dim_x = self.obj_x.snap.get_var('location.x', 'dim_x')
         dim_z = self.obj_z.snap.get_var('location.z', 'dim_z')
         dim_y = self.obj_y.snap.get_var('location.y', 'dim_y')
-        Deck_Overhang = self.get_prompt('Deck Overhang').get_var()
-        Side_Deck_Overhang = self.get_prompt("Side Deck Overhang").get_var()
-        Deck_Thickness = self.get_prompt('Deck Thickness').get_var()
-        Countertop_Type = self.get_prompt('Countertop Type').get_var()
+
+        countertop_type_ppt = self.get_prompt('Countertop Type')
+        countertop_type = countertop_type_ppt.get_combobox_str()
+        no_countertop = self.get_prompt('No Countertop').get_value()
+        ct_type_tag = "COUNTERTOP_{}".format(countertop_type.upper())
+
+        if self.countertop:
+            if no_countertop:
+                sn_utils.delete_object_and_children(self.countertop.obj_bp)
+                self.countertop = None
+                return
+            elif ct_type_tag in self.countertop.obj_bp:
+                return
+            else:
+                sn_utils.delete_object_and_children(self.countertop.obj_bp)
+                self.countertop = None
+
+        Front_Overhang = self.get_prompt("Front Overhang").get_var()
+        Back_Overhang = self.get_prompt("Back Overhang").get_var()
+        Left_Overhang = self.get_prompt("Left Overhang").get_var()
+        Right_Overhang = self.get_prompt("Right Overhang").get_var()
+
         Left_Against_Wall = self.get_prompt('Left Against Wall').get_var()
         Right_Against_Wall = self.get_prompt('Right Against Wall').get_var()
         Exposed_Back = self.get_prompt('Exposed Back').get_var()
         Toe_Kick_Height = self.get_prompt('Toe Kick Height').get_var()
-        No_Countertop = self.get_prompt('No Countertop').get_var()     
-        
-        granite_ctop = common_parts.add_granite_countertop(self)
-        granite_ctop.set_name("Granite Countertop")
-        granite_ctop.loc_x('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
-        granite_ctop.loc_y('Deck_Overhang',[Deck_Overhang])
-        granite_ctop.loc_z('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
-        granite_ctop.dim_x('dim_x+IF(Left_Against_Wall,0,Side_Deck_Overhang)+IF(Right_Against_Wall,0,Side_Deck_Overhang)',
-                   [dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
-        granite_ctop.dim_y('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
-        granite_ctop.dim_z('Deck_Thickness',[Deck_Thickness])
-        granite_ctop.get_prompt("Hide").set_formula(
-            "IF(No_Countertop,True,IF(Countertop_Type==2,False,True))",[Countertop_Type,No_Countertop])
-                
-        hpltop = common_parts.add_hpl_top(self)    
-        hpltop.set_name("HPL Countertop")
-        hpltop.loc_x('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
-        hpltop.loc_y('Deck_Overhang',[Deck_Overhang])
-        hpltop.loc_z('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
-        hpltop.dim_x('dim_x+IF(Left_Against_Wall,0,Side_Deck_Overhang)+IF(Right_Against_Wall,0,Side_Deck_Overhang)',
-                   [dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
-        hpltop.dim_y('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
-        hpltop.dim_z('Deck_Thickness',[Deck_Thickness])
-        hpltop.get_prompt("Hide").set_formula("IF(No_Countertop,True,IF(Countertop_Type==1,False,True))",[Countertop_Type,No_Countertop])
-        hpltop.get_prompt("Exposed Left").set_formula("IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
-        hpltop.get_prompt("Exposed Right").set_formula("IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
-        hpltop.get_prompt("Exposed Back").set_formula("Exposed_Back",[Exposed_Back])
 
-        melamine_deck = common_parts.add_plant_on_top(self)  
-        melamine_deck.obj_bp["IS_BP_COUNTERTOP"] = True
-        melamine_deck.set_name("Melamine Countertop")
-        melamine_deck.loc_x('IF(Left_Against_Wall,0,-Side_Deck_Overhang)',[Left_Against_Wall,Side_Deck_Overhang])
-        melamine_deck.loc_y('Deck_Overhang',[Deck_Overhang])
-        melamine_deck.loc_z('dim_z+Toe_Kick_Height',[dim_z,Toe_Kick_Height])
-        melamine_deck.dim_x('dim_x+IF(Left_Against_Wall,0,Side_Deck_Overhang)+IF(Right_Against_Wall,0,Side_Deck_Overhang)',[dim_x,Side_Deck_Overhang,Left_Against_Wall,Right_Against_Wall])
-        melamine_deck.dim_y('dim_y-Deck_Overhang*2',[dim_y,Deck_Overhang])
-        melamine_deck.dim_z('Deck_Thickness',[Deck_Thickness])   
-        melamine_deck.get_prompt("Is Countertop").set_value(value=True) 
-        melamine_deck.get_prompt("Hide").set_formula(
-            "IF(No_Countertop,True,IF(Countertop_Type==0,False,True))",[Countertop_Type,No_Countertop]) 
-        melamine_deck.get_prompt("Exposed Left").set_formula("IF(Left_Against_Wall,False,True)",[Left_Against_Wall])
-        melamine_deck.get_prompt("Exposed Right").set_formula("IF(Right_Against_Wall,False,True)",[Right_Against_Wall])
-        melamine_deck.get_prompt("Exposed Back").set_formula("Exposed_Back",[Exposed_Back])
-        melamine_deck.obj_bp.sn_closets.is_countertop_bp = True
-        for child in melamine_deck.obj_bp.children:
-            if child.snap.type_mesh == 'CUTPART':
-                for mat_slot in child.snap.material_slots:
-                    mat_slot.pointer_name = "Closet_Part_Edges"    
+        if countertop_type == 'Melamine':
+            self.countertop = common_parts.add_cc_countertop(self)
+        if countertop_type in ('HPL', 'Custom'):
+            self.countertop = common_parts.add_hpl_top(self)
+        if countertop_type == 'Granite':
+            self.countertop = common_parts.add_granite_countertop(self)
+        if countertop_type == 'Quartz':
+            self.countertop = common_parts.add_quartz_countertop(self)
+        if countertop_type == 'Wood':
+            self.countertop = common_parts.add_wood_countertop(self)
+
+        self.countertop.set_name("{} Countertop".format(countertop_type))
+        self.countertop.obj_bp.sn_closets.is_countertop_bp = True
+        self.countertop.obj_bp["IS_BP_COUNTERTOP"] = True
+
+        if "ID_PROMPT" in self.obj_bp:
+            self.set_child_properties(self.countertop.obj_bp)
         
+        self.countertop.loc_x('IF(Left_Against_Wall,0,-Left_Overhang)', [Left_Against_Wall, Left_Overhang])
+        self.countertop.loc_y('Back_Overhang', [Back_Overhang])
+        self.countertop.loc_z('dim_z+Toe_Kick_Height', [dim_z, Toe_Kick_Height])
+
+        self.countertop.dim_x(
+            'dim_x+IF(Left_Against_Wall,0,Left_Overhang)+IF(Right_Against_Wall,0,Right_Overhang)',
+            [dim_x, Left_Against_Wall, Right_Against_Wall, Left_Overhang, Right_Overhang])
+        self.countertop.dim_y('dim_y-Front_Overhang-Back_Overhang', [dim_y, Front_Overhang, Back_Overhang])
+
+        if countertop_type in ("Melamine", "HPL"):
+            self.countertop.get_prompt("Exposed Left").set_formula("IF(Left_Against_Wall,False,True)", [Left_Against_Wall])
+            self.countertop.get_prompt("Exposed Right").set_formula("IF(Right_Against_Wall,False,True)", [Right_Against_Wall])
+            self.countertop.get_prompt("Exposed Back").set_formula("Exposed_Back", [Exposed_Back])
+
+            for child in self.countertop.obj_bp.children:
+                if child.snap.type_mesh == 'CUTPART':
+                    for mat_slot in child.snap.material_slots:
+                        mat_slot.pointer_name = "Closet_Part_Edges"
+
+        self.add_to_wall_collection(self.countertop.obj_bp)
+
+        return self.countertop
+
     def add_base_assembly(self):
         self.add_prompt("Cleat Width", 'DISTANCE', sn_unit.inch(2.5))
         Width = self.obj_x.snap.get_var('location.x', 'Width')
@@ -655,6 +691,12 @@ class Closet_Island_Carcass(sn_types.Assembly):
             "Product_Width-Panel_Thickness*(" + str(self.opening_qty) +"+1)",
             [Product_Width, Panel_Thickness])
     
+    def calculate_opening_widths(self):
+        calculator = self.get_calculator('Opening Widths Calculator')
+        if calculator:
+            bpy.context.view_layer.update()
+            calculator.calculate()        
+
     def update(self):
         self.obj_x.location.x = self.width
         self.obj_z.location.z = self.height
@@ -667,10 +709,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         self.obj_bp.snap.type_group = self.type_assembly
         self.set_prompts()
 
-        calculator = self.get_calculator('Opening Widths Calculator')
-        if calculator:
-            bpy.context.view_layer.update()
-            calculator.calculate()
+        self.calculate_opening_widths()
         super().update()
 
     def draw(self):
@@ -694,7 +733,7 @@ class Closet_Island_Carcass(sn_types.Assembly):
         
         self.add_base_assembly()
         self.add_sides()
-        self.add_counter_top()
+        self.add_countertop()
         if not self.is_double_sided:
             self.add_thick_back()
         panel = None
@@ -750,27 +789,29 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                           update=update_closet_height)
 
     countertop_type_ppt = None
+    prev_countertop_type = 0
     countertop_type: EnumProperty(
         name="Countertop Type",
         items=[
             ('0', 'Melamine', 'Melamine'),
-            ('1', 'HPL', 'HPL'),
-            ('2', 'Granite', 'Granite')],
-        default='0')                          
+            ('1', 'Custom', 'Custom'),
+            ('2', 'Granite', 'Granite'),
+            ('3', 'HPL', 'HPL'),
+            ("4", "Quartz", "Quartz"),
+            ("5", "Wood", "Wood")],
+        default='0')
     
     product = None
+    countertop = None
     inserts = []
     splitters = []
 
     def reset_variables(self):
         self.tabs = 'OPENINGS'
         self.product = None
+        self.countertop = None
         self.splitters = []
 
-    def set_countertop_type_ppt(self):
-        if self.countertop_type_ppt:
-            self.countertop_type_ppt.set_value(int(self.countertop_type))
-    
     def update_placement(self, context):
         self.product.obj_x.location.x = self.width
         self.run_calculators(self.product.obj_bp)
@@ -803,20 +844,63 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                     max_width_ppt.set_value(max_width)
                     panel_mesh.snap.material_mapping = mapping
 
+    def update_countertop_type(self, context):
+        mat_props = context.scene.closet_materials
+        countertop_type = 0
+        ct_type = mat_props.countertops.get_type()
+
+        # COUNTERTOP_HPL is used for "Custom"
+        countertops = (
+            "COUNTERTOP_MELAMINE", "COUNTERTOP_HPL", "COUNTERTOP_GRANITE",
+            "COUNTERTOP_HPL", "COUNTERTOP_QUARTZ", "COUNTERTOP_WOOD")        
+
+        if self.countertop_type_ppt:
+            self.prev_countertop_type = self.countertop_type_ppt.get_value()
+            self.countertop_type_ppt.set_value(int(self.countertop_type))
+
+        if self.prev_countertop_type != int(self.countertop_type):
+            self.countertop = self.product.add_countertop()
+            self.product.update()
+            countertop_type = self.countertop_type_ppt.get_value()
+
+            # Set unique material status
+            for child in self.product.obj_bp.children:
+                if countertops[countertop_type] in child:
+                    use_unique = mat_props.ct_type_index != countertop_type
+                    child.sn_closets.use_unique_material = use_unique
+                    bpy.context.view_layer.objects.active = child
+                    child.select_set(True)
+
+                    # Toggle properties panel
+                    if use_unique:
+                        context_copy = context.copy()
+                        for area in context.screen.areas:
+                            if area.type == 'VIEW_3D':
+                                context_copy['area'] = area
+                                # Only toggle if not already open
+                                for region in area.regions:
+                                    if region.type == 'UI':
+                                        if region.width == 1:
+                                            bpy.ops.wm.context_toggle(context_copy,data_path="space_data.show_region_ui")            
+
     def check(self, context):
         self.update_edges()
+        self.update_countertop_type(context)
+        self.update_placement(context)
+        self.run_calculators(self.product.obj_bp)
+        closet_props.update_render_materials(self, context)
+
         toe_kick_height = self.product.get_prompt("Toe Kick Height").distance_value
         if toe_kick_height <= inch(3):
             self.product.get_prompt("Toe Kick Height").set_value(inch(3))
             bpy.ops.snap.log_window('INVOKE_DEFAULT',
                                     message="Minimum Toe Kick Height is 3\"",
                                     icon="ERROR")
-        self.update_placement(context)                            
-        self.set_countertop_type_ppt()
+
         depth_1 = self.product.get_prompt("Depth 1")
         if not depth_1:
             self.product.obj_y.location.y = -self.depth
-        closet_props.update_render_materials(self, context)
+
         return True
 
     def set_product_defaults(self):
@@ -859,7 +943,7 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
     def invoke(self,context,event):
         self.reset_variables()
         bp = sn_utils.get_closet_bp(context.object)
-        self.product = Closet_Island_Carcass(bp)
+        self.product = Closet_Island_Carcass(obj_bp=bp)
         self.get_assemblies(context)
         self.run_calculators(self.product.obj_bp)
 
@@ -998,23 +1082,35 @@ class PROMPTS_Opening_Starter(sn_types.Prompts_Interface):
                 row.prop(add_tk_skin, "checkbox_value", text="Add Toe Kick Skin")
 
         col = box.column(align=True)
-        col.label(text="Top Options:")        
-        Countertop_Thickness = self.product.get_prompt("Countertop Thickness")
-        HPL_Material_Name = self.product.get_prompt("HPL Material Name")
-        HPL_Material_Number = self.product.get_prompt("HPL Material Number")
-        Deck_Overhang = self.product.get_prompt("Deck Overhang")
-        Side_Deck_Overhang = self.product.get_prompt("Side Deck Overhang")
+        col.label(text="Countertop Options:")
+        Front_Overhang = self.product.get_prompt("Front Overhang")
+        Back_Overhang = self.product.get_prompt("Back Overhang")
+        Left_Overhang = self.product.get_prompt("Left Overhang")
+        Right_Overhang = self.product.get_prompt("Right Overhang")
         No_Countertop = self.product.get_prompt("No Countertop")
+
+        # 2.3.1
+        Deck_Overhang = self.product.get_prompt('Deck Overhang')
+        Side_Deck_Overhang = self.product.get_prompt("Side Deck Overhang")
 
         if Deck_Overhang:
             row = col.row()
             row.prop(Deck_Overhang, "distance_value", text="Opening Overhang")
             row.prop(Side_Deck_Overhang, "distance_value", text="Side Overhang")
+
         row = col.row()
         row.prop(No_Countertop,"checkbox_value",text="No Countertop")
-        row = col.row(align=True)
+
         if self.countertop_type_ppt and No_Countertop.get_value() == False:
-            sn_utils.draw_enum(self, layout, 'countertop_type', 'Countertop Types', 3)
+            if Front_Overhang and Back_Overhang:
+                row = col.row(align=True)
+                row.prop(Front_Overhang, "distance_value", text="Front Overhang")
+                row.prop(Back_Overhang, "distance_value", text="Back Overhang")
+            if Left_Overhang and Right_Overhang:
+                row = col.row(align=True)
+                row.prop(Left_Overhang, "distance_value", text="Left Overhang")
+                row.prop(Right_Overhang, "distance_value", text="Right Overhang")
+            sn_utils.draw_enum(self, layout, 'countertop_type', 'Countertop Types', 6)
 
     def draw_product_placment(self,layout):
         box = layout.box()

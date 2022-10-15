@@ -80,7 +80,7 @@ class Belt_Accessories(Accessory):
         self.add_prompt("Pin Offset", 'DISTANCE', sn_unit.inch(.75))
 
         self.add_prompt('Belt Rack Category', 'COMBOBOX', 0, ['Synergy', 'Elite'])
-        self.add_prompt('Metal Color', 'COMBOBOX', 0, ['Chrome', 'Matte Aluminum', 'Matte Nickel', 'Matte Gold', 'ORB', 'Slate'])
+        self.add_prompt('Metal Color', 'COMBOBOX', 0, ['Chrome', 'Matte Aluminum', 'Matte Nickel', 'Matte Gold', 'ORB', 'Slate', 'Black'])
         self.add_prompt('Synergy Belt Rack Length', 'COMBOBOX', 0, ['12"', '14"'])
         self.add_prompt('Elite Belt Rack Length', 'COMBOBOX', 0, ['12"', '14"', '18"'])
         width = self.obj_x.snap.get_var("location.x", 'width')
@@ -152,7 +152,7 @@ class Tie_Accessories(Accessory):
         self.add_prompt("Pin Offset", 'DISTANCE', sn_unit.inch(.75))
 
         self.add_prompt('Tie Rack Category', 'COMBOBOX', 0, ['Synergy', 'Elite'])
-        self.add_prompt('Metal Color', 'COMBOBOX', 0, ['Chrome', 'Matte Aluminum', 'Matte Nickel', 'Matte Gold', 'ORB', 'Slate'])
+        self.add_prompt('Metal Color', 'COMBOBOX', 0, ['Chrome', 'Matte Aluminum', 'Matte Nickel', 'Matte Gold', 'ORB', 'Slate', 'Matte Black'])
         self.add_prompt('Synergy Tie Rack Length', 'COMBOBOX', 0, ['12"', '14"'])
         self.add_prompt('Elite Tie Rack Length', 'COMBOBOX', 0, ['12"', '14"', '18"'])
 
@@ -815,7 +815,8 @@ class PROMPTS_Belt_Rack_Prompts(sn_types.Prompts_Interface):
             ('2', 'Matte Nickel', 'Matte Nickel'),
             ('3', 'Matte Gold', 'Matte Gold'),
             ('4', 'Orb', 'Orb'),
-            ('5', 'Slate', 'Slate')],
+            ('5', 'Slate', 'Slate'),
+            ('6', 'Matte Black', 'Matte Black')],
         default='0')
 
     product = None
@@ -957,7 +958,8 @@ class PROMPTS_Tie_Rack_Prompts(sn_types.Prompts_Interface):
             ('2', 'Matte Nickel', 'Matte Nickel'),
             ('3', 'Matte Gold', 'Matte Gold'),
             ('4', 'Orb', 'Orb'),
-            ('5', 'Slate', 'Slate')],
+            ('5', 'Slate', 'Slate'),
+            ('6', 'Matte Black', 'Matte Black')],
         default='0')
 
     product = None

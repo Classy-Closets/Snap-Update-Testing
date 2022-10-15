@@ -7,19 +7,95 @@ from .. import closet_props
   
 
 
-def draw_backing_mats(layout, back):
-    props = back.obj_bp.sn_closets
+def draw_unique_mats(layout, assembly):
+    props = assembly.obj_bp.sn_closets
+    materials = bpy.context.scene.closet_materials
 
-    if props.is_back_bp or props.is_bottom_back_bp or props.is_top_back_bp:
+    parts = [
+        props.is_back_bp,
+        props.is_bottom_back_bp,
+        props.is_top_back_bp,
+        props.is_countertop_bp]
+
+    if any(parts):
         layout.prop(props, "use_unique_material")
+
         if props.use_unique_material:
-            layout.prop(props, "unique_mat_types", text="Backing Material Type")
-            if props.unique_mat_types == 'MELAMINE':
-                layout.prop(props, "unique_mat_mel", text="Backing Material Color")
-            if props.unique_mat_types == 'TEXTURED_MELAMINE':
-                layout.prop(props, "unique_mat_tex_mel", text="Backing Material Color")
-            if props.unique_mat_types == 'VENEER':
-                layout.prop(props, "unique_mat_veneer", text="Backing Material Color")
+            if props.is_countertop_bp:
+                island_bp = sn_utils.get_island_bp(assembly.obj_bp)
+                island_assy = sn_types.Assembly(island_bp)
+                countertop_type = island_assy.get_prompt("Countertop Type")
+
+                if countertop_type:
+                    ct_types = {
+                        '0': 'Melamine',
+                        '1': 'Custom',
+                        '2': 'Granite',
+                        '3': 'HPL',
+                        "4": "Quartz",
+                        "5": "Wood"}
+
+                    ct_type = ct_types[str(countertop_type.get_value())]
+
+                    if ct_type == "Custom":
+                        col = layout.column()
+                        col.prop(props, "custom_countertop_color", text="Color")
+                        col.prop(props, "custom_countertop_name", text="Name")
+                        col.prop(props, "custom_countertop_vendor", text="Vendor")
+                        col.prop(props, "custom_countertop_color_code", text="Color Code")
+                        col.prop(props, "custom_countertop_price", text="Price")
+                        return
+
+                if "COUNTERTOP_MELAMINE" in assembly.obj_bp:
+                    layout.label(text="Type:")
+                    col = layout.column(align=True)
+                    col.prop(props, "unique_mat_types", text="")
+                    layout.label(text="Color:")
+                    layout.prop(props, "unique_mat", text="")
+                    return
+
+                if "COUNTERTOP_HPL" in assembly.obj_bp:
+                    layout.label(text="Manufactuer:")
+                    layout.prop(props, "unique_countertop_hpl_mfg", text="")
+                    layout.label(text="HPL Color:")
+                    layout.prop(props, "unique_countertop_hpl", text="")
+                    return
+
+                if "COUNTERTOP_GRANITE" in assembly.obj_bp:
+                    layout.label(text="Granite Color:")
+                    layout.prop(props, "unique_countertop_granite", text="")
+                    return
+
+                if "COUNTERTOP_QUARTZ" in assembly.obj_bp:
+                    layout.label(text="Quartz Manufactuer:")
+                    layout.prop(props, "unique_countertop_quartz_mfg", text="")
+                    layout.label(text="Quartz Color:")
+                    layout.prop(props, "unique_countertop_quartz", text="")
+                    return
+
+                if "COUNTERTOP_WOOD" in assembly.obj_bp:
+                    row = layout.row()
+                    row.label(text="Countertop Type")
+                    layout.prop(props, "wood_countertop_types", text="")
+
+                    if not props.wood_countertop_types == 'Butcher Block':
+                        layout.label(text="Wood Color:")
+                        layout.prop(props, "unique_countertop_wood", text="")
+                    return
+
+            else:
+                row = layout.row()
+                row.label(text="Backing Material Type")
+                layout.prop(props, "unique_mat_types", text="")
+                row = layout.row()
+
+                if props.unique_mat_types == 'Upgrade Options':
+                    row.label(text="Option:")
+                    layout.prop(props, "upgrade_options", text="")
+                    layout.prop(props, "unique_upgrade_color", text="")
+                else:
+                    row.label(text="Backing Material Color:")
+                    layout.prop(props, "unique_mat", text="")
 
 
 class SNAP_PT_closet_options(Panel):
@@ -114,7 +190,7 @@ class SNAP_PT_Closet_Properties(Panel):
                 text="Delete Part - {}".format(assembly.obj_bp.snap.name_object),
                 icon='X')
         self.draw_shelf_interface(layout, assembly, context)
-        draw_backing_mats(layout, assembly)
+        draw_unique_mats(layout, assembly)
 
     def draw(self, context):
         layout = self.layout

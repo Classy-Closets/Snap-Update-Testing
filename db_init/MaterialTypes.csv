@@ -1,6 +1,10 @@
 Code,DisplayName,Description
-15200,Melamine,3/4 PB Mel 2 side
-15150,Textured Melamine,3/4 PB Mel 2 side Textured
-0,Veneer,Veneer
-15225,Oversized Material,Oversized Material
+2,Solid Color Smooth Finish,Solid Color Smooth Finish
+3,Grain Pattern Smooth Finish,Grain Pattern Smooth Finish
+4,Solid Color Textured Finish,Solid Color Textured Finish
+5,Grain Pattern Textured Finish,Grain Pattern Textured Finish
+6,Linen Pattern Linen Finish,Linen Pattern Linen Finish
+7,Solid Color Matte Finish,Solid Color Matte Finish
 1,Garage Material,Garage Material
+9,Oversized Material,Oversized Material
+10,Upgrade Options,Upgrade Options

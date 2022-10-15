@@ -113,11 +113,11 @@ class Countertop_Insert(sn_types.Assembly):
         granite_ctop.dim_x('Product_Width-IF(Extend_Left,0,Deck_Thickness/2)-IF(Extend_Right,0,Deck_Thickness/2)+IF(Add_Left_Corner,0,Extend_Left_Amount)+IF(Add_Right_Corner,0,Extend_Right_Amount)',
                   [Product_Width,Extend_Left,Extend_Right,Deck_Thickness,Extend_Right_Amount,Extend_Left_Amount,Add_Left_Corner,Add_Right_Corner])
         granite_ctop.dim_y("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
-        granite_ctop.dim_z('Deck_Thickness',[Deck_Thickness])
+        granite_ctop.dim_z(value=sn_unit.inch(1.5))
         granite_ctop.get_prompt("Hide").set_formula("IF(Countertop_Type==2,False,True)",[Countertop_Type])
-        granite_ctop.get_prompt('Edge Type').set_formula('Edge_Type',[Edge_Type])
+        granite_ctop.get_prompt('Edge Type').set_value(0)
 
-        hpltop = common_parts.add_hpl_top(self)    
+        hpltop = common_parts.add_hpl_top(self)
         hpltop.set_name("HPL Countertop")
         hpltop.loc_x('IF(Add_Left_Corner,0,IF(Extend_Left,0,Deck_Thickness/2)-Extend_Left_Amount)',[Extend_Left,Extend_Left_Amount,Deck_Thickness,Add_Left_Corner])
         hpltop.loc_y('Product_Depth',[Product_Depth])
@@ -125,7 +125,44 @@ class Countertop_Insert(sn_types.Assembly):
                   [Product_Width,Extend_Left,Extend_Right,Deck_Thickness,Extend_Right_Amount,Extend_Left_Amount,Add_Left_Corner,Add_Right_Corner])
         hpltop.dim_y("-Product_Depth-Deck_Overhang",[Product_Depth,Deck_Overhang])
         hpltop.dim_z('Deck_Thickness',[Deck_Thickness])
-        hpltop.get_prompt("Hide").set_formula("IF(Countertop_Type==1,False,True)",[Countertop_Type])
+        hpltop.get_prompt("Hide").set_formula("IF(OR(Countertop_Type==1,Countertop_Type==3),False,True)",[Countertop_Type])
+
+        quartz_ctop = common_parts.add_quartz_countertop(self)
+        quartz_ctop.set_name("Quartz Countertop")
+        quartz_ctop.loc_x(
+            'IF(Add_Left_Corner,0,IF(Extend_Left,0,Deck_Thickness/2)-Extend_Left_Amount)',
+            [Extend_Left, Extend_Left_Amount, Deck_Thickness, Add_Left_Corner])
+        quartz_ctop.loc_y('Product_Depth', [Product_Depth])
+        quartz_ctop.dim_x(
+            "Product_Width"
+            "-IF(Extend_Left,0,Deck_Thickness/2)"
+            "-IF(Extend_Right,0,Deck_Thickness/2)"
+            "+IF(Add_Left_Corner,0,Extend_Left_Amount)"
+            "+IF(Add_Right_Corner,0,Extend_Right_Amount)",
+            [Product_Width, Extend_Left, Extend_Right, Deck_Thickness, Extend_Right_Amount,
+             Extend_Left_Amount, Add_Left_Corner, Add_Right_Corner])
+        quartz_ctop.dim_y("-Product_Depth-Deck_Overhang", [Product_Depth, Deck_Overhang])
+        quartz_ctop.dim_z(value=sn_unit.inch(1.5))
+        quartz_ctop.get_prompt("Hide").set_formula("IF(Countertop_Type==4,False,True)", [Countertop_Type])
+        quartz_ctop.get_prompt('Edge Type').set_value(0)
+
+        wood_deck = common_parts.add_wood_countertop(self)
+        wood_deck.set_name("Wood Countertop")
+        wood_deck.loc_x(
+            'IF(Add_Left_Corner,0,IF(Extend_Left,0,Deck_Thickness/2)-Extend_Left_Amount)',
+            [Extend_Left, Extend_Left_Amount, Deck_Thickness, Add_Left_Corner])
+        wood_deck.loc_y('Product_Depth',[Product_Depth])
+        wood_deck.dim_x(
+            "Product_Width"
+            "-IF(Extend_Left,0,Deck_Thickness/2)"
+            "-IF(Extend_Right,0,Deck_Thickness/2)"
+            "+IF(Add_Left_Corner,0,Extend_Left_Amount)"
+            "+IF(Add_Right_Corner,0,Extend_Right_Amount)",
+            [Product_Width, Extend_Left, Extend_Right, Deck_Thickness, Extend_Right_Amount,
+             Extend_Left_Amount, Add_Left_Corner, Add_Right_Corner])
+        wood_deck.dim_y("-Product_Depth-Deck_Overhang", [Product_Depth, Deck_Overhang])
+        wood_deck.dim_z(value=sn_unit.inch(1.25))
+        wood_deck.get_prompt("Hide").set_formula("IF(Countertop_Type==5,False,True)", [Countertop_Type])
 
         b_splash = common_parts.add_back_splash(self)
         b_splash.set_name("Countertop Backsplash")
@@ -205,12 +242,16 @@ class PROMPTS_Counter_Top(sn_types.Prompts_Interface):
     
     object_name: StringProperty(name="Object Name")
 
+    prev_countertop_type = 0
     countertop_type: EnumProperty(
         name="Countertop Type",
         items=[
             ('0', 'Melamine', 'Melamine'),
-            ('1', 'HPL', 'HPL'),
-            ('2', 'Granite', 'Granite')],
+            ('1', 'Custom', 'Custom'),
+            ('2', 'Granite', 'Granite'),
+            ('3', 'HPL', 'HPL'),
+            ("4", "Quartz", "Quartz"),
+            ("5", "Wood", "Wood")],
         default='0')
 
     edge_type: EnumProperty(
@@ -227,14 +268,46 @@ class PROMPTS_Counter_Top(sn_types.Prompts_Interface):
     edge_type_prompt = None
         
     def check(self, context):
+        mat_props = context.scene.closet_materials
+        countertop_type = 0
         Add_Left_Corner = self.assembly.get_prompt("Add Left Corner")
         Add_Right_Corner = self.assembly.get_prompt("Add Right Corner")
         extend_left_amount = self.assembly.get_prompt("Extend Left Amount")
         extend_right_amount = self.assembly.get_prompt("Extend Right Amount")
         prompts = [Add_Left_Corner,Add_Right_Corner,extend_left_amount,extend_right_amount]
 
+        # COUNTERTOP_HPL is used for "Custom"
+        countertops = (
+            "COUNTERTOP_MELAMINE", "COUNTERTOP_HPL", "COUNTERTOP_GRANITE",
+            "COUNTERTOP_HPL", "COUNTERTOP_QUARTZ", "COUNTERTOP_WOOD")
+
         if self.countertop_type_prompt:
+            countertop_type = self.countertop_type_prompt.get_value()
+            self.prev_countertop_type = countertop_type
+
+        if self.prev_countertop_type != int(self.countertop_type):
             self.countertop_type_prompt.set_value(int(self.countertop_type))
+            countertop_type = self.countertop_type_prompt.get_value()
+
+            # Set unique material status
+            for child in self.assembly.obj_bp.children:
+                if countertops[countertop_type] in child:
+                    use_unique = mat_props.ct_type_index != countertop_type
+                    child.sn_closets.use_unique_material = use_unique
+                    bpy.context.view_layer.objects.active = child
+
+                    # Toggle properties panel
+                    if use_unique:
+                        context_copy = context.copy()
+                        for area in context.screen.areas:
+                            if area.type == 'VIEW_3D':
+                                context_copy['area'] = area
+                                # Only toggle if not already open
+                                for region in area.regions:
+                                    if region.type == 'UI':
+                                        if region.width == 1:
+                                            bpy.ops.wm.context_toggle(context_copy,data_path="space_data.show_region_ui")
+
         if self.edge_type_prompt:
             self.edge_type_prompt.set_value(int(self.edge_type))
         
@@ -361,12 +434,14 @@ class PROMPTS_Counter_Top(sn_types.Prompts_Interface):
                 if Countertop_Type:
                     row = box.row()
                     row.label(text=Countertop_Type.name)
+                    row = box.row()
                     row.prop(self, "countertop_type", expand=True)
 
                     if self.countertop_type == '2':
                         if Edge_Type:
                             row = box.row()
                             row.label(text=Edge_Type.name)
+                            row = box.row()
                             row.prop(self, "edge_type", expand=True)
                         pass
 

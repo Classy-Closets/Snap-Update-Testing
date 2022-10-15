@@ -414,6 +414,8 @@ class SNAP_OT_delete_closet_insert(Delete_Closet_Assembly):
 
     def make_opening_available(self, obj_bp):
         insert = sn_types.Assembly(obj_bp)
+        is_cabinet = insert.obj_bp.parent.get('IS_BP_CABINET')
+
         if obj_bp.parent:
             for child in obj_bp.parent.children:
                 op_num = child.sn_closets.opening_name
@@ -427,10 +429,45 @@ class SNAP_OT_delete_closet_insert(Delete_Closet_Assembly):
                         child.snap.interior_open = True
                         break
                     if insert.obj_bp.snap.placement_type == 'EXTERIOR':
-                        if insert.obj_bp.get('IS_BP_DOOR_INSERT'):
+                        if insert.obj_bp.get('IS_BP_DOOR_INSERT') and not is_cabinet:
                             child.snap.interior_open = True
                         child.snap.exterior_open = True
                         break
+                elif child.get('IS_BP_SHELVES'):
+                    opening = child.parent
+                    opening.snap.interior_open = True
+                       
+    def delete_insert_and_children(self, obj_bp):
+        insert = sn_types.Assembly(obj_bp)
+        is_parent_splitter = insert.obj_bp.parent.get('IS_BP_SPLITTER')
+        insert_count = 0
+        obj_linked_shelves = None
+        obj_linked_opening = None
+
+        if obj_bp.parent and is_parent_splitter:
+            for child in obj_bp.parent.children:
+                if child.get('IS_BP_SHELVES') or child.get("IS_DRAWERS_BP") or child.get("IS_BP_DOOR_INSERT") or child.get("IS_BP_DIVIDER") or child.get("IS_BP_DIVISION"):
+                    insert_count += 1
+        elif obj_bp.parent and obj_bp.get("IS_BP_DOOR_INSERT"):
+            insert_count = 1
+            for child in obj_bp.parent.children:
+                if child.get("IS_DRAWERS_BP") or child.get("IS_BP_DOOR_INSERT") or child.get("IS_BP_DIVIDER") or child.get("IS_BP_DIVISION") or child.get("IS_BP_SPLITTER"):
+                    insert_count += 1
+                elif child.get("IS_BP_OPENING"):
+                    for opening_child in child.children:
+                        if opening_child.get("IS_BP_SHELVES"):
+                            obj_linked_opening = child
+                            obj_linked_shelves = opening_child
+
+        if insert_count == 1:
+            self.make_opening_available(obj_bp.parent)
+            sn_utils.delete_object_and_children(obj_bp.parent)
+        else:
+            if obj_linked_shelves:
+                obj_linked_opening.snap.interior_open = True
+                obj_linked_opening.snap.exterior_open = True
+                sn_utils.delete_object_and_children(obj_linked_shelves)     
+            sn_utils.delete_object_and_children(obj_bp)
 
     def execute(self, context):
         start_time = time.perf_counter()
@@ -438,7 +475,7 @@ class SNAP_OT_delete_closet_insert(Delete_Closet_Assembly):
         self.make_opening_available(self.obj_bp)
         obs = len(bpy.data.objects)
         vis_obs = len([ob for ob in bpy.context.view_layer.objects if ob.visible_get()])
-        sn_utils.delete_object_and_children(self.obj_bp)
+        self.delete_insert_and_children(self.obj_bp)
 
         print("{}: ({}) --- {} seconds --- Objects in scene: {} ({} visible)".format(
             self.bl_idname,
@@ -970,7 +1007,6 @@ class SNAP_OT_place_applied_panel(Operator):
             if slot.name == 'Melamine Door Panel':
                 slot.pointer_name = "Five_Piece_Melamine_Door_Surface"
 
-
     def set_wire_and_xray(self, obj, turn_on):
         if turn_on:
             obj.display_type = 'WIRE'
@@ -1129,6 +1165,15 @@ class SNAP_OT_place_applied_panel(Operator):
             if not sel_assembly_bp:
                 self.cancel_drop(context, event)
                 return {'FINISHED'}
+
+            wall_bp = sn_utils.get_wall_bp(sel_assembly.obj_bp)
+
+            if wall_bp:
+                wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+                scene_coll = context.scene.collection
+                sn_utils.add_assembly_to_collection(self.assembly.obj_bp, wall_coll)
+                sn_utils.remove_assembly_from_collection(self.assembly.obj_bp, scene_coll)
+
             self.set_wire_and_xray(self.assembly.obj_bp, False)
             bpy.context.window.cursor_set('DEFAULT')
             bpy.ops.object.select_all(action='DESELECT')
@@ -1317,8 +1362,6 @@ class SNAP_OT_update_door_selection(Operator):
                 for child in new_door.obj_bp.children:
                     if child.type == 'MESH':
                         child.snap.type_mesh = 'BUYOUT'
-
-            
 
             id_prompt = door_assembly.obj_bp.get("ID_PROMPT")
 

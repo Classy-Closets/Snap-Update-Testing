@@ -328,20 +328,20 @@ class Shoe_Shelf_Stack(Shelf_Stack):
 
     def add_applied_molding(self, shelf, ppt_vars):
         shelf.dim_y('-Depth+INCH(1)+Shelf_Backing_Setback', ppt_vars)
-        shelf_lip = common_parts.add_shelf_lip(self)
-        self.shelf_lips.append(shelf_lip)
-        shelf_lip.obj_bp.parent = shelf.obj_bp
-        shelf_lip.obj_bp["IS_SHOE_SHELF_LIP"] = True
-        shelf_lip.loc_x('Shelf_Clip_Gap', ppt_vars)
-        shelf_lip.loc_y('-Depth+INCH(1)+Shelf_Backing_Setback', ppt_vars)
-        shelf_lip.rot_x(value=math.radians(90))
-        shelf_lip.dim_x('Width-(Shelf_Clip_Gap*2)', ppt_vars)
-        shelf_lip.dim_y(value=sn_unit.inch(1.5))
-        shelf_lip.dim_z('Thickness', ppt_vars)
+        applied_lip = common_parts.add_shelf_lip(self)
+        self.shelf_lips.append(applied_lip)
+        applied_lip.obj_bp.parent = shelf.obj_bp
+        applied_lip.obj_bp["IS_SHOE_SHELF_LIP"] = True
+        applied_lip.loc_x('Shelf_Clip_Gap', ppt_vars)
+        applied_lip.loc_y('-Depth+INCH(1)+Shelf_Backing_Setback', ppt_vars)
+        applied_lip.rot_x(value=math.radians(90))
+        applied_lip.dim_x('Width-(Shelf_Clip_Gap*2)', ppt_vars)
+        applied_lip.dim_y(value=sn_unit.inch(1.5))
+        applied_lip.dim_z('Thickness', ppt_vars)
 
     def add_ogee_molding(self, shelf, ppt_vars):
         shelf.dim_y('-Depth+INCH(1)+Shelf_Backing_Setback', ppt_vars)
-        ogee_lip = common_parts.add_deco_shelf_lip_1(self)
+        ogee_lip = common_parts.add_deco_shelf_lip_2(self)
         self.shelf_lips.append(ogee_lip)
         ogee_lip.obj_bp.parent = shelf.obj_bp
         ogee_lip.obj_bp["IS_SHOE_SHELF_LIP"] = True

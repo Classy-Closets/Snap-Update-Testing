@@ -18,6 +18,8 @@ BLIND_PANEL = os.path.join(closet_paths.get_closet_assemblies_path(), "Part with
 
 def add_product_width_dimension(product):
     Product_Width = product.obj_x.snap.get_var('location.x','Product_Width')
+    Left_Side_Wall_Filler = product.carcass.get_prompt('Left Side Wall Filler').get_var()
+    Right_Side_Wall_Filler = product.carcass.get_prompt('Right Side Wall Filler').get_var()
     
     dim = sn_types.Dimension()
     dim.parent(product.obj_bp)
@@ -30,7 +32,8 @@ def add_product_width_dimension(product):
         dim.start_y(value=sn_unit.inch(8))
     else:
         dim.start_y(value=sn_unit.inch(3))
-    dim.end_x('Product_Width',[Product_Width])
+    dim.start_x('Left_Side_Wall_Filler',[Left_Side_Wall_Filler])
+    dim.end_x('Product_Width-Left_Side_Wall_Filler-Right_Side_Wall_Filler',[Product_Width,Left_Side_Wall_Filler,Right_Side_Wall_Filler])
 
 def add_product_depth_dimension(product):
     hashmark = sn_types.Line(sn_unit.inch(6), (0, 45, 0))
@@ -69,11 +72,12 @@ def add_product_filler_dimension(product, filler_side):
         dim.start_y(value=sn_unit.inch(3))
     
     if filler_side == 'Left':
-        dim.start_x('-Filler',[Filler])
+        # dim.start_x('-Filler',[Filler])
+        dim.end_x('Filler',[Filler])
     else:
-        dim.start_x('Product_Width',[Product_Width])
+        dim.start_x('Product_Width-Filler',[Product_Width,Filler])
+        dim.end_x('Filler',[Filler])
     
-    dim.end_x('Filler',[Filler])
 
 def update_dimensions(assembly):
     inserts = sn_utils.get_insert_bp_list(assembly.obj_bp, [])
@@ -96,7 +100,7 @@ def update_dimensions(assembly):
             drawers_insert.update_dimensions()
 
 def add_countertop(product):
-    product.add_prompt("Countertop Overhang Front",'DISTANCE',sn_unit.inch(1))
+    product.add_prompt("Countertop Overhang Front",'DISTANCE',sn_unit.inch(1.5))
     product.add_prompt("Countertop Overhang Back",'DISTANCE',sn_unit.inch(0))
     product.add_prompt("Countertop Overhang Left",'DISTANCE',sn_unit.inch(0))
     product.add_prompt("Countertop Overhang Right",'DISTANCE',sn_unit.inch(0))
@@ -104,8 +108,6 @@ def add_countertop(product):
     Countertop_Overhang_Left = product.get_prompt('Countertop Overhang Left').get_var()
     Countertop_Overhang_Right = product.get_prompt('Countertop Overhang Right').get_var()
     Countertop_Overhang_Back = product.get_prompt('Countertop Overhang Back').get_var()
-    Left_Side_Wall_Filler = product.carcass.get_prompt('Left Side Wall Filler').get_var()
-    Right_Side_Wall_Filler = product.carcass.get_prompt('Right Side Wall Filler').get_var()
 
     Width = product.obj_x.snap.get_var('location.x', 'Width')
     Height = product.obj_z.snap.get_var('location.z', 'Height')
@@ -114,18 +116,17 @@ def add_countertop(product):
     ctop = cabinet_countertops.PRODUCT_Straight_Countertop()
     ctop.draw()
     ctop.obj_bp.snap.type_group = 'INSERT'
-
     
     ctop.obj_bp.parent = product.obj_bp
-    ctop.loc_x('-Countertop_Overhang_Left-Left_Side_Wall_Filler',[Countertop_Overhang_Left,Left_Side_Wall_Filler])
+    ctop.loc_x('-Countertop_Overhang_Left',[Countertop_Overhang_Left])
     ctop.loc_y('Countertop_Overhang_Back',[Countertop_Overhang_Back])
     if product.carcass.carcass_type == "Suspended":
         ctop.loc_z(value = 0)
     else:
         ctop.loc_z('Height',[Height])
 
-    ctop.dim_x('Width+Countertop_Overhang_Left+Countertop_Overhang_Right+Left_Side_Wall_Filler+Right_Side_Wall_Filler',
-               [Width,Countertop_Overhang_Left,Countertop_Overhang_Right,Left_Side_Wall_Filler,Right_Side_Wall_Filler])
+    ctop.dim_x('Width+Countertop_Overhang_Left+Countertop_Overhang_Right',
+               [Width,Countertop_Overhang_Left,Countertop_Overhang_Right])
     ctop.dim_y('Depth-Countertop_Overhang_Front-Countertop_Overhang_Back',[Depth,Countertop_Overhang_Front,Countertop_Overhang_Back])
     ctop.dim_z(value = sn_unit.inch(4))
     return ctop
@@ -149,16 +150,16 @@ def add_carcass(product):
     Product_Height = product.obj_z.snap.get_var('location.z', 'Product_Height')
     Product_Depth = product.obj_y.snap.get_var('location.y', 'Product_Depth')
 
-    # product.add_prompt("Opening Quantity", 'QUANTITY', 0)   # temp prompt to clear left/right/center closet logic...
-
     product.carcass.draw()
     product.carcass.obj_bp.parent = product.obj_bp
+    Left_Side_Wall_Filler = product.carcass.get_prompt('Left Side Wall Filler').get_var()
+    Right_Side_Wall_Filler = product.carcass.get_prompt('Right Side Wall Filler').get_var()
 
-    product.carcass.dim_x('Product_Width', [Product_Width])
+    product.carcass.loc_x("Left_Side_Wall_Filler", [Left_Side_Wall_Filler])
+    product.carcass.dim_x('Product_Width-Left_Side_Wall_Filler-Right_Side_Wall_Filler', [Product_Width, Left_Side_Wall_Filler, Right_Side_Wall_Filler])
     product.carcass.dim_y('Product_Depth', [Product_Depth])
     product.carcass.dim_z('Product_Height', [Product_Height])
     product.obj_bp.lm_cabinets.product_sub_type = product.carcass.carcass_type
-
 
 def add_insert(product, insert):
     if insert:
@@ -176,17 +177,34 @@ def add_insert(product, insert):
     Top_Inset = product.carcass.get_prompt("Top Inset").get_var()
     Bottom_Inset = product.carcass.get_prompt("Bottom Inset").get_var()
     Back_Inset = product.carcass.get_prompt("Back Inset").get_var()
+    Left_Side_Wall_Filler = product.carcass.get_prompt('Left Side Wall Filler').get_var()
+    Right_Side_Wall_Filler = product.carcass.get_prompt('Right Side Wall Filler').get_var()
 
     insert.loc_x('Left_Side_Thickness',[Left_Side_Thickness])
-    insert.loc_y('Depth',[Depth])
+
+    if product.carcass.carcass_shape == 'RECTANGLE':
+        insert.loc_y('Depth',[Depth])
+    else:  # DIAGONAL or NOTCHED...
+        insert.loc_y('Depth+Left_Side_Thickness',[Depth,Left_Side_Thickness])
     if product.carcass.carcass_type in {"Base","Tall","Sink"}:
         insert.loc_z('Bottom_Inset',[Bottom_Inset])
     if product.carcass.carcass_type in {"Upper","Suspended"}:
         product.mirror_z = True
         insert.loc_z('Height+Bottom_Inset',[Height,Bottom_Inset])
     insert.dim_x('Width-(Left_Side_Thickness+Right_Side_Thickness)',[Width,Left_Side_Thickness,Right_Side_Thickness])
-    insert.dim_y('fabs(Depth)-Back_Inset',[Depth,Back_Inset])
+
+    if product.carcass.carcass_shape == 'RECTANGLE':
+        insert.dim_y('fabs(Depth)-Back_Inset',[Depth,Back_Inset])
+    else:
+        insert.dim_y('fabs(Depth)-(Left_Side_Thickness+Right_Side_Thickness)',[Depth,Left_Side_Thickness,Right_Side_Thickness])
+
     insert.dim_z('fabs(Height)-Bottom_Inset-Top_Inset',[Height,Bottom_Inset,Top_Inset])
+
+    if product.carcass.carcass_shape != 'RECTANGLE':
+        Cabinet_Depth_Left = product.carcass.get_prompt("Cabinet Depth Left").get_var()
+        Cabinet_Depth_Right = product.carcass.get_prompt("Cabinet Depth Right").get_var()
+        insert.get_prompt("Left Depth").set_formula('Cabinet_Depth_Left',[Cabinet_Depth_Left])
+        insert.get_prompt("Right Depth").set_formula('Cabinet_Depth_Right',[Cabinet_Depth_Right])
 
     # ALLOW DOOR TO EXTEND TO TOP FOR VALANCE
     extend_top_amount = insert.get_prompt("Extend Top Amount")
@@ -223,6 +241,8 @@ def add_insert(product, insert):
 
 def add_opening(product):
     opening = product.add_opening()
+    opening.obj_bp.name = 'Open'
+    opening.obj_bp["IS_BP_OPENING"] = True
     opening.add_prompt("Left Side Thickness", 'DISTANCE', sn_unit.inch(.75))
     opening.add_prompt("Right Side Thickness", 'DISTANCE', sn_unit.inch(.75))
     opening.add_prompt("Top Thickness", 'DISTANCE', sn_unit.inch(.75))
@@ -468,6 +488,7 @@ class Blind_Corner(sn_types.Assembly):
         self.obj_bp.lm_cabinets.product_shape = 'RECTANGLE'
         self.obj_bp["IS_BP_CLOSET"] = True
         self.obj_bp["IS_BP_CABINET"] = True
+        self.obj_bp["IS_CORNER"] = True
         self.obj_y['IS_MIRROR'] = True
         self.obj_bp.snap.type_group = self.type_assembly
 
@@ -676,6 +697,7 @@ class Inside_Corner(sn_types.Assembly):
 
         self.obj_bp["IS_BP_CLOSET"] = True
         self.obj_bp["IS_BP_CABINET"] = True
+        self.obj_bp["IS_CORNER"] = True
         self.obj_y['IS_MIRROR'] = True
         self.obj_bp.snap.type_group = self.type_assembly
 
@@ -690,8 +712,8 @@ class Inside_Corner(sn_types.Assembly):
         add_product_depth_dimension(self)
         
         if self.add_countertop and self.carcass.carcass_type in {"Base","Sink","Suspended"}:
-            self.add_prompt("Countertop Overhang Right Front",'DISTANCE',sn_unit.inch(1))
-            self.add_prompt("Countertop Overhang Left Front",'DISTANCE',sn_unit.inch(1))
+            self.add_prompt("Countertop Overhang Right Front",'DISTANCE',sn_unit.inch(1.5))
+            self.add_prompt("Countertop Overhang Left Front",'DISTANCE',sn_unit.inch(1.5))
             self.add_prompt("Countertop Overhang Right Back",'DISTANCE',sn_unit.inch(0))
             self.add_prompt("Countertop Overhang Left Back",'DISTANCE',sn_unit.inch(0))
             self.add_prompt("Countertop Overhang Left",'DISTANCE',sn_unit.inch(0))
@@ -728,6 +750,9 @@ class Inside_Corner(sn_types.Assembly):
                         [Cabinet_Depth_Left,Countertop_Overhang_Left_Back,Countertop_Overhang_Left_Front])
             ctop.get_prompt("Right Side Depth").set_formula('Cabinet_Depth_Right+Countertop_Overhang_Right_Back+Countertop_Overhang_Right_Front',
                         [Cabinet_Depth_Right,Countertop_Overhang_Right_Back,Countertop_Overhang_Right_Front])
+
+        if self.interior:
+            add_insert(self,self.interior)
 
         if self.carcass.carcass_shape == 'Notched':
             self.obj_bp.lm_cabinets.product_shape = 'INSIDE_NOTCH'

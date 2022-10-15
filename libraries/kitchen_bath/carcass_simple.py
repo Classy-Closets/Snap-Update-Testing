@@ -79,6 +79,7 @@ class Standard_Carcass(sn_types.Assembly):
     placement_type = ""
 
     carcass_type = ""  # {Base, Tall, Upper, Sink, Suspended}
+    carcass_shape = 'RECTANGLE'
     open_name = ""
 
     remove_top = False  # Used to remove top for face frame sink cabinets
@@ -90,6 +91,7 @@ class Standard_Carcass(sn_types.Assembly):
         super().update()
         self.obj_bp["IS_BP_CARCASS"] = True
         self.obj_bp["STANDARD_CARCASS"] = True
+        self.obj_bp["PROFILE_SHAPE_RECTANGLE"] = True 
 
     def add_common_carcass_prompts(self):
         props = cabinet_properties.get_scene_props().carcass_defaults
@@ -866,6 +868,13 @@ class Inside_Corner_Carcass(sn_types.Assembly):
         super().update()
         self.obj_bp["IS_BP_CARCASS"] = True   
         self.obj_bp["INSIDE_CORNER_CARCASS"] = True 
+
+        if self.carcass_shape.upper() == 'NOTCHED':
+            self.obj_bp["PROFILE_SHAPE_NOTCHED"] = True
+        elif self.carcass_shape.upper() == 'DIAGONAL':
+            self.obj_bp["PROFILE_SHAPE_DIAGONAL"] = True
+        else:
+            self.obj_bp["PROFILE_SHAPE_RECTANGLE"] = True
     
     def add_common_carcass_prompts(self):
         props = cabinet_properties.get_scene_props().size_defaults

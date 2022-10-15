@@ -2441,11 +2441,15 @@ class SNAP_OT_Auto_Dimension(Operator):
             width_lbl.set_label(lbl_w)
 
     def countertop_hashmark(self, context, item):
+        ct_mat_props = context.scene.closet_materials.countertops
         material_name = ""
         material_dict = {
             0: 'Melamine',
-            1: 'HPL',
-            2: 'Granite'
+            1: 'Custom',
+            2: 'Granite',
+            3: 'HPL',
+            4: 'Quartz',
+            5: 'Wood'
         }
         ctop_assembly = sn_types.Assembly(item)
         ctop_mat_pmpt = ctop_assembly.get_prompt("Countertop Type")
@@ -2466,6 +2470,7 @@ class SNAP_OT_Auto_Dimension(Operator):
                             counter_top_depth = abs(sibling.location.y)
                         if sibling.get("obj_z"):
                             counter_top_height = abs(sibling.location.z)
+
         context_material = material_name
         material = ""
         if material_str is not None:
@@ -2478,8 +2483,11 @@ class SNAP_OT_Auto_Dimension(Operator):
                 material += spec_group.materials["Countertop_Surface"].item_name
             if material_str == "HPL":
                 material += spec_group.materials["Countertop_HPL_Surface"].item_name
-            if material_str == "Granite":
-                material += spec_group.materials["Countertop_Granite_Surface"].item_name
+            if material_str == "Quartz":
+                material += spec_group.materials["Countertop_Quartz_Surface"].item_name
+            if material_str == "Wood":
+                mfg = ct_mat_props.get_type().get_mfg()
+                material = mfg.name
 
         x_offset = width / 2
         z_offset = counter_top_height
@@ -2490,8 +2498,7 @@ class SNAP_OT_Auto_Dimension(Operator):
         counter_top_width_str = self.to_inch_lbl(counter_top_width)
         counter_top_depth_str = self.to_inch_lbl(counter_top_depth)
         # Countertop Dimensions
-        label = (material + " C.T. " + counter_top_width_str +
-                    " x " + counter_top_depth_str)
+        label = (material + " C.T. " + counter_top_width_str + " x " + counter_top_depth_str)
         ctop_dim = self.add_tagged_dimension(hashmark.end_point)
         ctop_dim.start_z(value=sn_unit.inch(2))
         ctop_dim.set_label(label)

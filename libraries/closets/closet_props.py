@@ -46,21 +46,44 @@ def update_render_materials(self, context):
         print(e)
 
 
-def update_back_mat_pointer(self, context):
-    back_mesh = context.object
-    back_bp = back_mesh.parent
-    cab_mat_props = context.scene.closet_materials
-    mat_type = cab_mat_props.materials.get_mat_type()
+def update_unique_mat_pointer(self, context):
+    obj = context.object
+    if obj:
+        part_bp = sn_utils.get_assembly_bp(obj)
+        cab_mat_props = context.scene.closet_materials
+        library = bpy.context.scene.snap
+        spec_group = library.spec_groups[obj.snap.spec_group_index]
+        mat_type = cab_mat_props.materials.get_mat_type()
 
-    if back_bp.sn_closets.use_unique_material:
-        back_mesh.snap.material_slots[0].pointer_name = ""
-    else:
-        if mat_type.name == "Garage Material":
-            back_mesh.snap.material_slots[0].pointer_name = "Garage_Interior_Surface"
+        if part_bp.sn_closets.use_unique_material:
+            if obj.material_slots:
+                obj.snap.material_slots[0].pointer_name = ""
         else:
-            back_mesh.snap.material_slots[0].pointer_name = "Closet_Part_Surfaces"
+            if mat_type.name == "Garage Material":
+                obj.snap.material_slots[0].pointer_name = "Garage_Interior_Surface"
+            elif obj.snap.cutpart_name == 'Back':
+                obj.snap.material_slots[0].pointer_name = "Closet_Part_Surfaces"
+            elif 'IS_BP_COUNTERTOP' in part_bp:
+                if 'COUNTERTOP_MELAMINE' in part_bp:
+                    cutpart = spec_group.cutparts[obj.snap.cutpart_name]
+                    for index, slot in enumerate(obj.snap.material_slots):
+                        if slot.name == 'Core':
+                            slot.pointer_name = cutpart.core
+                        elif slot.name in {'Top', 'Exterior'}:
+                            slot.pointer_name = cutpart.top
+                        elif slot.name in {'Bottom', 'Interior'}:
+                            slot.pointer_name = cutpart.bottom
+                        elif not obj.snap.use_multiple_edgeband_pointers:
+                            if obj.snap.edgepart_name in spec_group.edgeparts:
+                                edgepart = spec_group.edgeparts[obj.snap.edgepart_name]
+                                slot.pointer_name = edgepart.material
 
-    update_render_materials(self, context)
+                        if slot.pointer_name in spec_group.materials:
+                            material_pointer = spec_group.materials[slot.pointer_name]
+                            slot.category_name = material_pointer.category_name
+                            slot.item_name = material_pointer.item_name
+
+        update_render_materials(self, context)
 
 
 # ---------DICTIONARY DYNAMIC ENUM PROPERTIES
@@ -205,6 +228,16 @@ def enum_rods(self, context):
     return sn_utils.get_image_enum_previews(icon_dir, pcoll)
 
 
+def assign_collection(context, assembly):
+    wall_bp = sn_utils.get_wall_bp(assembly.obj_bp)
+
+    if wall_bp:
+        wall_coll = bpy.data.collections[wall_bp.snap.name_object]
+        scene_coll = context.scene.collection
+        sn_utils.add_assembly_to_collection(assembly.obj_bp, wall_coll)
+        sn_utils.remove_assembly_from_collection(assembly.obj_bp, scene_coll)
+
+
 def update_rods(self, context):
     for spec_group in context.scene.snap.spec_groups:
         rod_finish = spec_group.materials["Rod_Finish"]
@@ -212,27 +245,30 @@ def update_rods(self, context):
 
         if 'Aluminum' in self.rods_name:
             rod_finish.item_name = "Matte Aluminum"
-        if 'Matte Brass' in self.rods_name:
-            rod_finish.item_name = "Matte Brass"
+        if 'Matte Gold' in self.rods_name:
+            rod_finish.item_name = "Matte Gold"
         if 'Matte Nickel' in self.rods_name:
             rod_finish.item_name = "Matte Nickel"
         if 'Bronze' in self.rods_name:
             rod_finish.item_name = "Oil Rubbed Bronze"
-        if 'Polished Brass' in self.rods_name:
-            rod_finish.item_name = "Polished Brass"
         if 'Chrome' in self.rods_name:
             rod_finish.item_name = "Polished Chrome"
+        if 'Matte Black' in self.rods_name:
+            rod_finish.item_name = "Matte Black"
 
     for assembly in scene_parts(context):
         props = assembly.obj_bp.sn_closets
         if props.is_hanging_rod:
+            parent_assembly = sn_types.Assembly(assembly.obj_bp.parent)
+            if not parent_assembly.coll:
+                assign_collection(context, parent_assembly)
+
             if 'Round' in self.rods_name:
-                parent_assembly = sn_types.Assembly(assembly.obj_bp.parent)
                 new_rod = common_parts.add_round_hanging_rod(parent_assembly)
             else:
-                parent_assembly = sn_types.Assembly(assembly.obj_bp.parent)
                 new_rod = common_parts.add_oval_hanging_rod(parent_assembly)
 
+            assign_collection(context, new_rod)
             id_prompt = assembly.obj_bp.get("ID_PROMPT")
             new_rod.obj_bp.location = assembly.obj_bp.location
             new_rod.obj_bp.rotation_euler = assembly.obj_bp.rotation_euler
@@ -241,11 +277,13 @@ def update_rods(self, context):
             sn_utils.copy_drivers(assembly.obj_x, new_rod.obj_x)
             sn_utils.copy_drivers(assembly.obj_y, new_rod.obj_y)
             sn_utils.copy_drivers(assembly.obj_z, new_rod.obj_z)
+
             sn_utils.delete_obj_list(sn_utils.get_child_objects(assembly.obj_bp))
             closet_options = bpy.context.scene.sn_closets.closet_options
             new_rod.obj_bp.snap.name_object = closet_options.rods_name
 
             new_rod.obj_bp.hide_set(True)
+
             for child in new_rod.obj_bp.children:
                 if child.type == 'EMPTY':
                     child.hide_set(True)
@@ -403,40 +441,92 @@ def update_accessories_category(self,context):
         bpy.utils.previews.remove(preview_collections["accessories"])
         preview_collections["accessories"] = sn_utils.create_image_preview_collection()     
         
-    enum_accessories(self,context)        
-    
+    enum_accessories(self,context)
+
+
 # ---------MATERIALS DYNAMIC ENUMS
 def enum_material_categories(self,context):
     if context is None:
         return []
-    
+
     icon_dir = os.path.join(sn_utils.get_library_dir("materials"),MATERIAL_LIBRARY_NAME)
     pcoll = preview_collections["material_categories"]
     return sn_utils.get_folder_enum_previews(icon_dir,pcoll)
 
+
 def enum_materials(self,context):
     if context is None:
         return []
-    
+
     icon_dir = os.path.join(sn_utils.get_library_dir("materials"),MATERIAL_LIBRARY_NAME,self.material_category)
     pcoll = preview_collections["materials"]
     return sn_utils.get_image_enum_previews(icon_dir,pcoll)
+
 
 def update_material_category(self,context):
     if preview_collections["materials"]:
         bpy.utils.previews.remove(preview_collections["materials"])
         preview_collections["materials"] = sn_utils.create_image_preview_collection()     
-        
+
     enum_materials(self,context)
+
+
+def get_mat_types(self, context):
+    return context.scene.closet_materials.materials.get_type_list()
+
+
+def get_mat_colors(self, context):
+    return context.scene.closet_materials.materials.get_mat_color_list(self.unique_mat_types)
+
+
+def get_upgrade_colors(self, context):
+    if self.upgrade_options == "Paint":
+        return context.scene.closet_materials.get_paint_color_list()
+    if self.upgrade_options == "Stain":
+        return context.scene.closet_materials.get_stain_color_list()
+
+
+def get_hpl_mfgs(self, context):
+    return bpy.context.scene.closet_materials.countertops.get_hpl_mfg_list()
+
+
+def get_hpl_colors(self, context):
+    ct_type = context.scene.closet_materials.countertops.countertop_types["HPL"]
+    ct_mfg = ct_type.manufactuers[self.unique_countertop_hpl_mfg]
+    return ct_mfg.get_color_list()
+
+
+def get_granite_colors(self, context):
+    return bpy.context.scene.closet_materials.countertops.get_granite_color_list()
+
+
+def get_quartz_mfgs(self, context):
+    return bpy.context.scene.closet_materials.countertops.get_quartz_mfg_list()
+
+
+def get_quartz_colors(self, context):
+    ct_type = context.scene.closet_materials.countertops.countertop_types["Quartz"]
+    ct_mfg = ct_type.manufactuers[self.unique_countertop_quartz_mfg]
+    return ct_mfg.get_color_list()
+
 
 def get_mel_colors(self, context):
     return bpy.context.scene.closet_materials.materials.mel_color_list
 
+
 def get_tex_mel_colors(self, context):
     return bpy.context.scene.closet_materials.materials.textured_mel_color_list
 
+
 def get_veneer_colors(self, context):
     return bpy.context.scene.closet_materials.materials.veneer_backing_color_list
+
+
+def get_countertop_wood_colors(self, context):
+    ct_type = context.scene.closet_materials.countertops.countertop_types["Wood"]
+    ct_mfg = ct_type.manufactuers[self.wood_countertop_types]
+
+    return ct_mfg.get_color_list()
 
 
 # ---------bpy property update functions
@@ -1261,22 +1351,101 @@ class PROPERTIES_Object_Properties(PropertyGroup):
         name="Use Unique Material",
         description="Specify a unique material for this part",
         default=False,
-        update=update_back_mat_pointer
+        update=update_unique_mat_pointer
     )
 
     unique_mat_types: EnumProperty(
         name="Unique Material Type",
+        items=get_mat_types,
+        update=update_render_materials        
+    )
+
+    unique_countertop_hpl_mfg: EnumProperty(
+        name="Unique HPL Countertop Manufactuer",
+        items=get_hpl_mfgs,
+        update=update_render_materials        
+    )
+
+    unique_countertop_hpl: EnumProperty(
+        name="Unique Quartz Color",
+        items=get_hpl_colors,
+        update=update_render_materials
+    )
+
+    unique_countertop_granite: EnumProperty(
+        name="Unique Granite Color",
+        items=get_granite_colors,
+        update=update_render_materials
+    )
+
+    unique_countertop_quartz_mfg: EnumProperty(
+        name="Unique Quartz Countertop Manufactuer",
+        items=get_quartz_mfgs,
+        update=update_render_materials        
+    )
+
+    unique_countertop_quartz: EnumProperty(
+        name="Unique Quartz Color",
+        items=get_quartz_colors,
+        update=update_render_materials
+    )
+
+    wood_countertop_types: EnumProperty(
+        name="Wood Countertop Type",
         items=[
-            ('MELAMINE','Melamine','Melamine'),
-            ('TEXTURED_MELAMINE','Textured Melamine','Textured Melamine'),
-            ('VENEER','Veneer','Veneer')
+            ('Butcher Block', 'Butcher Block', 'Butcher Block'),
+            ('Wood Painted MDF', 'Wood Painted MDF', 'Wood Painted MDF'),
+            ('Wood Stained Veneer', 'Wood Stained Veneer', 'Wood Stained Veneer'),
         ],
         update=update_render_materials        
+    )
+
+    upgrade_options: EnumProperty(
+        name="Upgrade Options",
+        items=[
+            ('Paint', 'Paint', 'Paint'),
+            ('Stain', 'Stain', 'Stain'),
+        ],
+        update=update_render_materials
+    )
+
+    unique_upgrade_color: EnumProperty(
+        name="Unique Material Type",
+        items=get_upgrade_colors,
+        update=update_render_materials
+    )
+
+    custom_countertop_color: EnumProperty(
+        name="Custom Countertop Color",
+        items=[
+            ('Custom Light', 'Custom Light', 'Custom Light'),
+            ('Custom Dark', 'Custom Dark', 'Custom Dark'),
+            ('Custom Grey', 'Custom Grey', 'Custom Grey'),
+            ('Custom White', 'Custom White', 'Custom White'),
+        ],
+        update=update_render_materials
+    )
+
+    custom_countertop_name: StringProperty(name="Custom Countertop Name")
+    custom_countertop_vendor: StringProperty(name="Custom Countertop Vendor")
+    custom_countertop_color_code: StringProperty(name="Custom Countertop Color Code")
+    custom_countertop_price: FloatProperty(name="Custom Countertop Price")    
+
+    unique_countertop_wood: EnumProperty(
+        name="Unique Wood Countertop Color",
+        items=get_countertop_wood_colors,
+        update=update_render_materials
     )
 
     unique_mat_mel: EnumProperty(
         name="Unique Melamine Material Type",
         items=get_mel_colors,
+        update=update_render_materials
+    )
+
+    unique_mat: EnumProperty(
+        name="Unique Material Type",
+        items=get_mat_colors,
         update=update_render_materials
     )
 

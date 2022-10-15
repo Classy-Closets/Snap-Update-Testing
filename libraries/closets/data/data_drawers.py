@@ -279,7 +279,7 @@ class Drawer_Stack(sn_types.Assembly):
             drawer.loc_x('Drawer_Box_Slide_Gap', [Drawer_Box_Slide_Gap])
             drawer.loc_y('-Door_to_Cabinet_Gap-(y*Open)', [Door_to_Cabinet_Gap, y, Open, Front_Thickness])
             drawer.loc_z('df_z_loc+DBBG', [df_z_loc, Drawer_Box_Bottom_Gap])
-            drawer.dim_x('dim_x-(Drawer_Box_Slide_Gap*2)', [dim_x, Drawer_Box_Slide_Gap])
+            drawer.dim_x('dim_x-(Drawer_Box_Slide_Gap*2)+IF(UD,INCH(0.05),0)', [dim_x, Drawer_Box_Slide_Gap, UD])
             # I had to reduce characters a TON to get this to work. If there is a better solution, please let me know.
             # This was the only way I could find of achieving this without causing a dependency cycle.
             # Please ask me, Teddy Ruth, if you need to figure out what is even going on here
