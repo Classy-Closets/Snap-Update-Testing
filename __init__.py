@@ -1,7 +1,7 @@
 bl_info = {
     "name": "SNaP",
     # "author": "Ryan Montes",
-    "version": (2, 5, 2),
+    "version": (2, 6, 0),
     "blender": (3, 00, 0),
     "location": "Tools Shelf",
     "description": "SNaP",
